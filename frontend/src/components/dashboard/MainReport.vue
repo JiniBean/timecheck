@@ -184,14 +184,15 @@ defineExpose({ copy: handleCopy });
 
 .preview {
   overflow-x: auto;
+  font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+  font-size: 10pt;
+  color: #222;
+  line-height: 1.5;
 }
 
 .title-line,
 .worker-line {
   margin: 0 0 8px;
-  font-size: var(--font-sm);
-  line-height: 1.5;
-  color: #334155;
 }
 
 .table {
@@ -199,16 +200,14 @@ defineExpose({ copy: handleCopy });
   table-layout: fixed;
   width: 500px;
   min-width: 500px;
-  border: 2px solid #222;
+  border: 1px solid #222;
   background: #fff;
-  font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
-  font-size: 10pt;
   font-variant-numeric: tabular-nums;
 }
 
 .table th,
 .table td {
-  border: 1.5px solid #222;
+  border: 1px solid #222;
   padding: 6px;
   text-align: center;
   white-space: pre;
@@ -220,8 +219,6 @@ defineExpose({ copy: handleCopy });
 
 .remarks {
   margin-top: 12px;
-  font-size: var(--font-sm);
-  color: #334155;
 }
 
 .remarks-title {

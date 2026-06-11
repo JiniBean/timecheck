@@ -4,6 +4,7 @@ const OT_REPORT_TABLE_WIDTH = "980px";
 const REPORT_CELL_PADDING = "6px";
 const REPORT_FONT_FAMILY = "\"Malgun Gothic\", \"맑은 고딕\", sans-serif";
 const REPORT_FONT_SIZE = "10pt";
+const REPORT_BORDER = "1px solid #222";
 
 export { EMPTY_CELL };
 
@@ -40,14 +41,14 @@ export function tableToInlineHtml(table: HTMLTableElement): string {
   clone.style.tableLayout = "fixed";
   clone.style.width = resolveInlineTableWidth(table);
   clone.style.maxWidth = "none";
-  clone.style.border = "2px solid #222";
+  clone.style.border = REPORT_BORDER;
   clone.style.background = "#fff";
   clone.style.fontFamily = REPORT_FONT_FAMILY;
   clone.style.fontSize = REPORT_FONT_SIZE;
 
   clone.querySelectorAll("th, td").forEach((cell) => {
     const el = cell as HTMLElement;
-    el.style.border = "1.5px solid #222";
+    el.style.border = REPORT_BORDER;
     el.style.padding = REPORT_CELL_PADDING;
     el.style.textAlign =
       el.classList.contains("ot-report-detail") || el.classList.contains("left") ? "left" : "center";
@@ -67,7 +68,7 @@ function resolveInlineTableWidth(table: HTMLTableElement): string {
 function reportContentToPlain(root: HTMLElement): string {
   const parts: string[] = [];
 
-  root.querySelectorAll(".report-title-line, .report-worker-line").forEach((node) => {
+  root.querySelectorAll(".title-line, .worker-line, .report-title-line, .report-worker-line").forEach((node) => {
     const text = node.textContent?.trim();
     if (text) {
       parts.push(text);
@@ -79,10 +80,10 @@ function reportContentToPlain(root: HTMLElement): string {
     parts.push(tableToTsv(table as HTMLTableElement));
   }
 
-  const remarks = root.querySelector(".report-remarks");
+  const remarks = root.querySelector(".remarks, .report-remarks");
   if (remarks) {
-    const title = remarks.querySelector(".report-remarks-title")?.textContent?.trim();
-    const lines = Array.from(remarks.querySelectorAll(".report-remarks-line"))
+    const title = remarks.querySelector(".remarks-title, .report-remarks-title")?.textContent?.trim();
+    const lines = Array.from(remarks.querySelectorAll(".remarks-line, .report-remarks-line"))
       .map((line) => line.textContent?.trim())
       .filter((line): line is string => Boolean(line));
     if (title && lines.length > 0) {
@@ -96,10 +97,16 @@ function reportContentToPlain(root: HTMLElement): string {
 function reportContentToHtml(root: HTMLElement): string {
   const clone = root.cloneNode(true) as HTMLElement;
 
-  clone.querySelectorAll(".report-title-line, .report-worker-line").forEach((node) => {
+  clone.style.fontFamily = REPORT_FONT_FAMILY;
+  clone.style.fontSize = REPORT_FONT_SIZE;
+  clone.style.color = "#222";
+  clone.style.lineHeight = "1.5";
+
+  clone.querySelectorAll(".title-line, .worker-line, .report-title-line, .report-worker-line").forEach((node) => {
     const el = node as HTMLElement;
     el.style.margin = "0 0 8px";
-    el.style.fontSize = "14px";
+    el.style.fontFamily = REPORT_FONT_FAMILY;
+    el.style.fontSize = REPORT_FONT_SIZE;
     el.style.lineHeight = "1.5";
     el.style.color = "#222";
   });
@@ -111,17 +118,20 @@ function reportContentToHtml(root: HTMLElement): string {
     table.replaceWith(styled.firstElementChild ?? styled);
   }
 
-  clone.querySelectorAll(".report-remarks").forEach((node) => {
+  clone.querySelectorAll(".remarks, .report-remarks").forEach((node) => {
     const el = node as HTMLElement;
     el.style.marginTop = "12px";
-    el.style.fontSize = "14px";
+    el.style.fontFamily = REPORT_FONT_FAMILY;
+    el.style.fontSize = REPORT_FONT_SIZE;
     el.style.color = "#222";
   });
 
-  clone.querySelectorAll(".report-remarks-title, .report-remarks-line").forEach((node) => {
+  clone.querySelectorAll(".remarks-title, .remarks-line, .report-remarks-title, .report-remarks-line").forEach((node) => {
     const el = node as HTMLElement;
     el.style.margin = "0 0 4px";
     el.style.padding = "0";
+    el.style.fontFamily = REPORT_FONT_FAMILY;
+    el.style.fontSize = REPORT_FONT_SIZE;
   });
 
   return clone.innerHTML;
