@@ -35,7 +35,7 @@ jobs:
         run: npm run build:deploy
 
       - name: Build Spring Boot JAR
-        run: ./mvnw -B -DskipTests package
+        run: bash mvnw -B -DskipTests package
 
       - name: Upload JAR artifact
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
