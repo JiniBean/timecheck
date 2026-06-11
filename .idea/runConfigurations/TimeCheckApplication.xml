@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="TimeCheckApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="TimeCheck" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.timecheck.TimeCheckApplication" />
+    <method v="2" />
+  </configuration>
+</component>

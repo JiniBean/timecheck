@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.timecheck.mapper.RecordMapper">
+
+    <select id="selectRecord" resultType="com.timecheck.model.Work">
+        SELECT
+            WORK_ID,
+            USER_ID,
+            WORK_DATE,
+            RAW_START AS rawStart,
+            RAW_END AS rawEnd,
+            MAIN_START AS mainStart,
+            MAIN_END AS mainEnd,
+            BASE,
+            MAIN,
+            EXTRA_1 AS extra1,
+            EXTRA_2 AS extra2,
+            OT_START AS otStart,
+            OT_END AS otEnd,
+            IS_OT AS isOt,
+            DAY_TYPE AS dayType,
+            LATE_IN AS lateIn,
+            EARLY_OUT AS earlyOut,
+            REMARK AS remark,
+            CREATED_AT,
+            UPDATED_AT
+        FROM WORK
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+          AND WORK_DATE = #{workDate, jdbcType=DATE}
+    </select>
+
+    <select id="selectRecordsBetweenDates" resultType="com.timecheck.model.Work">
+        SELECT
+            WORK_ID,
+            USER_ID,
+            WORK_DATE,
+            RAW_START AS rawStart,
+            RAW_END AS rawEnd,
+            MAIN_START AS mainStart,
+            MAIN_END AS mainEnd,
+            BASE,
+            MAIN,
+            EXTRA_1 AS extra1,
+            EXTRA_2 AS extra2,
+            OT_START AS otStart,
+            OT_END AS otEnd,
+            IS_OT AS isOt,
+            DAY_TYPE AS dayType,
+            LATE_IN AS lateIn,
+            EARLY_OUT AS earlyOut,
+            REMARK AS remark,
+            CREATED_AT,
+            UPDATED_AT
+        FROM WORK
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+          AND WORK_DATE BETWEEN #{startDate, jdbcType=DATE} AND #{endDate, jdbcType=DATE}
+        ORDER BY WORK_DATE ASC
+    </select>
+
+    <insert id="insertRecord" parameterType="com.timecheck.model.Work">
+        INSERT INTO WORK (
+            USER_ID,
+            WORK_DATE,
+            RAW_START,
+            RAW_END,
+            MAIN_START,
+            MAIN_END,
+            BASE,
+            MAIN,
+            EXTRA_1,
+            EXTRA_2,
+            OT_START,
+            OT_END,
+            IS_OT,
+            DAY_TYPE,
+            LATE_IN,
+            EARLY_OUT,
+            REMARK
+        ) VALUES (
+            #{userId, jdbcType=BIGINT},
+            #{workDate, jdbcType=DATE},
+            #{rawStart, jdbcType=TIMESTAMP},
+            #{rawEnd, jdbcType=TIMESTAMP},
+            #{mainStart, jdbcType=TIMESTAMP},
+            #{mainEnd, jdbcType=TIMESTAMP},
+            COALESCE(#{base, jdbcType=INTEGER}, 0),
+            COALESCE(#{main, jdbcType=INTEGER}, 0),
+            COALESCE(#{extra1, jdbcType=INTEGER}, 0),
+            COALESCE(#{extra2, jdbcType=INTEGER}, 0),
+            #{otStart, jdbcType=TIMESTAMP},
+            #{otEnd, jdbcType=TIMESTAMP},
+            COALESCE(#{isOt, jdbcType=BOOLEAN}, 0),
+            COALESCE(#{dayType, jdbcType=VARCHAR}, 'NOM'),
+            #{lateIn, jdbcType=TIME},
+            #{earlyOut, jdbcType=TIME},
+            #{remark, jdbcType=LONGVARCHAR}
+        )
+    </insert>
+
+    <update id="updateRecord" parameterType="com.timecheck.model.Work">
+        UPDATE WORK
+        <set>
+            <if test="clearRawStart == true">RAW_START = NULL,</if>
+            <if test="clearRawEnd == true">RAW_END = NULL,</if>
+            <if test="clearMainStart == true">MAIN_START = NULL,</if>
+            <choose>
+                <when test="clearMainEnd == true">MAIN_END = NULL,</when>
+                <when test="mainEnd != null">MAIN_END = #{mainEnd, jdbcType=TIMESTAMP},</when>
+            </choose>
+            <choose>
+                <when test="clearOtStart == true">OT_START = NULL,</when>
+                <when test="otStart != null">OT_START = #{otStart, jdbcType=TIMESTAMP},</when>
+            </choose>
+            <choose>
+                <when test="clearOtEnd == true">OT_END = NULL,</when>
+                <when test="otEnd != null">OT_END = #{otEnd, jdbcType=TIMESTAMP},</when>
+            </choose>
+            <if test="rawStart != null">RAW_START = #{rawStart, jdbcType=TIMESTAMP},</if>
+            <if test="rawEnd != null">RAW_END = #{rawEnd, jdbcType=TIMESTAMP},</if>
+            <if test="mainStart != null">MAIN_START = #{mainStart, jdbcType=TIMESTAMP},</if>
+            <if test="base != null">BASE = #{base, jdbcType=INTEGER},</if>
+            <if test="main != null">MAIN = #{main, jdbcType=INTEGER},</if>
+            <if test="extra1 != null">EXTRA_1 = #{extra1, jdbcType=INTEGER},</if>
+            <if test="extra2 != null">EXTRA_2 = #{extra2, jdbcType=INTEGER},</if>
+            <if test="isOt != null">IS_OT = #{isOt, jdbcType=BOOLEAN},</if>
+            <if test="dayType != null">DAY_TYPE = #{dayType, jdbcType=VARCHAR},</if>
+            <if test="lateIn != null">LATE_IN = #{lateIn, jdbcType=TIME},</if>
+            <if test="earlyOut != null">EARLY_OUT = #{earlyOut, jdbcType=TIME},</if>
+            REMARK = #{remark, jdbcType=LONGVARCHAR},
+        </set>
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+          AND WORK_DATE = #{workDate, jdbcType=DATE}
+    </update>
+</mapper>

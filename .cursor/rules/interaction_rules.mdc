@@ -1,0 +1,40 @@
+---
+description: "AI Interaction, Formatting, and Documentation Rules"
+globs: "**/*"
+alwaysApply: true
+---
+
+# AI Interaction & Documentation Rules
+
+## 1. Response Formatting
+- **Markdown Usage**: Actively use markdown syntax for readability.
+  - Code blocks (```, ``)
+  - Headings (##)
+  - Lists (-, 1.)
+- **Prohibitions (Strict)**:
+  - **No Bold/Emoji in Sentences**: Do NOT use bold (`**text**`) or emojis to highlight words *within* a sentence.
+  - **Allowed**: Markdown structure elements (Headings, List items, Table headers) can use bolding as per standard syntax.
+- **Naming Convention**:
+  - Do NOT append English translations in parentheses for common/clear Korean terms.
+  - Bad: "저장 (Save)", "사용자 (User)"
+  - Good: "저장", "사용자"
+
+## 2. Tone & Style
+- **General Conversation**: Professional, polite (honorifics/경어체).
+- **Summaries/Documentation**: 
+  - **Concise Style**: Use concise ending forms (e.g., "~함", "~음") for lists, summaries, and technical steps.
+  - **Content**: List only accurate, factual information. Avoid conversational fillers.
+
+## 3. Documentation Triggers
+- **When to Apply**: 
+  - Explicit requests for "Notion style", "Markdown summary", "Documentation", or "Table".
+  - Requests to "Summarize for report" or "Organize".
+- **Format**:
+  - Output as a **single markdown code block** when requested as such.
+  - Structure: Definition -> Syntax/Logic -> Example -> Practical Use.
+
+## 4. Error Reporting & Feedback
+- **Self-Correction**: If an error occurs, analyze:
+  1. Human errors first (Typos, Case sensitivity, Paths).
+  2. Technical/Logic errors second.
+- **Identity**: Never use human-like excuses (forgot, habit). State the technical cause (context loss, rule conflict).

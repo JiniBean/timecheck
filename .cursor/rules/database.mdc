@@ -1,0 +1,98 @@
+---
+alwaysApply: true
+---
+# Database Schema and SQL Rules
+
+## Database Information
+- Database Type: SQLite (파일 DB)
+- File Path: `./data/timecheck.db` (기본값, `timecheck.db.path`로 변경 가능)
+- 별도 DB 서버 설치 불필요
+
+## Schema Definition
+
+
+
+### USERS (사용자 정보 테이블)
+```sql
+CREATE TABLE IF NOT EXISTS USERS (
+    USER_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    USERNAME VARCHAR(50) NOT NULL UNIQUE COMMENT '로그인 아이디',
+    PWD VARCHAR(255) NOT NULL COMMENT '암호화된 비밀번호',
+    USER_NAME VARCHAR(100) NOT NULL COMMENT '사용자 이름',
+    DEPARTMENT VARCHAR(100) COMMENT '부서명',
+    TEAM VARCHAR(100) COMMENT '팀명',
+    CREATED_AT TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    UPDATED_AT TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시'
+) COMMENT='사용자 정보';
+```
+
+**컬럼 설명:**
+- `USER_ID`: 사용자 고유 식별자 (PK, AUTO_INCREMENT)
+- `USERNAME`: 로그인 아이디 (UNIQUE)
+- `PWD`: 비밀번호 해시값
+- `USER_NAME`: 사용자 이름
+- `DEPARTMENT`: 부서명
+- `TEAM`: 팀명
+- `CREATED_AT`: 생성일시
+- `UPDATED_AT`: 수정일시
+
+### WORK (출퇴근 기록 테이블)
+- 모델: `com.timecheck.model.Work` — 컬럼명은 필드명 대문자 + camelCase → snake_case
+
+```sql
+CREATE TABLE IF NOT EXISTS WORK (
+    WORK_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+    USER_ID BIGINT NOT NULL COMMENT '사용자 PK',
+    WORK_DATE DATE NOT NULL COMMENT '근무일자',
+    RAW_START DATETIME COMMENT '원시 출근 일시',
+    RAW_END DATETIME COMMENT '원시 퇴근 일시',
+    MAIN_START DATETIME COMMENT '일반근무 인정 출근 일시',
+    MAIN_END DATETIME COMMENT '일반근무 인정 퇴근 일시',
+    BASE INT NOT NULL DEFAULT 0 COMMENT '기준 근무시간(분)',
+    MAIN INT NOT NULL DEFAULT 0 COMMENT '일반근무시간(분)',
+    EXTRA_1 INT NOT NULL DEFAULT 0 COMMENT '시간외근무 1형(22:00 이전, 분)',
+    EXTRA_2 INT NOT NULL DEFAULT 0 COMMENT '시간외근무 2형(22:00 이후, 분)',
+    OT_START DATETIME COMMENT '시간외근무 시작 일시',
+    OT_END DATETIME COMMENT '시간외근무 종료 일시',
+    IS_OT BOOLEAN NOT NULL DEFAULT FALSE COMMENT '야근 지정 여부',
+    DAY_TYPE VARCHAR(10) NOT NULL DEFAULT 'NOM' COMMENT '근무일 유형(NOM, AM, PM, MON, ANN, HOL)',
+    LATE_IN TIME COMMENT '공지 출근 기준 시각',
+    EARLY_OUT TIME COMMENT '공지 퇴근 기준 시각',
+    REMARK TEXT COMMENT '비고',
+    CREATED_AT TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '생성일시',
+    UPDATED_AT TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '수정일시',
+    CONSTRAINT UK_WORK_USER_DATE UNIQUE (USER_ID, WORK_DATE),
+    CONSTRAINT CK_WORK_DAY_TYPE CHECK (DAY_TYPE IN ('NOM', 'AM', 'PM', 'MON', 'ANN', 'HOL')),
+    INDEX IDX_WORK_WORK_DATE (WORK_DATE),
+    INDEX IDX_WORK_USER_DATE (USER_ID, WORK_DATE)
+) COMMENT='출퇴근 및 근무시간 기록';
+```
+
+**컬럼 (Work 필드 → 대문자 snake_case):**
+- workId → WORK_ID, userId → USER_ID, workDate → WORK_DATE
+- rawStart → RAW_START, rawEnd → RAW_END, mainStart → MAIN_START, mainEnd → MAIN_END
+- base → BASE, main → MAIN
+- extra1 → EXTRA_1, extra2 → EXTRA_2
+- otStart → OT_START, otEnd → OT_END
+- isOt → IS_OT, dayType → DAY_TYPE, lateIn → LATE_IN, earlyOut → EARLY_OUT
+- remark → REMARK, createdAt → CREATED_AT, updatedAt → UPDATED_AT
+
+**제약조건:**
+- UK_WORK_USER_DATE, CK_WORK_DAY_TYPE, IDX_WORK_WORK_DATE, IDX_WORK_USER_DATE
+
+## SQL Coding Rules
+
+### MyBatis Mapper XML 규칙
+- 파일명: `*Mapper.xml` 형식
+- 위치: `src/main/resources/mappers/`
+- 네이밍: camelCase to snake_case 자동 매핑 활성화 (`map-underscore-to-camel-case: true`)
+
+### SQL 작성 규칙
+- 테이블명: 대문자 (`USERS`, `WORK`)
+- 컬럼명: Work 필드와 동일하게 대문자 + snake_case (`WORK_ID`, `RAW_START`, `RAW_END`, `MAIN_START`, `MAIN_END`, `BASE`, `MAIN`, `EXTRA_1`, `EXTRA_2`, `OT_START`, `OT_END` 등)
+- 동적 SQL: `<if>`, `<choose>`, `<foreach>` 등 MyBatis 태그 활용
+- 파라미터 바인딩: `#{propertyName}` 형식 사용
+- 리터럴: `${}` 사용 금지 (SQL Injection 방지)
+
+### 관계 정의
+- `WORK.USER_ID` → `USERS.USER_ID` (Foreign Key 관계는 애플리케이션 레벨 관리)

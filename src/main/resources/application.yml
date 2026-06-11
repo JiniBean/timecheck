@@ -1,0 +1,53 @@
+spring:
+  devtools:
+    restart:
+      quiet-period: 2s
+      poll-interval: 4s
+      additional-exclude: frontend/**,node_modules/**,.cursor/**
+  output:
+    ansi:
+      enabled: always
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:${timecheck.db.path:./data/timecheck.db}
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  session:
+    jdbc:
+      initialize-schema: always
+    timeout: 36500d
+    cookie:
+      max-age: 36500d
+      same-site: lax
+      secure: true
+      http-only: true
+
+timecheck:
+  db:
+    path: ./data/timecheck.db
+  session:
+    # 브라우저 쿠키 Max-Age(초). Cookie API int 상한(2147483647, 약 68년)까지 적용
+    cookie-max-age-seconds: 2147483647
+    cookie-secure: true
+    # LAST_ACCESS_TIME 기준 고아 세션 정리 (Spring Session EXPIRY_TIME 정리와 별도)
+    stale-access-threshold-days: 30
+    stale-cleanup-cron: "0 0 3 * * *"
+
+server:
+  port: 2406
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      timeout: 36500d
+      cookie:
+        max-age: 36500d
+        same-site: lax
+        secure: true
+        http-only: true
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:mappers/*Mapper.xml
