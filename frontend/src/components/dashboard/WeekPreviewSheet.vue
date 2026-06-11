@@ -481,6 +481,12 @@ function rowToneClass(row: WeekPreviewRow): string {
   line-height: 1.4;
 }
 
+@media (max-width: 767px) {
+  .week-preview-panel {
+    min-height: 50dvh;
+  }
+}
+
 @media (min-width: 768px) {
   .week-preview-backdrop {
     align-items: center;

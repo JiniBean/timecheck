@@ -48,31 +48,32 @@
 - **프론트/백 계산 일관성** — 대시보드 미리보기와 서버 저장 시 동일 규칙 적용
 - **반응형 UI** — 데스크톱 테이블 뷰와 모바일 탭 레이아웃 분기
 
-## 빌드
+## 구축 및 실행
+
+### 개발
+
+```bash
+# 백엔드 (포트 2406)
+./mvnw spring-boot:run
+
+# 프론트 (포트 5173, /api는 Spring으로 프록시)
+cd frontend && npm install && npm run dev
+```
+
+### 운영 빌드
 
 ```bash
 cd frontend && npm ci && npm run build:deploy && cd ..
 ./mvnw -DskipTests package
 ```
 
-산출물: `target/ROOT.jar` (프론트 정적 파일 포함)
+산출물: `target/ROOT.jar`
 
-## CI/CD (GitHub Actions)
+```bash
+java -jar target/ROOT.jar
+```
 
-`main` 브랜치 push/PR 시 [`.github/workflows/ci.yml`](.github/workflows/ci.yml)이 빌드를 실행합니다.
-
-자동 배포를 켜려면 GitHub 저장소에 아래를 설정합니다.
-
-| 종류 | 이름 | 설명 |
-|------|------|------|
-| Repository variable | `ENABLE_DEPLOY` | `true`로 설정 시 main push 후 배포 job 실행 |
-| Secret | `DEPLOY_HOST` | 배포 서버 호스트 |
-| Secret | `DEPLOY_USER` | SSH 사용자 |
-| Secret | `DEPLOY_SSH_KEY` | SSH 개인키 (PEM) |
-| Secret | `DEPLOY_PATH` | JAR 업로드 대상 디렉터리 |
-| Secret | `DEPLOY_PORT` | (선택) SSH 포트, 기본 22 |
-
-서버에는 `timecheck` systemd 유닛이 `DEPLOY_PATH`의 JAR을 실행하도록 구성되어 있어야 합니다.
+SQLite DB는 `./data/timecheck.db`에 생성됩니다.
 
 ## 스크린샷
 

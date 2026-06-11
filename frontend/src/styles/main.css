@@ -2,10 +2,10 @@
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
   color: #1f2937;
   background-color: #f4f6fb;
-  --mobile-page-pad-inline: clamp(16px, 2.2vh, 20px);
-  --mobile-card-pad: clamp(12px, 1.6vh, 16px);
+  --mobile-page-pad-inline: clamp(12px, 1.6vh, 16px);
+  --mobile-card-pad: clamp(10px, 1.3vh, 14px);
   --mobile-card-pad-y: clamp(14px, 2vh, 18px);
-  --mobile-header-gap: clamp(18px, 2.8vh, 24px);
+  --mobile-header-gap: clamp(14px, 2vh, 18px);
   --mobile-section-gap: clamp(14px, 2vh, 18px);
   --mobile-tab-entry-gap: clamp(8px, 1.2vh, 10px);
   --mobile-group-gap: clamp(6px, 0.9vh, 8px);
@@ -346,7 +346,7 @@ body {
 }
 
 .dashboard-body > .dashboard-nav {
-  margin-bottom: var(--mobile-section-gap);
+  margin-bottom: var(--mobile-tab-entry-gap);
 }
 
 .dashboard-body > .dashboard-mobile-tabs {
@@ -542,6 +542,17 @@ body {
 .dashboard-body > .dashboard-punch-card {
   width: 100%;
   max-width: 100%;
+}
+
+@media (max-width: 1023px) {
+  .dashboard-body > .dashboard-work-column,
+  .dashboard-body > .dashboard-ot-column {
+    margin-bottom: var(--mobile-group-gap);
+  }
+
+  .dashboard-body > .dashboard-punch-card {
+    padding-block-start: clamp(10px, 1.4vh, 13px);
+  }
 }
 
 @media (min-width: 768px) {

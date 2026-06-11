@@ -229,10 +229,11 @@ function onInlineOtConfirm(hhmm: string) {
   display: flex;
   flex-direction: column;
   gap: var(--mobile-inset-gap);
+  --punch-status-action-gap: clamp(12px, 1.8vh, 16px);
 }
 
 .punch-card > .card-head-tight {
-  margin-bottom: 0;
+  margin-bottom: calc(var(--punch-status-action-gap) - var(--mobile-inset-gap));
 }
 
 .punch-card :deep(.status-badge) {
@@ -348,7 +349,8 @@ function onInlineOtConfirm(hhmm: string) {
 .settings-row {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px 12px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -383,7 +385,8 @@ function onInlineOtConfirm(hhmm: string) {
 
 @media (min-width: 768px) {
   .settings-row {
-    padding: 12px 14px;
+    padding: 14px 14px;
+    min-height: 48px;
   }
 
   .settings-value {
