@@ -12,7 +12,8 @@ export async function signup(form: SignupForm): Promise<AuthUser> {
     password: form.password,
     userName: form.userName,
     department: form.department || null,
-    team: form.team || null
+    team: form.team || null,
+    position: form.position || null
   });
   return data.user;
 }
@@ -32,7 +33,8 @@ export async function updateProfile(form: ProfileForm): Promise<AuthUser> {
     password: form.password || null,
     userName: form.userName,
     department: form.department || null,
-    team: form.team || null
+    team: form.team || null,
+    position: form.position || null
   });
   return data.user;
 }

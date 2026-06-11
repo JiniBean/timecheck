@@ -19,6 +19,7 @@ export interface MainReportApiResponse {
   department: string;
   team: string;
   userName: string;
+  position: string | null;
 }
 
 export function buildMainReportData(
@@ -83,6 +84,7 @@ function buildHeader(payload: MainReportApiResponse, weekStart: string): WeeklyR
     department: payload.department ?? "",
     team: payload.team ?? "",
     userName: payload.userName ?? "",
+    position: payload.position ?? null,
     reportMonth: Number(weekStart.split("-")[1]) || 1,
     reportWeekNumber: weekNumberInMonth(weekStart)
   };
@@ -278,8 +280,9 @@ function buildTitleLine(header: WeeklyReportHeader): string {
   const dept = header.department?.trim() ?? "";
   const team = header.team?.trim() ?? "";
   const name = header.userName?.trim() ?? "";
+  const rank = header.position?.trim() || "사원";
   const prefix = [dept, team, name].filter(Boolean).join(" ");
-  const suffix = prefix ? `${prefix} 사원` : "사원";
+  const suffix = prefix ? `${prefix} ${rank}` : rank;
   return `${suffix} ${header.reportMonth}월 ${header.reportWeekNumber}주차 근무 결과 보고서입니다.`;
 }
 

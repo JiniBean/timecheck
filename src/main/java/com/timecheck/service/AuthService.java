@@ -53,6 +53,7 @@ public class AuthService {
         String userName = normalizeRequired(req.userName(), "이름");
         String department = normalizeOptional(req.department(), DEPARTMENT_MAX_LENGTH);
         String team = normalizeOptional(req.team(), DEPARTMENT_MAX_LENGTH);
+        String position = normalizeOptional(req.position(), DEPARTMENT_MAX_LENGTH);
 
         validateUsername(username);
         validatePassword(password);
@@ -68,6 +69,7 @@ public class AuthService {
                 .displayName(userName)
                 .department(department)
                 .team(team)
+                .position(position)
                 .build();
         userMapper.insertUser(user);
 
@@ -133,6 +135,7 @@ public class AuthService {
         String userName = normalizeRequired(req.userName(), "이름");
         String department = normalizeOptional(req.department(), DEPARTMENT_MAX_LENGTH);
         String team = normalizeOptional(req.team(), DEPARTMENT_MAX_LENGTH);
+        String position = normalizeOptional(req.position(), DEPARTMENT_MAX_LENGTH);
         String password = normalizeOptionalPassword(req.password());
 
         validateUsername(username);
@@ -152,6 +155,7 @@ public class AuthService {
                 .displayName(userName)
                 .department(department)
                 .team(team)
+                .position(position)
                 .pwd(password != null ? passwordEncoder.encode(password) : null)
                 .build();
         userMapper.updateUser(update);

@@ -54,6 +54,7 @@ function createEmptyWeeklyReport(): WeeklyReport {
       department: "",
       team: "",
       userName: "",
+      position: null,
       reportMonth: 1,
       reportWeekNumber: 1
     }

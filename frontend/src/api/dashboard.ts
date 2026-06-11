@@ -110,7 +110,8 @@ export async function fetchWeeklyReport(userId: number, referenceDate?: string):
       records,
       department: data.department ?? "",
       team: data.team ?? "",
-      userName: data.userName ?? ""
+      userName: data.userName ?? "",
+      position: data.position ?? null
     },
     ref,
     userId

@@ -5,4 +5,5 @@ public record ProfileReq(
         String password,
         String userName,
         String department,
-        String team) {}
+        String team,
+        String position) {}

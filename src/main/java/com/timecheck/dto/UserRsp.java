@@ -7,7 +7,8 @@ public record UserRsp(
         String username,
         String userName,
         String department,
-        String team) {
+        String team,
+        String position) {
 
     public static UserRsp from(User user) {
         return new UserRsp(
@@ -15,6 +16,7 @@ public record UserRsp(
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getDepartment(),
-                user.getTeam());
+                user.getTeam(),
+                user.getPosition());
     }
 }

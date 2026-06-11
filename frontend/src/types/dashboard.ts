@@ -49,6 +49,7 @@ export interface WeeklyReportHeader {
   department: string;
   team: string;
   userName: string;
+  position: string | null;
   reportMonth: number;
   reportWeekNumber: number;
 }

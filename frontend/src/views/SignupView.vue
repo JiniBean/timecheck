@@ -13,7 +13,8 @@ const form = ref<SignupForm>({
   password: "",
   userName: "",
   department: "",
-  team: ""
+  team: "",
+  position: ""
 });
 const errorMessage = ref<string | null>(null);
 const loading = ref(false);
@@ -91,6 +92,11 @@ function extractErrorMessage(error: unknown, fallback: string): string {
         <label class="field">
           <span class="field-label">이름</span>
           <input v-model="form.userName" class="text-input" type="text" autocomplete="name" required />
+        </label>
+
+        <label class="field">
+          <span class="field-label">직급</span>
+          <input v-model="form.position" class="text-input" type="text" placeholder="예: 사원" />
         </label>
 
         <label class="field">

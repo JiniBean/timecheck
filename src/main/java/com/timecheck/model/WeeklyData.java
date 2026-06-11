@@ -28,4 +28,5 @@ public class WeeklyData {
     private String department;
     private String team;
     private String userName;
+    private String position;
 }

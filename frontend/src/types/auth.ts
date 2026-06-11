@@ -4,6 +4,7 @@ export interface AuthUser {
   userName: string;
   department: string | null;
   team: string | null;
+  position: string | null;
 }
 
 export interface LoginForm {
@@ -17,6 +18,7 @@ export interface SignupForm {
   userName: string;
   department: string;
   team: string;
+  position: string;
 }
 
 export interface ProfileForm {
@@ -25,4 +27,5 @@ export interface ProfileForm {
   userName: string;
   department: string;
   team: string;
+  position: string;
 }

@@ -21,4 +21,6 @@ public class User {
     private String displayName;
     private String department;
     private String team;
+    /** USERS.POSITION — 직급 (nullable) */
+    private String position;
 }
