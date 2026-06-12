@@ -73,13 +73,13 @@ function openPreview() {
 
 @media (hover: hover) and (pointer: fine) {
   .summary-card:hover {
-    background-color: #fafbfc;
-    box-shadow: 0 8px 22px rgba(17, 24, 39, 0.08);
+    background-color: var(--color-surface-preview);
+    box-shadow: 0 8px 22px var(--color-shadow-elevated);
   }
 }
 
 .summary-card:focus-visible {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid var(--color-primary-ring);
   outline-offset: 2px;
 }
 </style>

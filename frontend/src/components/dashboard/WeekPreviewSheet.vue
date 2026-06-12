@@ -309,7 +309,7 @@ function rowToneClass(row: WeekPreviewRow): string {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--color-overlay);
 }
 
 .week-preview-panel {
@@ -318,10 +318,10 @@ function rowToneClass(row: WeekPreviewRow): string {
   max-height: min(92dvh, 720px);
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: var(--color-surface);
   border-radius: 16px 16px 0 0;
   padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 -4px 24px var(--color-shadow-modal);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -338,12 +338,12 @@ function rowToneClass(row: WeekPreviewRow): string {
 .week-preview-title {
   margin: 0;
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .week-preview-subtitle {
   margin: 4px 0 0;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-sm);
 }
 
@@ -353,17 +353,17 @@ function rowToneClass(row: WeekPreviewRow): string {
   padding: 8px 12px;
   border: none;
   border-radius: 8px;
-  background-color: #f1f5f9;
-  color: #334155;
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
   font-size: var(--font-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
 .week-preview-loading {
   padding: 24px 0;
   text-align: center;
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .week-preview-summary {
@@ -386,19 +386,19 @@ function rowToneClass(row: WeekPreviewRow): string {
 .week-preview-table td {
   padding: 10px 6px;
   text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .week-preview-table thead th {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-sm);
-  font-weight: 600;
-  border-bottom: 1px solid #d1d5db;
+  font-weight: var(--weight-semibold);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .week-preview-table tbody th[scope="row"] {
-  color: #334155;
-  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-semibold);
 }
 
 .row-tone-fixed {
@@ -406,15 +406,15 @@ function rowToneClass(row: WeekPreviewRow): string {
 }
 
 .row-tone-preview {
-  background-color: #fafbfc;
+  background-color: var(--color-surface-preview);
 }
 
 .row-today {
-  background-color: #f0f9ff;
+  background-color: var(--color-row-today);
 }
 
 .row-today.row-tone-preview {
-  background-color: #eff6ff;
+  background-color: var(--color-primary-soft);
 }
 
 .cell-editable {
@@ -425,7 +425,7 @@ function rowToneClass(row: WeekPreviewRow): string {
   .week-preview-table tbody .cell-editable:hover,
   .row-today .cell-editable.cell-tone-projected:hover,
   .row-today .cell-editable.cell-tone-edited:hover {
-    color: #1a1a1a;
+    color: var(--color-text);
   }
 
   .row-tone-preview .cell-editable:hover {
@@ -438,45 +438,45 @@ function rowToneClass(row: WeekPreviewRow): string {
 }
 
 .cell-tone-fixed {
-  color: #97a1ac;
-  font-weight: 500;
+  color: var(--color-preview-fixed);
+  font-weight: var(--weight-medium);
 }
 
 .cell-tone-projected {
-  color: #5a6674;
-  font-weight: 500;
+  color: var(--color-preview-projected);
+  font-weight: var(--weight-medium);
 }
 
 .cell-tone-edited {
-  color: #333333;
-  font-weight: 600;
+  color: var(--color-preview-edited);
+  font-weight: var(--weight-semibold);
 }
 
 .cell-tone-muted {
-  color: #97a1ac;
-  font-weight: 500;
+  color: var(--color-preview-fixed);
+  font-weight: var(--weight-medium);
 }
 
 .cell-tone-weekday-preview {
-  color: #333333;
-  font-weight: 700;
+  color: var(--color-preview-edited);
+  font-weight: var(--weight-semibold);
 }
 
 .row-today .cell-tone-fixed {
-  color: #8a95a3;
+  color: var(--color-preview-today-fixed);
 }
 
 .row-today .cell-tone-projected {
-  color: #54606e;
+  color: var(--color-preview-today-projected);
 }
 
 .row-today .cell-tone-edited {
-  color: #333333;
+  color: var(--color-preview-edited);
 }
 
 .week-preview-hint {
   margin: 12px 0 0;
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
   font-size: var(--font-sm);
   line-height: 1.4;
 }

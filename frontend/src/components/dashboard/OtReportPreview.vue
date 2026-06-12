@@ -274,7 +274,7 @@ defineExpose({ copy: handleCopy, hasRows });
 }
 
 .empty {
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
   padding: 12px 6px;
 }
 </style>

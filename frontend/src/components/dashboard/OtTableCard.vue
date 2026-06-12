@@ -266,29 +266,29 @@ const settingsTitle = computed(() =>
 .table td {
   padding: 8px 6px;
   text-align: center;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .table thead th {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-sm);
-  font-weight: 600;
-  border-bottom: 1px solid #d1d5db;
+  font-weight: var(--weight-semibold);
+  border-bottom: 1px solid var(--color-border-strong);
 }
 
 .table tbody th[scope="row"] {
-  color: #334155;
-  font-weight: 700;
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-semibold);
 }
 
 .row-today {
-  background-color: #f0f9ff;
+  background-color: var(--color-row-today);
 }
 
 .row-today th,
 .row-today td {
-  color: #0f172a;
-  font-weight: 600;
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
 }
 
 .cell-editable {
@@ -298,7 +298,7 @@ const settingsTitle = computed(() =>
 
 @media (hover: hover) and (pointer: fine) {
   .cell-editable:hover {
-    background-color: #f8fafc;
+    background-color: var(--color-surface-muted);
   }
 
   .cell-disabled:hover {
@@ -308,15 +308,15 @@ const settingsTitle = computed(() =>
 
 .cell-disabled {
   cursor: default;
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
 }
 
 .cell-preview {
-  color: #cbd5e1;
-  font-weight: 500;
+  color: var(--color-text-disabled);
+  font-weight: var(--weight-medium);
 }
 
 .row-today .cell-preview {
-  color: #94a3b8;
+  color: var(--color-text-placeholder);
 }
 </style>

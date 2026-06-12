@@ -426,17 +426,17 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--color-overlay);
 }
 
 .panel {
   width: min(100%, 420px);
   max-height: min(88dvh, 560px);
   overflow-y: auto;
-  background-color: #ffffff;
+  background-color: var(--color-surface);
   border-radius: 16px;
   padding: 12px 14px 16px;
-  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 -4px 24px var(--color-shadow-modal);
   outline: none;
 }
 
@@ -448,12 +448,12 @@ onUnmounted(() => {
 .title {
   margin: 0 0 4px;
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .hint {
   margin: 0 0 10px;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: var(--font-sm);
 }
 
@@ -479,7 +479,7 @@ onUnmounted(() => {
   z-index: 2;
   height: var(--picker-item-h);
   padding: 0 4px;
-  background-color: rgba(15, 23, 42, 0.05);
+  background-color: var(--color-shadow-elevated);
   border-radius: 8px;
   pointer-events: none;
   transform: translateY(-50%);
@@ -533,9 +533,9 @@ onUnmounted(() => {
   border: none;
   background: transparent;
   font-size: var(--font-xl);
-  font-weight: 600;
+  font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
-  color: #1f2937;
+  color: var(--color-text);
   scroll-snap-align: center;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -550,16 +550,16 @@ onUnmounted(() => {
   width: 72px;
   height: 36px;
   padding: 0;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   border-radius: 8px;
-  background: #ffffff;
-  color: #0f172a;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   text-align: center;
   pointer-events: auto;
-  caret-color: #0f172a;
+  caret-color: var(--color-text);
 }
 
 .wheel-input::selection {
@@ -572,9 +572,9 @@ onUnmounted(() => {
 
 .wheel-sep {
   padding: 0 2px;
-  color: #6b7280;
+  color: var(--color-text-muted);
   font-size: var(--font-xl);
-  font-weight: 800;
+  font-weight: var(--weight-semibold);
   line-height: 1;
 }
 

@@ -109,7 +109,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 .auth-error {
   margin: 0;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: var(--font-sm);
 }
 
@@ -120,12 +120,12 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 .auth-footer {
   margin: 18px 0 0;
   text-align: center;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-sm);
 }
 
 .auth-footer a {
-  color: #2563eb;
+  color: var(--color-primary);
   text-decoration: none;
 }
 </style>

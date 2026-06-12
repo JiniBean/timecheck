@@ -43,7 +43,7 @@ function handleClick() {
 
 .toast {
   font-size: var(--font-sm);
-  color: #16a34a;
+  color: var(--color-success-text);
   white-space: nowrap;
 }
 

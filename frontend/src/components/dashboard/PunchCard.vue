@@ -244,10 +244,10 @@ function onInlineOtConfirm(hhmm: string) {
   margin: 0 0 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: var(--color-text);
+  color: var(--color-surface-muted);
   font-size: var(--font-sm);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   text-align: center;
 }
 
@@ -265,9 +265,9 @@ function onInlineOtConfirm(hhmm: string) {
   margin: 0;
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--color-text-secondary);
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   padding: 2px 0;
@@ -279,7 +279,7 @@ function onInlineOtConfirm(hhmm: string) {
 
 @media (hover: hover) and (pointer: fine) {
   .time-btn:hover {
-    color: #0f172a;
+    color: var(--color-text);
   }
 }
 
@@ -289,7 +289,7 @@ function onInlineOtConfirm(hhmm: string) {
 
 .time-btn:disabled {
   cursor: default;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .ot-row {
@@ -304,29 +304,29 @@ function onInlineOtConfirm(hhmm: string) {
   align-items: flex-start;
   gap: 4px;
   padding: 10px 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  background-color: #f8fafc;
+  background-color: var(--color-surface-muted);
   cursor: pointer;
   text-align: left;
 }
 
 .ot-chip-label {
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-xs);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 .ot-chip-value {
-  color: #0f172a;
+  color: var(--color-text);
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
 }
 
 .ot-chip.preview .ot-chip-value {
-  color: #94a3b8;
-  font-weight: 600;
+  color: var(--color-text-placeholder);
+  font-weight: var(--weight-semibold);
 }
 
 .main-row {
@@ -347,7 +347,7 @@ function onInlineOtConfirm(hhmm: string) {
 }
 
 .settings-row {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 12px 12px;
   min-height: 46px;
@@ -361,11 +361,11 @@ function onInlineOtConfirm(hhmm: string) {
 }
 
 .settings-row:active {
-  background-color: #f8fafc;
+  background-color: var(--color-surface-muted);
 }
 
 .settings-row:focus-visible {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid var(--color-primary-ring);
   outline-offset: 2px;
 }
 
@@ -375,9 +375,9 @@ function onInlineOtConfirm(hhmm: string) {
 
 .settings-value {
   margin: 0;
-  color: #0f172a;
+  color: var(--color-text);
   font-size: var(--font-base);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

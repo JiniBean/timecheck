@@ -109,7 +109,7 @@ function onRemarkInput(event: Event) {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--color-overlay);
 }
 
 .panel {
@@ -119,16 +119,16 @@ function onRemarkInput(event: Event) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  background-color: var(--color-surface);
   border-radius: 16px;
   padding: 12px 14px 16px;
-  box-shadow: 0 -4px 24px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 -4px 24px var(--color-shadow-modal);
 }
 
 .title {
   margin: 0 0 4px;
   font-size: var(--font-lg);
-  font-weight: 700;
+  font-weight: var(--weight-semibold);
 }
 
 .body {
@@ -157,20 +157,20 @@ function onRemarkInput(event: Event) {
 }
 
 .option {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 12px 10px;
-  background-color: #ffffff;
-  color: #334155;
+  background-color: var(--color-surface);
+  color: var(--color-text-secondary);
   font-size: var(--font-md);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
   cursor: pointer;
 }
 
 .option.active {
-  border-color: #0ea5e9;
-  background-color: #f0f9ff;
-  color: #0369a1;
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-text);
 }
 
 .toggle {

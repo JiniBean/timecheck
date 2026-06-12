@@ -63,9 +63,9 @@ function onCenterKeydown(event: KeyboardEvent) {
 }
 
 .btn {
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #334155;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
   width: 36px;
   height: 36px;
   border-radius: 8px;
@@ -86,17 +86,17 @@ function onCenterKeydown(event: KeyboardEvent) {
 
 .center.clickable {
   cursor: pointer;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--color-border-strong);
   -webkit-tap-highlight-color: transparent;
 }
 
 .center.clickable:active {
-  background-color: #f1f5f9;
+  background-color: var(--color-surface-subtle);
 }
 
 .label {
   font-size: var(--font-base);
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
 }
 </style>

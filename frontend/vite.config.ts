@@ -50,7 +50,7 @@ export default defineConfig({
         name: "TimeCheck",
         short_name: "TimeCheck",
         description: "근무시간 계산기",
-        theme_color: "#2563eb",
+        theme_color: "#3b82f6",
         background_color: "#f4f6fb",
         display: "standalone",
         orientation: "portrait",

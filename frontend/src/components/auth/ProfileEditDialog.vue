@@ -176,7 +176,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background-color: rgba(15, 23, 42, 0.45);
+  background-color: var(--color-overlay);
 }
 
 .profile-modal-card {
@@ -192,7 +192,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 .profile-modal-subtitle {
   margin: 0 0 20px;
-  color: #64748b;
+  color: var(--color-text-muted);
   font-size: var(--font-base);
 }
 
@@ -204,7 +204,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 .profile-modal-error {
   margin: 0;
-  color: #dc2626;
+  color: var(--color-danger);
   font-size: var(--font-sm);
 }
 

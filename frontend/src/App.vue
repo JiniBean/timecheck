@@ -25,7 +25,7 @@ const isBootstrapping = computed(() => !authStore.initialized);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f4f6fb;
+  background-color: var(--color-bg);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
 }
@@ -41,28 +41,28 @@ const isBootstrapping = computed(() => !authStore.initialized);
   width: 96px;
   height: 96px;
   border-radius: 22px;
-  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 12px 28px var(--color-primary-shadow);
 }
 
 .app-splash__title {
   margin: 8px 0 0;
   font-size: var(--font-title);
-  font-weight: 700;
-  color: #1f2937;
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
 }
 
 .app-splash__subtitle {
   margin: 0;
   font-size: var(--font-sm);
-  color: #64748b;
+  color: var(--color-text-muted);
 }
 
 .app-splash__spinner {
   width: 28px;
   height: 28px;
   margin-top: 20px;
-  border: 3px solid rgba(37, 99, 235, 0.18);
-  border-top-color: #2563eb;
+  border: 3px solid var(--color-primary-ring-faint);
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: app-splash-spin 0.8s linear infinite;
 }
