@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import type { AuthUser, ProfileForm } from "../../types/auth";
 import { useAuthStore } from "../../stores/auth";
 import { useUsernameField } from "../../composables/useUsernameField";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 const props = defineProps<{
   visible: boolean;
@@ -79,20 +80,10 @@ async function handleSubmit() {
     emit("saved");
     emit("close");
   } catch (error) {
-    errorMessage.value = extractErrorMessage(error, "회원정보를 저장하지 못했습니다.");
+    errorMessage.value = getApiErrorMessage(error, "회원정보를 저장하지 못했습니다.");
   } finally {
     loading.value = false;
   }
-}
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    if (response?.data?.message) {
-      return response.data.message;
-    }
-  }
-  return fallback;
 }
 </script>
 

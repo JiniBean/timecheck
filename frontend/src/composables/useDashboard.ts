@@ -23,6 +23,7 @@ import {
   computeAvgRequiredPerDay,
   countRemainingWorkDaysExcludingToday
 } from "../utils/main";
+import { getApiErrorMessage } from "../utils/apiError";
 import { copyTextToClipboard } from "../utils/reportClipboard";
 import { currentDateKey, isSameWeek, shiftDateKey } from "../utils/weekNav";
 
@@ -182,7 +183,7 @@ export function useDashboard(userId: number) {
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
       if (generation === dashboardLoadGeneration) {
-        state.value.errorMessage = resolveMessage(error);
+        state.value.errorMessage = getApiErrorMessage(error);
       }
     } finally {
       if (generation === dashboardLoadGeneration) {
@@ -524,7 +525,7 @@ export function useDashboard(userId: number) {
       await loadWeeklyReport();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = resolveMessage(error);
+      state.value.errorMessage = getApiErrorMessage(error);
     } finally {
       state.value.loading = false;
     }
@@ -541,7 +542,7 @@ export function useDashboard(userId: number) {
       await loadWeeklyReport();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = resolveMessage(error);
+      state.value.errorMessage = getApiErrorMessage(error);
     } finally {
       state.value.loading = false;
     }
@@ -559,7 +560,7 @@ export function useDashboard(userId: number) {
       await callback();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = resolveMessage(error);
+      state.value.errorMessage = getApiErrorMessage(error);
     } finally {
       state.value.actionLoading = false;
     }
@@ -770,20 +771,6 @@ function mergeDayWithToday(day: WeeklyDayRow, today: Work, todayDate: string): W
     dayType: today.dayType,
     remark: today.remark
   };
-}
-
-function resolveMessage(error: unknown): string {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    const message = response?.data?.message?.trim();
-    if (message) {
-      return message;
-    }
-  }
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-  return "일시적인 오류가 발생했습니다. 잠시만 기다려 주세요.";
 }
 
 function toDateTimeValue(workDate: string, timeValue: string): string | null {

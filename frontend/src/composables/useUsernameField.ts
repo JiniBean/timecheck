@@ -50,7 +50,7 @@ export function useUsernameField(username: Ref<string>, opts: UsernameFieldOpts 
         taken.value = ok ? null : "이미 사용 중인 아이디입니다.";
       } catch {
         if (req === seq) {
-          taken.value = null;
+          taken.value = "아이디 확인에 실패했습니다. 잠시 후 다시 시도해 주세요.";
         }
       } finally {
         if (req === seq) {

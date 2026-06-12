@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import type { WeeklyReport } from "../../types/dashboard";
+import { showApiError } from "../../utils/apiError";
 import { copyReportToClipboard } from "../../utils/reportClipboard";
 import { buildMainReport } from "../../utils/main";
 
@@ -40,7 +41,7 @@ async function handleCopy() {
       }, 2000);
     }
   } catch (error) {
-    console.error(error);
+    showApiError(error, "복사에 실패했습니다.");
   }
 }
 

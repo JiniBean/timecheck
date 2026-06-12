@@ -18,7 +18,7 @@ public class WebCorsConfig {
                 "https://*.ngrok-free.app",
                 "https://*.ngrok.io",
                 "https://*.ngrok.app"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 

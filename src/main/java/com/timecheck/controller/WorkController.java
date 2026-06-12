@@ -6,6 +6,7 @@ import com.timecheck.security.SecurityUtils;
 import com.timecheck.service.RecordService;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +47,18 @@ public class WorkController {
         Long userId = SecurityUtils.requireCurrentUserId();
         WeeklyData data = recordService.findWeeklyRecords(userId, date);
         return ResponseEntity.ok(data);
+    }
+
+    /** 기간 내 근무 기록을 조회합니다. */
+    @GetMapping("/range")
+    public ResponseEntity<Map<String, Object>> getWorkRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
+        Long userId = SecurityUtils.requireCurrentUserId();
+        List<Work> records = recordService.findRecordsBetween(userId, start, end);
+        Map<String, Object> response = new HashMap<>();
+        response.put("records", records);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/in")

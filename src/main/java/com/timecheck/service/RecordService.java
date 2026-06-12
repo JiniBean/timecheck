@@ -44,6 +44,20 @@ public class RecordService {
         return recordMapper.selectRecord(userId, workDate);
     }
 
+    /** 기간 내 Work 원시 기록을 반환합니다. */
+    public List<Work> findRecordsBetween(Long userId, LocalDate startDate, LocalDate endDate) {
+        if (userId == null) {
+            throw new IllegalArgumentException("사용자 ID가 필요합니다.");
+        }
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("조회 기간이 필요합니다.");
+        }
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
+        }
+        return recordMapper.selectRecordsBetweenDates(userId, startDate, endDate);
+    }
+
     /** 이번 주(월~금) Work 원시 기록만 반환합니다. */
     public WeeklyData findWeeklyRecords(Long userId, LocalDate referenceDate) {
         if (userId == null) {

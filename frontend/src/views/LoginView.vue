@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { getApiErrorMessage } from "../utils/apiError";
 import type { LoginForm } from "../types/auth";
 
 const authStore = useAuthStore();
@@ -15,6 +16,12 @@ const form = ref<LoginForm>({
 const errorMessage = ref<string | null>(null);
 const loading = ref(false);
 
+onMounted(() => {
+  if (route.query.reason === "session_expired") {
+    errorMessage.value = "로그인이 필요합니다. 다시 로그인해 주세요.";
+  }
+});
+
 async function handleSubmit() {
   errorMessage.value = null;
   loading.value = true;
@@ -23,20 +30,10 @@ async function handleSubmit() {
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     await router.replace(redirect);
   } catch (error) {
-    errorMessage.value = extractErrorMessage(error, "로그인에 실패했습니다.");
+    errorMessage.value = getApiErrorMessage(error, "로그인에 실패했습니다.");
   } finally {
     loading.value = false;
   }
-}
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === "object" && error !== null && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    if (response?.data?.message) {
-      return response.data.message;
-    }
-  }
-  return fallback;
 }
 </script>
 

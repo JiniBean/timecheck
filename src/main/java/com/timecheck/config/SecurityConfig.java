@@ -1,5 +1,7 @@
 package com.timecheck.config;
 
+import tools.jackson.databind.json.JsonMapper;
+import com.timecheck.exception.ApiErrorResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,9 +22,11 @@ import org.springframework.web.cors.CorsConfigurationSource;
 public class SecurityConfig {
 
     private final CorsConfigurationSource corsConfigurationSource;
+    private final JsonMapper jsonMapper;
 
-    public SecurityConfig(CorsConfigurationSource corsConfigurationSource) {
+    public SecurityConfig(CorsConfigurationSource corsConfigurationSource, JsonMapper jsonMapper) {
         this.corsConfigurationSource = corsConfigurationSource;
+        this.jsonMapper = jsonMapper;
     }
 
     @Bean
@@ -39,13 +43,19 @@ public class SecurityConfig {
                         .authenticated()
                         .anyRequest()
                         .permitAll())
-                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                    response.setCharacterEncoding("UTF-8");
-                    response.getWriter().write("{\"message\":\"로그인이 필요합니다.\"}");
-                }));
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "로그인이 필요합니다."))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                writeError(response, HttpServletResponse.SC_FORBIDDEN, "접근 권한이 없습니다.")));
         return http.build();
+    }
+
+    private void writeError(HttpServletResponse response, int status, String message) throws java.io.IOException {
+        response.setStatus(status);
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        jsonMapper.writeValue(response.getWriter(), new ApiErrorResponse(message));
     }
 
     @Bean

@@ -21,7 +21,13 @@ http.interceptors.response.use(
       const auth = useAuthStore();
       auth.clearUser();
       if (router.currentRoute.value.meta.requiresAuth) {
-        await router.push({ path: "/login", query: { redirect: router.currentRoute.value.fullPath } });
+        await router.push({
+          path: "/login",
+          query: {
+            redirect: router.currentRoute.value.fullPath,
+            reason: "session_expired"
+          }
+        });
       }
     }
 
