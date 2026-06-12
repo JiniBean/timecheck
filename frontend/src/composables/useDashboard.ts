@@ -684,18 +684,19 @@ function buildMutationFromWork(work: Work, override: WorkMutationOptions = {}): 
     return buildSettingsOnlyMutation(work, override);
   }
 
-  const calc = applyCalculatedFields(work);
+  const merged = { ...work, ...override };
+  const calc = applyCalculatedFields(merged);
   return {
     workDate: work.workDate,
-    dayType: work.dayType,
-    isOt: work.isOt,
-    remark: resolveRemarkForApi(work),
+    dayType: merged.dayType,
+    isOt: merged.isOt,
+    remark: resolveRemarkForApi(merged),
     mainEnd: calc.mainEnd,
     otStart: calc.otStart,
     otEnd: calc.otEnd,
-    clearMainEnd: !work.isOt,
-    clearOtStart: !work.isOt || !calc.otStart,
-    clearOtEnd: !work.isOt,
+    clearMainEnd: !merged.isOt,
+    clearOtStart: !merged.isOt || !calc.otStart,
+    clearOtEnd: !merged.isOt,
     ...override
   };
 }

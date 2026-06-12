@@ -117,14 +117,11 @@ export async function fetchWeeklyReport(userId: number, referenceDate?: string):
   const { data } = await http.get<MainReportApiResponse>("/work/week", {
     params: { date: ref }
   });
-  const records = (data.records ?? []).map((record) =>
-    withCalculatedFields(record, userId, record.workDate)
-  );
   return buildMainReportData(
     {
       weekStart: data.weekStart,
       weekEnd: data.weekEnd,
-      records,
+      records: data.records ?? [],
       department: data.department ?? "",
       team: data.team ?? "",
       userName: data.userName ?? "",

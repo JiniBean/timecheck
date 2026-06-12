@@ -115,6 +115,44 @@ function toDayRow(workDate: string, work: Work): WeeklyDayRow {
 
 export const MAIN_WEEK_TARGET_MINUTES = 40 * 60;
 
+export interface WeekSummary {
+  main: number;
+  base: number;
+  goalMet: boolean;
+}
+
+export function weekSummary(
+  records: Work[],
+  weekStart: string,
+  weekEnd: string,
+  userId: number,
+  asOf: Date = new Date()
+): WeekSummary {
+  const report = buildMainReportData(
+    {
+      weekStart,
+      weekEnd,
+      records,
+      department: "",
+      team: "",
+      userName: "",
+      position: null
+    },
+    localDateKey(asOf),
+    userId,
+    asOf
+  );
+
+  const main = report.summary.workedMinutes;
+  const base = report.summary.targetMinutes;
+
+  return {
+    main,
+    base,
+    goalMet: base > 0 && main >= base
+  };
+}
+
 export interface MainSummaryInput {
   weeklyReport: WeeklyReport;
   todayWork: Work;
