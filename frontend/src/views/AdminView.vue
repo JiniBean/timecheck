@@ -6,7 +6,7 @@ import UserDetailPanel from "../components/admin/UserDetailPanel.vue";
 import logoutIcon from "../assets/icons/logout.svg";
 import * as adminApi from "../api/admin";
 import { useAuthStore } from "../stores/auth";
-import type { AdminOverview, AdminPeriod, AdminUser, AdminUserUpdateForm } from "../types/admin";
+import type { Overview, Period, UserDetail, UserForm } from "../types/admin";
 import { adminStatusLabel } from "../utils/admin";
 import { weekSummary } from "../utils/main";
 import { formatHmFromMinutes } from "../utils/time";
@@ -15,12 +15,12 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 const tab = ref<"overview" | "users">("overview");
-const period = ref<AdminPeriod>("week");
-const overview = ref<AdminOverview | null>(null);
-const users = ref<AdminUser[]>([]);
+const period = ref<Period>("week");
+const overview = ref<Overview | null>(null);
+const users = ref<UserDetail[]>([]);
 const weekStart = ref("");
 const weekEnd = ref("");
-const selectedUser = ref<AdminUser | null>(null);
+const selectedUser = ref<UserDetail | null>(null);
 const statusFilter = ref("");
 const departmentFilter = ref("");
 const loadingOverview = ref(false);
@@ -67,7 +67,7 @@ const weeklyGoalStats = computed(() => {
   };
 });
 
-function weekStats(user: AdminUser) {
+function weekStats(user: UserDetail) {
   if (!weekStart.value || !weekEnd.value) {
     return { main: 0, base: 0, goalMet: false };
   }
@@ -89,7 +89,7 @@ async function loadOverview() {
   loadingOverview.value = true;
   error.value = "";
   try {
-    overview.value = await adminApi.fetchAdminOverview(period.value);
+    overview.value = await adminApi.fetchOverview(period.value);
   } catch (e) {
     error.value = resolveMessage(e);
   } finally {
@@ -101,7 +101,7 @@ async function loadUsers() {
   loadingUsers.value = true;
   error.value = "";
   try {
-    const data = await adminApi.fetchAdminUsers({
+    const data = await adminApi.fetchUsers({
       department: departmentFilter.value || undefined,
       status: statusFilter.value || undefined
     });
@@ -115,23 +115,23 @@ async function loadUsers() {
   }
 }
 
-async function selectUser(user: AdminUser) {
+async function selectUser(user: UserDetail) {
   userError.value = "";
   try {
-    selectedUser.value = await adminApi.fetchAdminUser(user.userId);
+    selectedUser.value = await adminApi.fetchUser(user.userId);
   } catch (e) {
     userError.value = resolveMessage(e);
   }
 }
 
-async function saveUser(form: AdminUserUpdateForm) {
+async function saveUser(form: UserForm) {
   if (!selectedUser.value) {
     return;
   }
   savingUser.value = true;
   userError.value = "";
   try {
-    const updated = await adminApi.updateAdminUser(selectedUser.value.userId, form);
+    const updated = await adminApi.updateUser(selectedUser.value.userId, form);
     selectedUser.value = updated;
     await loadUsers();
     if (tab.value === "overview") {

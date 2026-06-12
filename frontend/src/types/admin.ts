@@ -1,11 +1,11 @@
 import type { Work } from "./dashboard";
 
-export type AdminPeriod = "week" | "month" | "all";
+export type Period = "week" | "month" | "all";
 
-export type AdminUserStatus = "active" | "inactive" | "new";
+export type UserStatus = "active" | "inactive" | "new";
 
-export interface AdminOverview {
-  period: AdminPeriod;
+export interface Overview {
+  period: Period;
   totalUsers: number;
   newUsers: number;
   activeUsers: number;
@@ -15,7 +15,7 @@ export interface AdminOverview {
   inactiveUsers: number;
 }
 
-export interface AdminUser {
+export interface UserDetail {
   userId: number;
   username: string;
   userName: string;
@@ -27,17 +27,17 @@ export interface AdminUser {
   lastActivityDate: string | null;
   weekDays: number;
   totalRecords: number;
-  status: AdminUserStatus;
+  status: UserStatus;
   weekRecords: Work[];
 }
 
-export interface AdminList {
+export interface UserList {
   weekStart: string;
   weekEnd: string;
-  users: AdminUser[];
+  users: UserDetail[];
 }
 
-export interface AdminUserUpdateForm {
+export interface UserForm {
   userName: string;
   department: string;
   team: string;

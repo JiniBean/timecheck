@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import TimePicker from "./TimePicker.vue";
-import { fetchTodayWork, fetchWeeklyReport, fetchWorkRecordsInRange } from "../../api/dashboard";
+import { fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
+import { localDateKey } from "../../utils/localDate";
 import type { WeeklyReport, Work } from "../../types/dashboard";
 import { computeTypicalCheckInHhmm, recentCheckInRange } from "../../utils/checkInAverage";
 import { isDayOff } from "../../utils/dayType";
@@ -144,9 +145,9 @@ watch(
     try {
       const range = recentCheckInRange(todayDateKey.value);
       const [weekly, today, rangeRecords] = await Promise.all([
-        fetchWeeklyReport(props.userId, todayDateKey.value),
-        fetchTodayWork(props.userId),
-        fetchWorkRecordsInRange(props.userId, range.start, range.end)
+        fetchWeek(props.userId, todayDateKey.value),
+        fetchWork(props.userId, localDateKey()),
+        fetchWorks(props.userId, range.start, range.end)
       ]);
       weeklyReport.value = weekly;
       todayWork.value = today;

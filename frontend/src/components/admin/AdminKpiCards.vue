@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { AdminOverview, AdminPeriod } from "../../types/admin";
+import type { Overview, Period } from "../../types/admin";
 
 const props = defineProps<{
-  overview: AdminOverview | null;
+  overview: Overview | null;
   loading: boolean;
-  period: AdminPeriod;
+  period: Period;
   weeklyGoalMetUsers: number;
   weeklyGoalRate: number;
 }>();

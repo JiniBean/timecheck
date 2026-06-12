@@ -3,12 +3,11 @@ import {
   checkIn,
   checkOut,
   createEmptyWork,
-  fetchTodayWork,
-  fetchWeeklyReport,
+  fetchWeek,
   fetchWork,
   loadCachedTodayWork,
-  saveWorkSettings,
-  type WorkMutationOptions
+  patchWork,
+  type WorkPatch
 } from "../api/dashboard";
 import type { DashboardState, DayType, TodayStatus, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboard";
 import {
@@ -20,8 +19,8 @@ import {
 import { applyCalculatedFields, applyOtRecalc } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import {
-  computeAvgRequiredPerDay,
-  countRemainingWorkDaysExcludingToday
+  avgPerDay,
+  countDaysAfterToday
 } from "../utils/main";
 import { getApiErrorMessage } from "../utils/apiError";
 import { copyTextToClipboard } from "../utils/reportClipboard";
@@ -116,7 +115,7 @@ export function useDashboard(userId: number) {
   }
 
   async function loadWeeklyReport() {
-    const weeklyReport = await fetchWeeklyReport(userId, referenceDate.value);
+    const weeklyReport = await fetchWeek(userId, referenceDate.value);
     applyWeeklyReport(weeklyReport);
   }
 
@@ -165,8 +164,8 @@ export function useDashboard(userId: number) {
     state.value.errorMessage = null;
     try {
       const [todayWork, weeklyReport] = await Promise.all([
-        fetchTodayWork(userId),
-        fetchWeeklyReport(userId, referenceDate.value)
+        fetchWork(userId, localDateKey()),
+        fetchWeek(userId, referenceDate.value)
       ]);
 
       if (generation !== dashboardLoadGeneration) {
@@ -193,7 +192,7 @@ export function useDashboard(userId: number) {
   }
 
   async function refreshWeeklyWithToday(updated: Work) {
-    const weeklyReport = await fetchWeeklyReport(userId, referenceDate.value);
+    const weeklyReport = await fetchWeek(userId, referenceDate.value);
     if (updated.workDate === localDateKey()) {
       state.value.todayWork = updated;
       state.value.todayStatus = resolveStatus(updated);
@@ -219,7 +218,7 @@ export function useDashboard(userId: number) {
       if (work.isOt && work.rawEnd) {
         work = applyOtRecalc(work, "raw_start");
       }
-      const updated = await checkIn(userId, buildMutationFromWork(work, { rawStart }));
+      const updated = await checkIn(userId, toWorkPatch(work, { rawStart }));
       if (isCurrentWeek.value) {
         await refreshWeeklyWithToday(updated);
       } else {
@@ -256,7 +255,7 @@ export function useDashboard(userId: number) {
         rawEnd!
       );
 
-      const updated = await checkOut(userId, buildMutationFromWork(work, { rawEnd }));
+      const updated = await checkOut(userId, toWorkPatch(work, { rawEnd }));
       if (otCancelled) {
         showToast("코어타임 종료 이전이라 야근이 취소되었습니다.");
       }
@@ -352,7 +351,7 @@ export function useDashboard(userId: number) {
       if (!work.rawEnd) {
         clearOtAnchorsLocal(work);
       }
-      const updated = await saveWorkSettings(userId, buildSettingsOnlyMutation(work));
+      const updated = await patchWork(userId, toSettingsPatch(work));
       await syncAfterWeeklyEdit(normalizeWorkAfterSettingsSave(updated));
     });
   }
@@ -365,7 +364,7 @@ export function useDashboard(userId: number) {
       if (work.isOt && work.rawEnd) {
         work = applyOtRecalc(work, "raw_start");
       }
-      const updated = await checkIn(userId, buildMutationFromWork(work, { rawStart, workDate }));
+      const updated = await checkIn(userId, toWorkPatch(work, { rawStart, workDate }));
       await syncAfterWeeklyEdit(updated);
     });
   }
@@ -375,7 +374,7 @@ export function useDashboard(userId: number) {
       const existing = await fetchWork(userId, workDate);
       const rawEnd = toDateTimeValue(workDate, hhmm);
       const { work } = processOtOnCheckout({ ...existing, rawEnd }, rawEnd!);
-      const updated = await checkOut(userId, buildMutationFromWork(work, { rawEnd, workDate }));
+      const updated = await checkOut(userId, toWorkPatch(work, { rawEnd, workDate }));
       await syncAfterWeeklyEdit(updated);
     });
   }
@@ -385,7 +384,7 @@ export function useDashboard(userId: number) {
       const existing = await fetchWork(userId, workDate);
       const otStart = toDateTimeValue(workDate, hhmm);
       const work = applyOtRecalc({ ...existing, otStart }, "ot_start", { otStart });
-      const updated = await saveWorkSettings(userId, buildMutationFromWork(work, { workDate }));
+      const updated = await patchWork(userId, toWorkPatch(work, { workDate }));
       await syncAfterWeeklyEdit(updated);
     });
   }
@@ -395,7 +394,7 @@ export function useDashboard(userId: number) {
       const existing = await fetchWork(userId, workDate);
       const otEnd = toDateTimeValue(workDate, hhmm);
       const work = applyOtRecalc({ ...existing, otEnd }, "ot_end", { otEnd });
-      const updated = await saveWorkSettings(userId, buildMutationFromWork(work, { workDate }));
+      const updated = await patchWork(userId, toWorkPatch(work, { workDate }));
       await syncAfterWeeklyEdit(updated);
     });
   }
@@ -403,7 +402,7 @@ export function useDashboard(userId: number) {
   async function clearWeeklyCheckIn(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const updated = await saveWorkSettings(userId, {
+      const updated = await patchWork(userId, {
         workDate,
         dayType: existing.dayType,
         isOt: existing.isOt,
@@ -420,7 +419,7 @@ export function useDashboard(userId: number) {
   async function clearWeeklyCheckOut(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const updated = await saveWorkSettings(userId, {
+      const updated = await patchWork(userId, {
         workDate,
         dayType: existing.dayType,
         isOt: existing.isOt,
@@ -437,9 +436,9 @@ export function useDashboard(userId: number) {
   async function clearWeeklyOtStart(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const updated = await saveWorkSettings(
+      const updated = await patchWork(
         userId,
-        buildSettingsOnlyMutation(existing, {
+        toSettingsPatch(existing, {
           workDate,
           clearMainEnd: true,
           clearOtStart: true
@@ -452,9 +451,9 @@ export function useDashboard(userId: number) {
   async function clearWeeklyOtEnd(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const updated = await saveWorkSettings(
+      const updated = await patchWork(
         userId,
-        buildSettingsOnlyMutation(existing, {
+        toSettingsPatch(existing, {
           workDate,
           clearOtEnd: true
         })
@@ -481,7 +480,7 @@ export function useDashboard(userId: number) {
         clearOtAnchorsLocal(work);
       }
 
-      const settingsOverride: WorkMutationOptions = {
+      const settingsOverride: WorkPatch = {
         workDate: payload.workDate,
         dayType: payload.dayType,
         isOt: finalIsOt,
@@ -490,20 +489,20 @@ export function useDashboard(userId: number) {
 
       let updated: Work;
       if (!finalIsOt) {
-        updated = await saveWorkSettings(
+        updated = await patchWork(
           userId,
-          buildSettingsOnlyMutation(work, settingsOverride)
+          toSettingsPatch(work, settingsOverride)
         );
       } else if (!existing.isOt && finalIsOt && work.rawStart && work.rawEnd) {
         work = applyOtRecalc(work, "auto");
-        updated = await saveWorkSettings(
+        updated = await patchWork(
           userId,
-          buildMutationFromWork(work, settingsOverride)
+          toWorkPatch(work, settingsOverride)
         );
       } else {
-        updated = await saveWorkSettings(
+        updated = await patchWork(
           userId,
-          buildSettingsOnlyMutation(work, settingsOverride)
+          toSettingsPatch(work, settingsOverride)
         );
       }
       await syncAfterWeeklyEdit(normalizeWorkAfterSettingsSave(updated));
@@ -649,7 +648,7 @@ function processOtOnCheckout(
 }
 
 /** 근무 설정 저장: isOt·remark·dayType만 전송. 퇴근 전에는 앵커 필드도 DB에서 비움. */
-function buildSettingsOnlyMutation(work: Work, override: WorkMutationOptions = {}): WorkMutationOptions {
+function toSettingsPatch(work: Work, override: WorkPatch = {}): WorkPatch {
   const { mainEnd: _mainEnd, otStart: _otStart, otEnd: _otEnd, ...safeOverride } = override;
   const hasCheckout = Boolean(safeOverride.rawEnd ?? work.rawEnd);
   return {
@@ -677,11 +676,11 @@ function normalizeWorkAfterSettingsSave(work: Work): Work {
   return applyCalculatedFields(stripped);
 }
 
-function buildMutationFromWork(work: Work, override: WorkMutationOptions = {}): WorkMutationOptions {
+function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
   const hasCheckout = Boolean(override.rawEnd ?? work.rawEnd);
 
   if (!hasCheckout) {
-    return buildSettingsOnlyMutation(work, override);
+    return toSettingsPatch(work, override);
   }
 
   const merged = { ...work, ...override };
@@ -732,8 +731,8 @@ function mergeWeeklyWithToday(weekly: WeeklyReport, today: Work, asOf = new Date
   const workedMinutes = days.reduce((sum, day) => sum + day.main, 0);
   const targetMinutes = weekly.summary.targetMinutes;
   const remainingMinutes = Math.max(targetMinutes - workedMinutes, 0);
-  const remainingWorkDays = countRemainingWorkDaysExcludingToday(todayDate, weekly.weekEnd);
-  const avgRequiredPerDayMinutes = computeAvgRequiredPerDay(
+  const remainingWorkDays = countDaysAfterToday(todayDate, weekly.weekEnd);
+  const avgRequiredPerDayMinutes = avgPerDay(
     remainingMinutes,
     remainingWorkDays
   );

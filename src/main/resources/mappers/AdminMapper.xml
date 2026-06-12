@@ -111,7 +111,7 @@
         SELECT COUNT(*) FROM USERS WHERE ROLE = 'ADMIN'
     </select>
 
-    <select id="selectUserSummaries" resultType="com.timecheck.dto.admin.AdminUserRow">
+    <select id="selectUsers" resultType="com.timecheck.dto.admin.UserRow">
         <include refid="userSummarySelect"/>
         <where>
             <if test="department != null and department != ''">
@@ -124,7 +124,7 @@
         ORDER BY u.CREATED_AT DESC
     </select>
 
-    <select id="selectUserSummary" resultType="com.timecheck.dto.admin.AdminUserRow">
+    <select id="selectUser" resultType="com.timecheck.dto.admin.UserRow">
         <include refid="userSummarySelect"/>
         WHERE u.USER_ID = #{userId, jdbcType=BIGINT}
     </select>

@@ -4,7 +4,7 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.timecheck.mapper.RecordMapper">
 
-    <select id="selectRecord" resultType="com.timecheck.model.Work">
+    <select id="selectWork" resultType="com.timecheck.model.Work">
         SELECT
             WORK_ID,
             USER_ID,
@@ -31,7 +31,7 @@
           AND WORK_DATE = #{workDate, jdbcType=DATE}
     </select>
 
-    <select id="selectRecordsBetweenDates" resultType="com.timecheck.model.Work">
+    <select id="selectWorks" resultType="com.timecheck.model.Work">
         SELECT
             WORK_ID,
             USER_ID,
@@ -59,7 +59,7 @@
         ORDER BY WORK_DATE ASC
     </select>
 
-    <select id="selectRecordsBetweenDatesForAllUsers" resultType="com.timecheck.model.Work">
+    <select id="selectWorksAll" resultType="com.timecheck.model.Work">
         SELECT
             WORK_ID,
             USER_ID,

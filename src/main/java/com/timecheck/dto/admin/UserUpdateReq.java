@@ -1,6 +1,6 @@
 package com.timecheck.dto.admin;
 
-public record AdminUserUpdateReq(
+public record UserUpdateReq(
         String userName,
         String department,
         String team,

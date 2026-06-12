@@ -50,7 +50,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<Map<String, UserRsp>> me() {
-        UserRsp user = authService.getCurrUser();
+        UserRsp user = authService.findMe();
         return ResponseEntity.ok(Map.of("user", user));
     }
 
@@ -61,9 +61,9 @@ public class AuthController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<Map<String, UserRsp>> updateUser(
+    public ResponseEntity<Map<String, UserRsp>> updateMe(
             @RequestBody ProfileReq req, HttpServletRequest httpRequest) {
-        UserRsp user = authService.updateUser(req, httpRequest);
+        UserRsp user = authService.updateMe(req, httpRequest);
         return ResponseEntity.ok(Map.of("user", user));
     }
 }

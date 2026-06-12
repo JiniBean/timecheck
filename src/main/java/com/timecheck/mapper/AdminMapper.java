@@ -1,6 +1,6 @@
 package com.timecheck.mapper;
 
-import com.timecheck.dto.admin.AdminUserRow;
+import com.timecheck.dto.admin.UserRow;
 import com.timecheck.model.User;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -31,7 +31,7 @@ public interface AdminMapper {
 
     int countAdmins();
 
-    List<AdminUserRow> selectUserSummaries(
+    List<UserRow> selectUsers(
             @Param("weekStart") String weekStart,
             @Param("weekEnd") String weekEnd,
             @Param("inactiveSince") String inactiveSince,
@@ -39,7 +39,7 @@ public interface AdminMapper {
             @Param("department") String department,
             @Param("status") String status);
 
-    AdminUserRow selectUserSummary(
+    UserRow selectUser(
             @Param("userId") Long userId,
             @Param("weekStart") String weekStart,
             @Param("weekEnd") String weekEnd,

@@ -1,14 +1,14 @@
 import type { DayType, WeeklyReport, Work } from "../types/dashboard";
 import { localDateKey } from "../utils/localDate";
 import { applyCalculatedFields } from "../utils/timeCalculator";
-import { buildMainReportData, type MainReportApiResponse } from "../utils/main";
+import { buildMainReportData, type WeekApiRsp } from "../utils/main";
 import http from "./http";
 
 interface WorkResponse {
   work: Work | null;
 }
 
-export interface WorkMutationOptions {
+export interface WorkPatch {
   workDate?: string;
   rawStart?: string | null;
   rawEnd?: string | null;
@@ -25,13 +25,13 @@ export interface WorkMutationOptions {
   clearOtEnd?: boolean;
 }
 
-function todayWorkStorageKey(userId: number): string {
+function todayWorkKey(userId: number): string {
   return `timecheck-today-work-${userId}`;
 }
 
 export function loadCachedTodayWork(userId: number): Work | null {
   try {
-    const raw = localStorage.getItem(todayWorkStorageKey(userId));
+    const raw = localStorage.getItem(todayWorkKey(userId));
     if (!raw) {
       return null;
     }
@@ -39,31 +39,31 @@ export function loadCachedTodayWork(userId: number): Work | null {
     if (parsed.workDate !== localDateKey()) {
       return null;
     }
-    return withCalculatedFields(parsed, userId, parsed.workDate);
+    return withCalc(parsed, userId, parsed.workDate);
   } catch {
     return null;
   }
 }
 
-export async function checkIn(userId: number, options: WorkMutationOptions = {}): Promise<Work> {
+export async function checkIn(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
-  const { data } = await http.post<WorkResponse>("/work/in", buildPayload(workDate, options));
-  const normalized = withCalculatedFields(requireWork(data.work), userId, workDate);
+  const { data } = await http.post<WorkResponse>("/work/in", toPayload(workDate, options));
+  const normalized = withCalc(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
 
-export async function checkOut(userId: number, options: WorkMutationOptions = {}): Promise<Work> {
+export async function checkOut(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
-  const { data } = await http.post<WorkResponse>("/work/out", buildPayload(workDate, options));
-  const normalized = withCalculatedFields(requireWork(data.work), userId, workDate);
+  const { data } = await http.post<WorkResponse>("/work/out", toPayload(workDate, options));
+  const normalized = withCalc(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
 
-export async function saveWorkSettings(userId: number, options: WorkMutationOptions = {}): Promise<Work> {
+export async function patchWork(userId: number, options: WorkPatch = {}): Promise<Work> {
   const today = options.workDate ?? localDateKey();
-  const { data } = await http.patch<WorkResponse>("/work", buildPayload(today, options), {
+  const { data } = await http.patch<WorkResponse>("/work", toPayload(today, options), {
     params: { date: today }
   });
   if (!data.work) {
@@ -71,14 +71,9 @@ export async function saveWorkSettings(userId: number, options: WorkMutationOpti
     saveTodayWork(userId, empty);
     return empty;
   }
-  const normalized = withCalculatedFields(data.work, userId, today);
+  const normalized = withCalc(data.work, userId, today);
   saveTodayWork(userId, normalized);
   return normalized;
-}
-
-export async function fetchTodayWork(userId: number): Promise<Work> {
-  const today = localDateKey();
-  return fetchWork(userId, today);
 }
 
 export async function fetchWork(userId: number, workDate: string): Promise<Work> {
@@ -88,7 +83,7 @@ export async function fetchWork(userId: number, workDate: string): Promise<Work>
   if (!data.work) {
     return createEmptyWork(userId, workDate);
   }
-  const normalized = withCalculatedFields(data.work, userId, workDate);
+  const normalized = withCalc(data.work, userId, workDate);
   if (workDate === localDateKey()) {
     saveTodayWork(userId, normalized);
   }
@@ -99,7 +94,7 @@ interface WorkRangeResponse {
   records: Work[];
 }
 
-export async function fetchWorkRecordsInRange(
+export async function fetchWorks(
   userId: number,
   startDate: string,
   endDate: string
@@ -108,13 +103,13 @@ export async function fetchWorkRecordsInRange(
     params: { start: startDate, end: endDate }
   });
   return (data.records ?? []).map((record) =>
-    withCalculatedFields(record, userId, record.workDate)
+    withCalc(record, userId, record.workDate)
   );
 }
 
-export async function fetchWeeklyReport(userId: number, referenceDate?: string): Promise<WeeklyReport> {
+export async function fetchWeek(userId: number, referenceDate?: string): Promise<WeeklyReport> {
   const ref = referenceDate ?? localDateKey();
-  const { data } = await http.get<MainReportApiResponse>("/work/week", {
+  const { data } = await http.get<WeekApiRsp>("/work/week", {
     params: { date: ref }
   });
   return buildMainReportData(
@@ -148,7 +143,7 @@ export function createEmptyWork(userId: number, date: string): Work {
   });
 }
 
-function buildPayload(workDate: string, options: WorkMutationOptions) {
+function toPayload(workDate: string, options: WorkPatch) {
   const payload: Record<string, unknown> = {
     workDate,
     dayType: options.dayType,
@@ -188,7 +183,7 @@ function buildPayload(workDate: string, options: WorkMutationOptions) {
   return payload;
 }
 
-function withCalculatedFields(source: Work, userId: number, date: string): Work {
+function withCalc(source: Work, userId: number, date: string): Work {
   const work: Work = {
     workId: source.workId,
     userId: source.userId ?? userId,
@@ -220,7 +215,7 @@ function requireWork(work: Work | null): Work {
 }
 
 function saveTodayWork(userId: number, work: Work): void {
-  localStorage.setItem(todayWorkStorageKey(userId), JSON.stringify(work));
+  localStorage.setItem(todayWorkKey(userId), JSON.stringify(work));
 }
 
-export { todayWorkStorageKey as getTodayWorkStorageKey };
+export { todayWorkKey as getTodayWorkKey };

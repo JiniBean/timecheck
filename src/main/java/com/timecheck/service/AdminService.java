@@ -1,10 +1,10 @@
 package com.timecheck.service;
 
-import com.timecheck.dto.admin.AdminList;
-import com.timecheck.dto.admin.AdminOverviewRsp;
-import com.timecheck.dto.admin.AdminUser;
-import com.timecheck.dto.admin.AdminUserRow;
-import com.timecheck.dto.admin.AdminUserUpdateReq;
+import com.timecheck.dto.admin.OverviewRsp;
+import com.timecheck.dto.admin.UserDetail;
+import com.timecheck.dto.admin.UserList;
+import com.timecheck.dto.admin.UserRow;
+import com.timecheck.dto.admin.UserUpdateReq;
 import com.timecheck.mapper.AdminMapper;
 import com.timecheck.mapper.RecordMapper;
 import com.timecheck.model.User;
@@ -35,7 +35,7 @@ public class AdminService {
         this.recordMapper = recordMapper;
     }
 
-    public AdminOverviewRsp getOverview(String period) {
+    public OverviewRsp findOverview(String period) {
         LocalDate today = LocalDate.now();
         PeriodRange range = DateRangeUtil.resolvePeriod(period, today);
 
@@ -51,7 +51,7 @@ public class AdminService {
         double adoptionRate = totalUsers == 0 ? 0.0 : (double) usersWithRecords / totalUsers;
         double checkInRate = resolveCheckInRate(range, today);
 
-        return new AdminOverviewRsp(
+        return new OverviewRsp(
                 range.label(),
                 totalUsers,
                 newUsers,
@@ -62,13 +62,13 @@ public class AdminService {
                 inactiveUsers);
     }
 
-    public AdminList listUsers(String department, String status) {
+    public UserList findUsers(String department, String status) {
         LocalDate today = LocalDate.now();
         PeriodRange week = DateRangeUtil.weekRange(today);
         String weekStart = week.start().toString();
         String weekEnd = week.end().toString();
 
-        List<AdminUserRow> rows = adminMapper.selectUserSummaries(
+        List<UserRow> rows = adminMapper.selectUsers(
                 weekStart,
                 weekEnd,
                 today.minusDays(14).toString(),
@@ -77,18 +77,18 @@ public class AdminService {
                 normalizeFilter(status));
 
         Map<Long, List<Work>> weekRecordsByUser = groupWeekRecords(week.start(), week.end());
-        List<AdminUser> users = new ArrayList<>(rows.size());
-        for (AdminUserRow row : rows) {
+        List<UserDetail> users = new ArrayList<>(rows.size());
+        for (UserRow row : rows) {
             users.add(enrichWeekRecords(row, weekRecordsByUser.getOrDefault(row.userId(), List.of())));
         }
 
-        return new AdminList(weekStart, weekEnd, users);
+        return new UserList(weekStart, weekEnd, users);
     }
 
-    public AdminUser getUser(Long userId) {
+    public UserDetail findUser(Long userId) {
         LocalDate today = LocalDate.now();
         PeriodRange week = DateRangeUtil.weekRange(today);
-        AdminUserRow row = adminMapper.selectUserSummary(
+        UserRow row = adminMapper.selectUser(
                 userId,
                 week.start().toString(),
                 week.end().toString(),
@@ -97,15 +97,14 @@ public class AdminService {
         if (row == null) {
             throw new IllegalArgumentException("사용자를 찾을 수 없습니다.");
         }
-        List<Work> weekRecords =
-                recordMapper.selectRecordsBetweenDates(userId, week.start(), week.end());
+        List<Work> weekRecords = recordMapper.selectWorks(userId, week.start(), week.end());
         return enrichWeekRecords(row, weekRecords);
     }
 
     @Transactional
-    public AdminUser updateUser(Long userId, AdminUserUpdateReq req) {
+    public UserDetail updateUser(Long userId, UserUpdateReq req) {
         Long currentUserId = SecurityUtils.requireCurrentUserId();
-        AdminUser existing = getUser(userId);
+        UserDetail existing = findUser(userId);
 
         String userName = normalizeRequired(req.userName(), "이름");
         String department = normalizeOptional(req.department());
@@ -135,11 +134,11 @@ public class AdminService {
                 .role(role)
                 .build();
         adminMapper.updateUserByAdmin(update);
-        return getUser(userId);
+        return findUser(userId);
     }
 
     private Map<Long, List<Work>> groupWeekRecords(LocalDate weekStart, LocalDate weekEnd) {
-        List<Work> records = recordMapper.selectRecordsBetweenDatesForAllUsers(weekStart, weekEnd);
+        List<Work> records = recordMapper.selectWorksAll(weekStart, weekEnd);
         Map<Long, List<Work>> grouped = new HashMap<>();
         for (Work record : records) {
             grouped.computeIfAbsent(record.getUserId(), ignored -> new ArrayList<>()).add(record);
@@ -147,8 +146,8 @@ public class AdminService {
         return grouped;
     }
 
-    private AdminUser enrichWeekRecords(AdminUserRow row, List<Work> weekRecords) {
-        return new AdminUser(
+    private UserDetail enrichWeekRecords(UserRow row, List<Work> weekRecords) {
+        return new UserDetail(
                 row.userId(),
                 row.username(),
                 row.userName(),

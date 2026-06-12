@@ -74,7 +74,7 @@ public class AuthService {
                 .build();
         userMapper.insertUser(user);
 
-        authenticateAndPersistSession(username, password, httpRequest);
+        persistSession(username, password, httpRequest);
         return UserRsp.from(requireUser(user.getUserId()));
     }
 
@@ -83,7 +83,7 @@ public class AuthService {
         String password = normalizeRequired(req.password(), "비밀번호");
 
         try {
-            authenticateAndPersistSession(username, password, httpRequest);
+            persistSession(username, password, httpRequest);
         } catch (BadCredentialsException ex) {
             throw new IllegalArgumentException("아이디 또는 비밀번호가 올바르지 않습니다.");
         }
@@ -103,7 +103,7 @@ public class AuthService {
         }
     }
 
-    public UserRsp getCurrUser() {
+    public UserRsp findMe() {
         Long userId = SecurityUtils.requireCurrentUserId();
         return UserRsp.from(requireUser(userId));
     }
@@ -128,16 +128,16 @@ public class AuthService {
     }
 
     @Transactional
-    public UserRsp updateUser(ProfileReq req, HttpServletRequest httpRequest) {
+    public UserRsp updateMe(ProfileReq req, HttpServletRequest httpRequest) {
         Long userId = SecurityUtils.requireCurrentUserId();
-        User current = requireUserWithCredentials(userId);
+        User current = requireUserPwd(userId);
 
         String username = normalizeRequired(req.username(), "아이디");
         String userName = normalizeRequired(req.userName(), "이름");
         String department = normalizeOptional(req.department(), DEPARTMENT_MAX_LENGTH);
         String team = normalizeOptional(req.team(), DEPARTMENT_MAX_LENGTH);
         String position = normalizeOptional(req.position(), DEPARTMENT_MAX_LENGTH);
-        String password = normalizeOptionalPassword(req.password());
+        String password = normPassword(req.password());
 
         validateUsername(username);
         validateLength(userName, USER_NAME_MAX_LENGTH, "이름");
@@ -160,7 +160,7 @@ public class AuthService {
                 .pwd(password != null ? passwordEncoder.encode(password) : null)
                 .build();
         userMapper.updateUser(update);
-        refreshSessionPrincipal(userId, httpRequest);
+        refreshSession(userId, httpRequest);
         return UserRsp.from(requireUser(userId));
     }
 
@@ -172,7 +172,7 @@ public class AuthService {
         return user;
     }
 
-    private User requireUserWithCredentials(Long userId) {
+    private User requireUserPwd(Long userId) {
         User user = userMapper.selectById(userId);
         if (user == null) {
             throw new IllegalStateException("사용자 정보를 찾을 수 없습니다.");
@@ -185,8 +185,8 @@ public class AuthService {
         return user;
     }
 
-    private void refreshSessionPrincipal(Long userId, HttpServletRequest httpRequest) {
-        User user = requireUserWithCredentials(userId);
+    private void refreshSession(Long userId, HttpServletRequest httpRequest) {
+        User user = requireUserPwd(userId);
         SessionUser sessionUser =
                 new SessionUser(user.getUserId(), user.getUsername(), user.getPwd(), user.getRole());
         Authentication authentication =
@@ -202,7 +202,7 @@ public class AuthService {
         }
     }
 
-    private String normalizeOptionalPassword(String value) {
+    private String normPassword(String value) {
         if (value == null) {
             return null;
         }
@@ -213,8 +213,7 @@ public class AuthService {
         return trimmed;
     }
 
-    private void authenticateAndPersistSession(
-            String username, String password, HttpServletRequest httpRequest) {
+    private void persistSession(String username, String password, HttpServletRequest httpRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(username, password));
 

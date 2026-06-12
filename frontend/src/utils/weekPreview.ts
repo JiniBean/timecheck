@@ -1,6 +1,6 @@
 import type { DayType, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboard";
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
-import { MAIN_WEEK_TARGET_MINUTES, computeAvgRequiredPerDay } from "./main";
+import { MAIN_WEEK_TARGET_MINUTES, avgPerDay } from "./main";
 import { computeMainMinutes } from "./ot";
 import { formatHm, formatHmFromMinutes } from "./time";
 import {
@@ -294,7 +294,7 @@ export function buildWeekPreview(input: {
   const weekRemaining = Math.max(0, targetMinutes - fixedMinutes);
   const perDayMinutes =
     autoSlots.length > 0
-      ? computeAvgRequiredPerDay(weekRemaining, autoSlots.length)
+      ? avgPerDay(weekRemaining, autoSlots.length)
       : 0;
 
   for (const slot of autoSlots) {

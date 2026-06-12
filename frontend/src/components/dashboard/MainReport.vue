@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import type { WeeklyReport } from "../../types/dashboard";
 import { showApiError } from "../../utils/apiError";
 import { copyReportToClipboard } from "../../utils/reportClipboard";
-import { buildMainReport } from "../../utils/main";
+import { buildWeekClip } from "../../utils/main";
 
 const props = defineProps<{
   weeklyReport: WeeklyReport;
@@ -18,7 +18,7 @@ const showCopyToast = ref(false);
 let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
 
 const built = computed(() =>
-  buildMainReport(props.weeklyReport, {
+  buildWeekClip(props.weeklyReport, {
     todayWorkDate: props.todayWorkDate,
     todayWorkedMinutes: props.todayWorkedMinutes,
     useLiveToday: props.useLiveToday

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import type { AdminUser, AdminUserUpdateForm } from "../../types/admin";
+import type { UserDetail, UserForm } from "../../types/admin";
 import { adminStatusLabel, formatAdminDate } from "../../utils/admin";
 import { weekSummary } from "../../utils/main";
 import { formatHmFromMinutes } from "../../utils/time";
 
 const props = defineProps<{
-  user: AdminUser | null;
+  user: UserDetail | null;
   weekStart: string;
   weekEnd: string;
   saving: boolean;
@@ -15,12 +15,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  save: [form: AdminUserUpdateForm];
+  save: [form: UserForm];
 }>();
 
 const isDesktop = ref(true);
 
-const form = reactive<AdminUserUpdateForm>({
+const form = reactive<UserForm>({
   userName: "",
   department: "",
   team: "",

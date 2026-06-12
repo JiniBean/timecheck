@@ -1,6 +1,6 @@
 package com.timecheck.dto.admin;
 
-public record AdminOverviewRsp(
+public record OverviewRsp(
         String period,
         int totalUsers,
         int newUsers,

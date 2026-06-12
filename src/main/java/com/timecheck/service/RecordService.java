@@ -33,7 +33,7 @@ public class RecordService {
         return saveRecord(req, RecordAction.CHECK_OUT);
     }
 
-    public Map<String, Object> saveSettings(Work req) {
+    public Map<String, Object> patchWork(Work req) {
         return saveRecord(req, RecordAction.SETTINGS);
     }
 
@@ -41,11 +41,11 @@ public class RecordService {
         if (userId == null || workDate == null) {
             return null;
         }
-        return recordMapper.selectRecord(userId, workDate);
+        return recordMapper.selectWork(userId, workDate);
     }
 
     /** 기간 내 Work 원시 기록을 반환합니다. */
-    public List<Work> findRecordsBetween(Long userId, LocalDate startDate, LocalDate endDate) {
+    public List<Work> findWorks(Long userId, LocalDate startDate, LocalDate endDate) {
         if (userId == null) {
             throw new IllegalArgumentException("사용자 ID가 필요합니다.");
         }
@@ -55,11 +55,11 @@ public class RecordService {
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
         }
-        return recordMapper.selectRecordsBetweenDates(userId, startDate, endDate);
+        return recordMapper.selectWorks(userId, startDate, endDate);
     }
 
     /** 이번 주(월~금) Work 원시 기록만 반환합니다. */
-    public WeeklyData findWeeklyRecords(Long userId, LocalDate referenceDate) {
+    public WeeklyData findWeek(Long userId, LocalDate referenceDate) {
         if (userId == null) {
             throw new IllegalArgumentException("사용자 ID가 필요합니다.");
         }
@@ -68,7 +68,7 @@ public class RecordService {
         LocalDate weekStart = ref.with(DayOfWeek.MONDAY);
         LocalDate weekEnd = weekStart.plusDays(4);
 
-        List<Work> records = recordMapper.selectRecordsBetweenDates(userId, weekStart, weekEnd);
+        List<Work> records = recordMapper.selectWorks(userId, weekStart, weekEnd);
         User user = userMapper.selectById(userId);
 
         return WeeklyData.builder()
@@ -84,7 +84,7 @@ public class RecordService {
 
     private Map<String, Object> saveRecord(Work req, RecordAction action) {
         Work newWork = initRequest(req);
-        Work oldWork = recordMapper.selectRecord(newWork.getUserId(), newWork.getWorkDate());
+        Work oldWork = recordMapper.selectWork(newWork.getUserId(), newWork.getWorkDate());
 
         Work target = oldWork == null ? newWork : oldWork.toBuilder().build();
 
@@ -119,7 +119,7 @@ public class RecordService {
             recordMapper.updateRecord(target);
         }
 
-        return buildResponse(recordMapper.selectRecord(target.getUserId(), target.getWorkDate()));
+        return buildResponse(recordMapper.selectWork(target.getUserId(), target.getWorkDate()));
     }
 
     private Map<String, Object> buildResponse(Work work) {

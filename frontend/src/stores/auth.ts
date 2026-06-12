@@ -32,8 +32,8 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function updateUser(form: ProfileForm) {
-    user.value = await authApi.updateUser(form);
+  async function updateMe(form: ProfileForm) {
+    user.value = await authApi.updateMe(form);
   }
 
   function clearUser() {
@@ -48,7 +48,7 @@ export const useAuthStore = defineStore("auth", () => {
     login,
     signup,
     logout,
-    updateUser: updateUser,
+    updateMe,
     clearUser
   };
 });

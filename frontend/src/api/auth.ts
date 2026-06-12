@@ -27,7 +27,7 @@ export async function logout(): Promise<void> {
   await http.post("/auth/logout");
 }
 
-export async function updateUser(form: ProfileForm): Promise<AuthUser> {
+export async function updateMe(form: ProfileForm): Promise<AuthUser> {
   const { data } = await http.put<AuthResponse>("/auth/me", {
     username: form.username,
     password: form.password || null,

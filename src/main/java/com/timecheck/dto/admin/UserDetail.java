@@ -1,7 +1,9 @@
 package com.timecheck.dto.admin;
 
-/** MyBatis 전용 — weekRecords는 서비스에서 enrich */
-public record AdminUserRow(
+import com.timecheck.model.Work;
+import java.util.List;
+
+public record UserDetail(
         Long userId,
         String username,
         String userName,
@@ -13,4 +15,5 @@ public record AdminUserRow(
         String lastActivityDate,
         int weekDays,
         int totalRecords,
-        String status) {}
+        String status,
+        List<Work> weekRecords) {}

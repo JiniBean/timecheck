@@ -45,7 +45,7 @@ public class WorkController {
     public ResponseEntity<WeeklyData> getWeek(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         Long userId = SecurityUtils.requireCurrentUserId();
-        WeeklyData data = recordService.findWeeklyRecords(userId, date);
+        WeeklyData data = recordService.findWeek(userId, date);
         return ResponseEntity.ok(data);
     }
 
@@ -55,7 +55,7 @@ public class WorkController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end) {
         Long userId = SecurityUtils.requireCurrentUserId();
-        List<Work> records = recordService.findRecordsBetween(userId, start, end);
+        List<Work> records = recordService.findWorks(userId, start, end);
         Map<String, Object> response = new HashMap<>();
         response.put("records", records);
         return ResponseEntity.ok(response);
@@ -82,6 +82,6 @@ public class WorkController {
         if (date != null) {
             request.setWorkDate(date);
         }
-        return ResponseEntity.ok(recordService.saveSettings(request));
+        return ResponseEntity.ok(recordService.patchWork(request));
     }
 }
