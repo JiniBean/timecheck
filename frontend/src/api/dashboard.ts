@@ -95,6 +95,23 @@ export async function fetchWork(userId: number, workDate: string): Promise<Work>
   return normalized;
 }
 
+interface WorkRangeResponse {
+  records: Work[];
+}
+
+export async function fetchWorkRecordsInRange(
+  userId: number,
+  startDate: string,
+  endDate: string
+): Promise<Work[]> {
+  const { data } = await http.get<WorkRangeResponse>("/work/range", {
+    params: { start: startDate, end: endDate }
+  });
+  return (data.records ?? []).map((record) =>
+    withCalculatedFields(record, userId, record.workDate)
+  );
+}
+
 export async function fetchWeeklyReport(userId: number, referenceDate?: string): Promise<WeeklyReport> {
   const ref = referenceDate ?? localDateKey();
   const { data } = await http.get<MainReportApiResponse>("/work/week", {

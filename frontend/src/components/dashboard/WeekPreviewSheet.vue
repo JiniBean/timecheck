@@ -1,20 +1,29 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import TimePicker from "./TimePicker.vue";
-import { fetchTodayWork, fetchWeeklyReport } from "../../api/dashboard";
+import { fetchTodayWork, fetchWeeklyReport, fetchWorkRecordsInRange } from "../../api/dashboard";
 import type { WeeklyReport, Work } from "../../types/dashboard";
+import { computeTypicalCheckInHhmm, recentCheckInRange } from "../../utils/checkInAverage";
 import { isDayOff } from "../../utils/dayType";
 import { formatHm, formatHmFromMinutes } from "../../utils/time";
 import { currentDateKey } from "../../utils/weekNav";
+import { WorkPolicy } from "../../utils/workPolicy";
 import {
   buildWeekPreview,
   formatPreviewCheckIn,
   formatPreviewCheckOut,
   formatPreviewWork,
   hhmmToDateTime,
+  isPreviewCheckoutNextDay,
   type WeekPreviewOverrides,
   type WeekPreviewRow
 } from "../../utils/weekPreview";
+
+type ProjectedStartMode = "on-time" | "average" | "custom";
+type PresetMode = "on-time" | "average";
+type TimePickerContext = "row" | "summary";
+
+const ON_TIME_HHMM = `${String(WorkPolicy.STD_START.hour).padStart(2, "0")}:${String(WorkPolicy.STD_START.minute).padStart(2, "0")}`;
 
 const props = defineProps<{
   open: boolean;
@@ -30,8 +39,14 @@ const weeklyReport = ref<WeeklyReport | null>(null);
 const todayWork = ref<Work | null>(null);
 const overrides = ref<WeekPreviewOverrides>({});
 
+const projectedStartMode = ref<ProjectedStartMode>("on-time");
+const projectedStartHhmm = ref(ON_TIME_HHMM);
+const avgCheckInHhmm = ref<string | null>(null);
+const lastPresetMode = ref<PresetMode>("on-time");
+
 const timePickerOpen = ref(false);
-const timePickerInitial = ref("09:00");
+const timePickerInitial = ref(ON_TIME_HHMM);
+const timePickerContext = ref<TimePickerContext>("row");
 const timeEditField = ref<"start" | "end">("start");
 const editingRow = ref<WeekPreviewRow | null>(null);
 
@@ -45,8 +60,29 @@ const preview = computed(() => {
     weeklyReport: weeklyReport.value,
     todayWork: todayWork.value,
     todayDateKey: todayDateKey.value,
-    overrides: overrides.value
+    overrides: overrides.value,
+    projectedStartHhmm: projectedStartHhmm.value
   });
+});
+
+const timePickerTitle = computed(() => {
+  if (timePickerContext.value === "summary") {
+    return "예정 출근시간";
+  }
+  return timeEditField.value === "start" ? "출근 시간" : "퇴근 시간";
+});
+
+const presetToggleMuted = computed(() => projectedStartMode.value === "custom");
+const canSelectAverage = computed(() => avgCheckInHhmm.value !== null);
+
+const presetToggleAverage = computed(() => {
+  if (projectedStartMode.value === "average") {
+    return true;
+  }
+  if (projectedStartMode.value === "on-time") {
+    return false;
+  }
+  return lastPresetMode.value === "average";
 });
 
 const balanceLabel = computed(() =>
@@ -62,6 +98,37 @@ const balanceValue = computed(() => {
     : formatHmFromMinutes(preview.value.weekRemainingMinutes);
 });
 
+function resetProjectedStartState() {
+  projectedStartMode.value = "on-time";
+  projectedStartHhmm.value = ON_TIME_HHMM;
+  avgCheckInHhmm.value = null;
+  lastPresetMode.value = "on-time";
+}
+
+function clearStartOverrides() {
+  if (!preview.value) {
+    return;
+  }
+  const next = { ...overrides.value };
+  for (const row of preview.value.rows) {
+    if (!row.canEditCheckIn) {
+      continue;
+    }
+    const entry = next[row.workDate];
+    if (!entry?.rawStart) {
+      continue;
+    }
+    const updated = { ...entry };
+    delete updated.rawStart;
+    if (!updated.rawEnd) {
+      delete next[row.workDate];
+    } else {
+      next[row.workDate] = updated;
+    }
+  }
+  overrides.value = next;
+}
+
 watch(
   () => props.open,
   async (isOpen) => {
@@ -69,18 +136,23 @@ watch(
       overrides.value = {};
       weeklyReport.value = null;
       todayWork.value = null;
+      resetProjectedStartState();
       return;
     }
 
     loading.value = true;
     try {
-      const [weekly, today] = await Promise.all([
+      const range = recentCheckInRange(todayDateKey.value);
+      const [weekly, today, rangeRecords] = await Promise.all([
         fetchWeeklyReport(props.userId, todayDateKey.value),
-        fetchTodayWork(props.userId)
+        fetchTodayWork(props.userId),
+        fetchWorkRecordsInRange(props.userId, range.start, range.end)
       ]);
       weeklyReport.value = weekly;
       todayWork.value = today;
       overrides.value = {};
+      resetProjectedStartState();
+      avgCheckInHhmm.value = computeTypicalCheckInHhmm(rangeRecords);
     } finally {
       loading.value = false;
     }
@@ -97,6 +169,50 @@ function resolvePickerInitial(row: WeekPreviewRow, field: "start" | "end"): stri
   return formatted !== "-" ? formatted : field === "end" ? "18:00" : "09:00";
 }
 
+function openSummaryTimePicker() {
+  timePickerContext.value = "summary";
+  editingRow.value = null;
+  timePickerInitial.value = projectedStartHhmm.value;
+  timePickerOpen.value = true;
+}
+
+function selectOnTime() {
+  lastPresetMode.value = "on-time";
+  projectedStartMode.value = "on-time";
+  projectedStartHhmm.value = ON_TIME_HHMM;
+  clearStartOverrides();
+}
+
+function selectAverage() {
+  if (!avgCheckInHhmm.value) {
+    return;
+  }
+  lastPresetMode.value = "average";
+  projectedStartMode.value = "average";
+  projectedStartHhmm.value = avgCheckInHhmm.value;
+  clearStartOverrides();
+}
+
+function restoreLastPreset() {
+  if (lastPresetMode.value === "average") {
+    selectAverage();
+    return;
+  }
+  selectOnTime();
+}
+
+function handlePresetSelect(target: PresetMode) {
+  if (projectedStartMode.value === "custom") {
+    restoreLastPreset();
+    return;
+  }
+  if (target === "on-time") {
+    selectOnTime();
+    return;
+  }
+  selectAverage();
+}
+
 function openTimePicker(row: WeekPreviewRow, field: "start" | "end") {
   if (field === "start" && !row.canEditCheckIn) {
     return;
@@ -107,6 +223,7 @@ function openTimePicker(row: WeekPreviewRow, field: "start" | "end") {
   if (isDayOff(row.dayType)) {
     return;
   }
+  timePickerContext.value = "row";
   editingRow.value = row;
   timeEditField.value = field;
   timePickerInitial.value = resolvePickerInitial(row, field);
@@ -114,6 +231,13 @@ function openTimePicker(row: WeekPreviewRow, field: "start" | "end") {
 }
 
 function onTimeConfirm(hhmm: string) {
+  if (timePickerContext.value === "summary") {
+    projectedStartMode.value = "custom";
+    projectedStartHhmm.value = hhmm;
+    clearStartOverrides();
+    return;
+  }
+
   if (!editingRow.value) {
     return;
   }
@@ -144,6 +268,12 @@ function hasOverride(workDate: string, field: "start" | "end"): boolean {
 function cellToneClass(row: WeekPreviewRow, field: "start" | "end" | "work"): string {
   if (isDayOff(row.dayType)) {
     return "cell-tone-muted";
+  }
+
+  if (row.recordGap !== "none") {
+    if (field === "work") {
+      return "cell-tone-fixed";
+    }
   }
 
   if (field === "start") {
@@ -240,9 +370,48 @@ function rowToneClass(row: WeekPreviewRow): string {
                 <p class="stat-label">{{ balanceLabel }}</p>
                 <p class="stat-value">{{ balanceValue }}</p>
               </div>
-              <div class="stat-item stat-item--divider">
-                <p class="stat-label">하루 평균</p>
-                <p class="stat-value">{{ formatHmFromMinutes(preview.avgRequiredPerDayMinutes) }}</p>
+              <div class="stat-item stat-item--divider stat-item--projected-start">
+                <p class="stat-label">예정 출근시간</p>
+                <button
+                  type="button"
+                  class="stat-value stat-value--time"
+                  aria-label="예정 출근시간 변경"
+                  @click="openSummaryTimePicker"
+                >
+                  {{ projectedStartHhmm }}
+                </button>
+                <div
+                  class="start-preset-switch"
+                  :class="{ 'start-preset-switch--muted': presetToggleMuted }"
+                  role="group"
+                  aria-label="예정 출근시간 프리셋"
+                >
+                  <div
+                    class="start-preset-switch__indicator"
+                    :class="{ 'start-preset-switch__indicator--right': presetToggleAverage }"
+                    aria-hidden="true"
+                  />
+                  <button
+                    type="button"
+                    class="start-preset-switch__option"
+                    :class="{ 'start-preset-switch__option--active': !presetToggleAverage }"
+                    :aria-pressed="!presetToggleAverage"
+                    @click="handlePresetSelect('on-time')"
+                  >
+                    정시
+                  </button>
+                  <button
+                    type="button"
+                    class="start-preset-switch__option"
+                    :class="{ 'start-preset-switch__option--active': presetToggleAverage }"
+                    :aria-pressed="presetToggleAverage"
+                    :disabled="!canSelectAverage"
+                    :title="canSelectAverage ? undefined : '최근 출근 기록 없음'"
+                    @click="handlePresetSelect('average')"
+                  >
+                    평균
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -274,7 +443,12 @@ function rowToneClass(row: WeekPreviewRow): string {
                     :class="[cellToneClass(row, 'end'), { 'cell-editable': row.canEditCheckOut }]"
                     @click="openTimePicker(row, 'end')"
                   >
-                    {{ formatPreviewCheckOut(row) }}
+                    <template v-if="isPreviewCheckoutNextDay(row)">
+                      {{ formatHm(row.rawEnd) }}<span class="cell-next-day">(+1)</span>
+                    </template>
+                    <template v-else>
+                      {{ formatPreviewCheckOut(row) }}
+                    </template>
                   </td>
                   <td>
                     <span :class="cellToneClass(row, 'work')">
@@ -295,7 +469,7 @@ function rowToneClass(row: WeekPreviewRow): string {
       v-model:open="timePickerOpen"
       :initial-time="timePickerInitial"
       :z-index="220"
-      :title="timeEditField === 'start' ? '출근 시간' : '퇴근 시간'"
+      :title="timePickerTitle"
       @confirm="onTimeConfirm"
     />
   </teleport>
@@ -369,6 +543,119 @@ function rowToneClass(row: WeekPreviewRow): string {
 .week-preview-summary {
   margin-bottom: 12px;
   padding-block: 14px;
+}
+
+.cell-next-day {
+  color: var(--color-text-placeholder);
+  font-weight: var(--weight-medium);
+  font-size: 0.92em;
+}
+
+.stat-item--projected-start {
+  gap: 4px;
+}
+
+.stat-value--time {
+  margin: 4px 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-preview-edited);
+  font-size: var(--font-base);
+  font-weight: var(--weight-heavy);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.start-preset-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: 100%;
+  max-width: 104px;
+  height: 26px;
+  margin-top: 8px;
+  padding: 2px;
+  border-radius: 8px;
+  background-color: var(--color-surface-muted, #eef1f6);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.start-preset-switch--muted {
+  background-color: var(--color-surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.start-preset-switch__indicator {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  height: calc(100% - 4px);
+  border-radius: 6px;
+  background-color: var(--color-surface);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 0 0 0.5px rgba(15, 23, 42, 0.04);
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+
+.start-preset-switch__indicator--right {
+  transform: translateX(100%);
+}
+
+.start-preset-switch--muted .start-preset-switch__indicator {
+  background-color: var(--color-surface);
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+.start-preset-switch__option {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 10px;
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.start-preset-switch__option--active {
+  color: var(--color-text);
+}
+
+.start-preset-switch:not(.start-preset-switch--muted) .start-preset-switch__option--active {
+  color: var(--color-primary-text);
+}
+
+.start-preset-switch--muted .start-preset-switch__option {
+  color: var(--color-text-placeholder);
+  cursor: pointer;
+}
+
+.start-preset-switch__option:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .start-preset-switch:not(.start-preset-switch--muted)
+    .start-preset-switch__option:not(:disabled):not(.start-preset-switch__option--active):hover {
+    color: var(--color-text-secondary);
+  }
 }
 
 .week-preview-table-wrap {

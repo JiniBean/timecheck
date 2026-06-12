@@ -2,7 +2,7 @@ import type { DayType, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboa
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
 import { MAIN_WEEK_TARGET_MINUTES, computeAvgRequiredPerDay } from "./main";
 import { computeMainMinutes } from "./ot";
-import { formatHm } from "./time";
+import { formatHm, formatHmFromMinutes } from "./time";
 import {
   calculateWorkMinutes,
   resolveEffectiveTodayWork,
@@ -11,6 +11,15 @@ import {
 import { WorkPolicy } from "./workPolicy";
 
 export type PreviewRowKind = "actual" | "projected";
+
+/** 과거 근무일 기록 누락 유형 */
+export type PreviewRecordGap = "none" | "missing-checkout" | "missing-both";
+
+export interface PreviewIncompleteDay {
+  workDate: string;
+  weekdayLabel: string;
+  gap: Exclude<PreviewRecordGap, "none">;
+}
 
 export interface WeekPreviewOverrides {
   [workDate: string]: {
@@ -31,6 +40,7 @@ export interface WeekPreviewRow {
   canEditCheckIn: boolean;
   canEditCheckOut: boolean;
   isProjected: boolean;
+  recordGap: PreviewRecordGap;
 }
 
 export interface WeekPreviewResult {
@@ -40,6 +50,7 @@ export interface WeekPreviewResult {
   weekRemainingMinutes: number;
   weekOverMinutes: number;
   avgRequiredPerDayMinutes: number;
+  incompletePastDays: PreviewIncompleteDay[];
 }
 
 interface DayEditability {
@@ -78,11 +89,13 @@ export function hhmmToDateTime(workDate: string, hhmm: string): string {
   return `${workDate} ${String(Number(h) || 0).padStart(2, "0")}:${String(Number(m) || 0).padStart(2, "0")}`;
 }
 
-function defaultProjectedStart(workDate: string, dayType: DayType): string {
+const DEFAULT_PROJECTED_START_HHMM = "09:00";
+
+function defaultProjectedStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
   if (dayType === "AM") {
     return hhmmToDateTime(workDate, "14:00");
   }
-  return hhmmToDateTime(workDate, "09:00");
+  return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
 }
 
 function computeEndAtMainMinutes(
@@ -134,6 +147,19 @@ function resolveMainMinutes(
     return fallback;
   }
   return calculateWorkMinutes(calcInput(workDate, dayType, rawStart, rawEnd)).main;
+}
+
+function resolvePastRecordGap(day: WeeklyDayRow, todayDate: string): PreviewRecordGap {
+  if (day.workDate >= todayDate || isDayOff(day.dayType)) {
+    return "none";
+  }
+  if (day.rawEnd) {
+    return "none";
+  }
+  if (!day.rawStart) {
+    return "missing-both";
+  }
+  return "missing-checkout";
 }
 
 function resolveEditability(
@@ -205,9 +231,11 @@ export function buildWeekPreview(input: {
   todayWork: Work;
   todayDateKey: string;
   overrides?: WeekPreviewOverrides;
+  projectedStartHhmm?: string;
 }): WeekPreviewResult {
   const { weeklyReport, todayWork, todayDateKey } = input;
   const overrides = input.overrides ?? {};
+  const projectedStartHhmm = input.projectedStartHhmm ?? DEFAULT_PROJECTED_START_HHMM;
   const effectiveToday = resolveEffectiveTodayWork(todayWork, weeklyReport.days, todayDateKey);
   const targetMinutes = weeklyReport.summary.targetMinutes || MAIN_WEEK_TARGET_MINUTES;
 
@@ -221,8 +249,13 @@ export function buildWeekPreview(input: {
 
     if (edit.isFixed) {
       const actual = resolveActualTimes(day, todayDateKey, effectiveToday);
-      resolved.set(day.workDate, actual);
-      fixedMinutes += actual.mainMinutes;
+      const recordGap = resolvePastRecordGap(day, todayDateKey);
+      const mainMinutes = recordGap !== "none" ? 0 : actual.mainMinutes;
+      resolved.set(day.workDate, {
+        ...actual,
+        mainMinutes
+      });
+      fixedMinutes += mainMinutes;
       continue;
     }
 
@@ -237,7 +270,8 @@ export function buildWeekPreview(input: {
     const baseStart = isToday ? effectiveToday.rawStart : day.rawStart;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
 
-    const start = override?.rawStart ?? baseStart ?? defaultProjectedStart(day.workDate, dayType);
+    const start =
+      override?.rawStart ?? baseStart ?? defaultProjectedStart(day.workDate, dayType, projectedStartHhmm);
     const lockedEnd = override?.rawEnd ?? null;
 
     if (lockedEnd) {
@@ -280,7 +314,7 @@ export function buildWeekPreview(input: {
 
     const endDt = computeEndAtMainMinutes(slot.day.workDate, startDt, dayType, perDayMinutes);
     const rawEnd = formatDateTime(slot.day.workDate, endDt);
-    const mainMinutes = resolveMainMinutes(slot.day.workDate, dayType, slot.start, rawEnd);
+    const mainMinutes = computeMainMinutes(slot.day.workDate, startDt, endDt, dayType);
 
     resolved.set(slot.day.workDate, {
       rawStart: slot.start,
@@ -291,11 +325,22 @@ export function buildWeekPreview(input: {
     });
   }
 
+  const incompletePastDays: PreviewIncompleteDay[] = [];
+
   const rows: WeekPreviewRow[] = weeklyReport.days.map((day) => {
     const edit = resolveEditability(day, todayDateKey, effectiveToday);
     const times = resolved.get(day.workDate)!;
     const isToday = day.workDate === todayDateKey;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
+    const recordGap = resolvePastRecordGap(day, todayDateKey);
+
+    if (recordGap !== "none") {
+      incompletePastDays.push({
+        workDate: day.workDate,
+        weekdayLabel: day.weekdayLabel,
+        gap: recordGap
+      });
+    }
 
     return {
       workDate: day.workDate,
@@ -308,7 +353,8 @@ export function buildWeekPreview(input: {
       isToday,
       canEditCheckIn: edit.canEditCheckIn,
       canEditCheckOut: edit.canEditCheckOut,
-      isProjected: times.isProjected
+      isProjected: times.isProjected,
+      recordGap
     };
   });
 
@@ -323,12 +369,39 @@ export function buildWeekPreview(input: {
     weekTargetMinutes: targetMinutes,
     weekRemainingMinutes,
     weekOverMinutes,
-    avgRequiredPerDayMinutes
+    avgRequiredPerDayMinutes,
+    incompletePastDays
   };
+}
+
+export function formatIncompletePastSummary(days: PreviewIncompleteDay[]): string {
+  if (days.length === 0) {
+    return "";
+  }
+  const labels = days.map((day) => {
+    const detail = day.gap === "missing-checkout" ? "퇴근 미완료" : "출퇴근 미기록";
+    return `${day.weekdayLabel} · ${detail}`;
+  });
+  return `${labels.join(", ")} — 일반 근무표에서 입력해 주세요`;
+}
+
+export function isPreviewCheckoutNextDay(row: WeekPreviewRow): boolean {
+  if (isDayOff(row.dayType) || row.recordGap !== "none" || !row.rawStart || !row.rawEnd) {
+    return false;
+  }
+  const start = parseDateTime(row.rawStart);
+  const end = parseDateTime(row.rawEnd);
+  if (!start || !end) {
+    return false;
+  }
+  return end.getTime() <= start.getTime() || end.getHours() < 6;
 }
 
 export function formatPreviewCheckIn(row: WeekPreviewRow): string {
   if (isDayOff(row.dayType)) {
+    return "-";
+  }
+  if (row.recordGap === "missing-both") {
     return "-";
   }
   return formatHm(row.rawStart);
@@ -338,12 +411,25 @@ export function formatPreviewCheckOut(row: WeekPreviewRow): string {
   if (isDayOff(row.dayType)) {
     return "-";
   }
-  return formatHm(row.rawEnd);
+  if (row.recordGap === "missing-checkout") {
+    return "-";
+  }
+  if (row.recordGap === "missing-both") {
+    return "-";
+  }
+  const formatted = formatHm(row.rawEnd);
+  if (formatted === "-") {
+    return "-";
+  }
+  return formatted;
 }
 
 export function formatPreviewWork(row: WeekPreviewRow): string {
   if (isDayOff(row.dayType)) {
     return dayTypeLabel(row.dayType);
+  }
+  if (row.recordGap !== "none") {
+    return formatHmFromMinutes(0);
   }
   return workCellLabel(row.dayType, row.mainMinutes);
 }
