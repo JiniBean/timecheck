@@ -8,15 +8,21 @@ public record UserRsp(
         String userName,
         String department,
         String team,
-        String position) {
+        String position,
+        String role) {
 
     public static UserRsp from(User user) {
+        String role = user.getRole();
+        if (role == null || role.isBlank()) {
+            role = "USER";
+        }
         return new UserRsp(
                 user.getUserId(),
                 user.getUsername(),
                 user.getDisplayName(),
                 user.getDepartment(),
                 user.getTeam(),
-                user.getPosition());
+                user.getPosition(),
+                role);
     }
 }

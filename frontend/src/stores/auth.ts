@@ -1,11 +1,12 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import * as authApi from "../api/auth";
 import type { AuthUser, LoginForm, ProfileForm, SignupForm } from "../types/auth";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<AuthUser | null>(null);
   const initialized = ref(false);
+  const isAdmin = computed(() => user.value?.role === "ADMIN");
 
   async function bootstrap() {
     try {
@@ -31,8 +32,8 @@ export const useAuthStore = defineStore("auth", () => {
     }
   }
 
-  async function updateProfile(form: ProfileForm) {
-    user.value = await authApi.updateProfile(form);
+  async function updateUser(form: ProfileForm) {
+    user.value = await authApi.updateUser(form);
   }
 
   function clearUser() {
@@ -42,11 +43,12 @@ export const useAuthStore = defineStore("auth", () => {
   return {
     user,
     initialized,
+    isAdmin,
     bootstrap,
     login,
     signup,
     logout,
-    updateProfile,
+    updateUser: updateUser,
     clearUser
   };
 });

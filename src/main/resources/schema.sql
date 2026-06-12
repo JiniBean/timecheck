@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS USERS (
     DEPARTMENT TEXT,
     TEAM TEXT,
     POSITION TEXT,
+    ROLE TEXT NOT NULL DEFAULT 'USER',
     CREATED_AT TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     UPDATED_AT TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

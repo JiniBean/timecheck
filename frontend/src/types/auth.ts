@@ -1,3 +1,5 @@
+export type UserRole = "USER" | "ADMIN";
+
 export interface AuthUser {
   userId: number;
   username: string;
@@ -5,6 +7,7 @@ export interface AuthUser {
   department: string | null;
   team: string | null;
   position: string | null;
+  role: UserRole;
 }
 
 export interface LoginForm {

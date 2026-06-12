@@ -76,7 +76,7 @@ async function handleSubmit() {
   errorMessage.value = null;
   loading.value = true;
   try {
-    await authStore.updateProfile(form.value);
+    await authStore.updateUser(form.value);
     emit("saved");
     emit("close");
   } catch (error) {

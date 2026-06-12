@@ -59,6 +59,33 @@
         ORDER BY WORK_DATE ASC
     </select>
 
+    <select id="selectRecordsBetweenDatesForAllUsers" resultType="com.timecheck.model.Work">
+        SELECT
+            WORK_ID,
+            USER_ID,
+            WORK_DATE,
+            RAW_START AS rawStart,
+            RAW_END AS rawEnd,
+            MAIN_START AS mainStart,
+            MAIN_END AS mainEnd,
+            BASE,
+            MAIN,
+            EXTRA_1 AS extra1,
+            EXTRA_2 AS extra2,
+            OT_START AS otStart,
+            OT_END AS otEnd,
+            IS_OT AS isOt,
+            DAY_TYPE AS dayType,
+            LATE_IN AS lateIn,
+            EARLY_OUT AS earlyOut,
+            REMARK AS remark,
+            CREATED_AT,
+            UPDATED_AT
+        FROM WORK
+        WHERE WORK_DATE BETWEEN #{startDate, jdbcType=DATE} AND #{endDate, jdbcType=DATE}
+        ORDER BY USER_ID ASC, WORK_DATE ASC
+    </select>
+
     <insert id="insertRecord" parameterType="com.timecheck.model.Work">
         INSERT INTO WORK (
             USER_ID,

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.timecheck.mapper.AdminMapper">
+
+    <sql id="userStatusCase">
+        CASE
+            WHEN date(u.CREATED_AT) &gt; date(#{signupBefore}) THEN 'new'
+            WHEN date(u.CREATED_AT) &lt;= date(#{signupBefore})
+                 AND (u.LAST_ACTIVITY IS NULL OR u.LAST_ACTIVITY &lt; #{inactiveSince}) THEN 'inactive'
+            ELSE 'active'
+        END
+    </sql>
+
+    <sql id="userSummarySelect">
+        SELECT
+            u.USER_ID AS userId,
+            u.USERNAME AS username,
+            u.USER_NAME AS userName,
+            u.DEPARTMENT AS department,
+            u.TEAM AS team,
+            u.POSITION AS position,
+            u.ROLE AS role,
+            u.CREATED_AT AS createdAt,
+            u.LAST_ACTIVITY AS lastActivityDate,
+            COALESCE(w.RECORD_DAYS, 0) AS weekDays,
+            COALESCE(t.TOTAL_RECORDS, 0) AS totalRecords,
+            <include refid="userStatusCase"/> AS status
+        FROM (
+            SELECT
+                USER_ID,
+                USERNAME,
+                USER_NAME,
+                DEPARTMENT,
+                TEAM,
+                POSITION,
+                ROLE,
+                CREATED_AT,
+                (
+                    SELECT MAX(WORK_DATE)
+                    FROM WORK
+                    WHERE WORK.USER_ID = USERS.USER_ID
+                ) AS LAST_ACTIVITY
+            FROM USERS
+        ) u
+        LEFT JOIN (
+            SELECT
+                USER_ID,
+                COUNT(*) AS RECORD_DAYS
+            FROM WORK
+            WHERE WORK_DATE BETWEEN #{weekStart} AND #{weekEnd}
+            GROUP BY USER_ID
+        ) w ON w.USER_ID = u.USER_ID
+        LEFT JOIN (
+            SELECT USER_ID, COUNT(*) AS TOTAL_RECORDS
+            FROM WORK
+            GROUP BY USER_ID
+        ) t ON t.USER_ID = u.USER_ID
+    </sql>
+
+    <select id="countAllUsers" resultType="int">
+        SELECT COUNT(*) FROM USERS
+    </select>
+
+    <select id="countNewUsers" resultType="int">
+        SELECT COUNT(*)
+        FROM USERS
+        WHERE date(CREATED_AT) &gt;= date(#{startDate})
+          AND date(CREATED_AT) &lt;= date(#{endDate})
+    </select>
+
+    <select id="countActiveUsers" resultType="int">
+        SELECT COUNT(DISTINCT USER_ID)
+        FROM WORK
+        WHERE WORK_DATE BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="countUsersWithAnyWork" resultType="int">
+        SELECT COUNT(DISTINCT USER_ID) FROM WORK
+    </select>
+
+    <select id="countNomWorkDays" resultType="int">
+        SELECT COUNT(*)
+        FROM WORK
+        WHERE DAY_TYPE = 'NOM'
+          AND WORK_DATE BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="countCheckInDays" resultType="int">
+        SELECT COUNT(*)
+        FROM WORK
+        WHERE DAY_TYPE = 'NOM'
+          AND RAW_START IS NOT NULL
+          AND WORK_DATE BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="countInactiveUsers" resultType="int">
+        SELECT COUNT(*)
+        FROM USERS u
+        WHERE date(u.CREATED_AT) &lt;= date(#{signupBefore})
+          AND NOT EXISTS (
+              SELECT 1
+              FROM WORK w
+              WHERE w.USER_ID = u.USER_ID
+                AND w.WORK_DATE &gt;= #{inactiveSince}
+          )
+    </select>
+
+    <select id="countAdmins" resultType="int">
+        SELECT COUNT(*) FROM USERS WHERE ROLE = 'ADMIN'
+    </select>
+
+    <select id="selectUserSummaries" resultType="com.timecheck.dto.admin.AdminUserRow">
+        <include refid="userSummarySelect"/>
+        <where>
+            <if test="department != null and department != ''">
+                AND u.DEPARTMENT = #{department}
+            </if>
+            <if test="status != null and status != ''">
+                AND <include refid="userStatusCase"/> = #{status}
+            </if>
+        </where>
+        ORDER BY u.CREATED_AT DESC
+    </select>
+
+    <select id="selectUserSummary" resultType="com.timecheck.dto.admin.AdminUserRow">
+        <include refid="userSummarySelect"/>
+        WHERE u.USER_ID = #{userId, jdbcType=BIGINT}
+    </select>
+
+    <update id="updateUserByAdmin">
+        UPDATE USERS
+        SET
+            USER_NAME = #{displayName, jdbcType=VARCHAR},
+            DEPARTMENT = #{department, jdbcType=VARCHAR},
+            TEAM = #{team, jdbcType=VARCHAR},
+            POSITION = #{position, jdbcType=VARCHAR},
+            ROLE = #{role, jdbcType=VARCHAR},
+            UPDATED_AT = datetime('now', 'localtime')
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+    </update>
+
+</mapper>

@@ -22,6 +22,6 @@ public class SessionUserDetailsService implements UserDetailsService {
         if (user == null || user.getPwd() == null) {
             throw new UsernameNotFoundException("사용자를 찾을 수 없습니다.");
         }
-        return new SessionUser(user.getUserId(), user.getUsername(), user.getPwd());
+        return new SessionUser(user.getUserId(), user.getUsername(), user.getPwd(), user.getRole());
     }
 }

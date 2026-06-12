@@ -11,7 +11,8 @@
             USER_NAME AS displayName,
             DEPARTMENT AS department,
             TEAM AS team,
-            POSITION AS position
+            POSITION AS position,
+            ROLE AS role
         FROM USERS
         WHERE USER_ID = #{userId, jdbcType=BIGINT}
     </select>
@@ -24,7 +25,8 @@
             USER_NAME AS displayName,
             DEPARTMENT AS department,
             TEAM AS team,
-            POSITION AS position
+            POSITION AS position,
+            ROLE AS role
         FROM USERS
         WHERE USERNAME = #{username, jdbcType=VARCHAR}
     </select>
@@ -54,6 +56,9 @@
             DEPARTMENT = #{department, jdbcType=VARCHAR},
             TEAM = #{team, jdbcType=VARCHAR},
             POSITION = #{position, jdbcType=VARCHAR},
+            <if test="role != null">
+            ROLE = #{role, jdbcType=VARCHAR},
+            </if>
             <if test="pwd != null">
             PWD = #{pwd, jdbcType=VARCHAR},
             </if>
@@ -68,14 +73,16 @@
             USER_NAME,
             DEPARTMENT,
             TEAM,
-            POSITION
+            POSITION,
+            ROLE
         ) VALUES (
             #{username, jdbcType=VARCHAR},
             #{pwd, jdbcType=VARCHAR},
             #{displayName, jdbcType=VARCHAR},
             #{department, jdbcType=VARCHAR},
             #{team, jdbcType=VARCHAR},
-            #{position, jdbcType=VARCHAR}
+            #{position, jdbcType=VARCHAR},
+            #{role, jdbcType=VARCHAR}
         )
     </insert>
 

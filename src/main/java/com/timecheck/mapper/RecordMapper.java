@@ -31,6 +31,9 @@ public interface RecordMapper {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate);
 
+    List<Work> selectRecordsBetweenDatesForAllUsers(
+            @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
     /**
      * 출퇴근 기록을 신규 생성합니다.
      *

@@ -70,6 +70,7 @@ public class AuthService {
                 .department(department)
                 .team(team)
                 .position(position)
+                .role("USER")
                 .build();
         userMapper.insertUser(user);
 
@@ -102,7 +103,7 @@ public class AuthService {
         }
     }
 
-    public UserRsp getCurrentUser() {
+    public UserRsp getCurrUser() {
         Long userId = SecurityUtils.requireCurrentUserId();
         return UserRsp.from(requireUser(userId));
     }
@@ -127,7 +128,7 @@ public class AuthService {
     }
 
     @Transactional
-    public UserRsp updateProfile(ProfileReq req, HttpServletRequest httpRequest) {
+    public UserRsp updateUser(ProfileReq req, HttpServletRequest httpRequest) {
         Long userId = SecurityUtils.requireCurrentUserId();
         User current = requireUserWithCredentials(userId);
 
@@ -186,7 +187,8 @@ public class AuthService {
 
     private void refreshSessionPrincipal(Long userId, HttpServletRequest httpRequest) {
         User user = requireUserWithCredentials(userId);
-        SessionUser sessionUser = new SessionUser(user.getUserId(), user.getUsername(), user.getPwd());
+        SessionUser sessionUser =
+                new SessionUser(user.getUserId(), user.getUsername(), user.getPwd(), user.getRole());
         Authentication authentication =
                 new UsernamePasswordAuthenticationToken(sessionUser, null, sessionUser.getAuthorities());
 

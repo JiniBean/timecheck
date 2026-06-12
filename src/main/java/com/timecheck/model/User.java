@@ -23,4 +23,6 @@ public class User {
     private String team;
     /** USERS.POSITION — 직급 (nullable) */
     private String position;
+    /** USERS.ROLE — USER | ADMIN */
+    private String role;
 }
