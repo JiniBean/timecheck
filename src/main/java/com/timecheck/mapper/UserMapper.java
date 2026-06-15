@@ -20,5 +20,5 @@ public interface UserMapper {
 
     int updateUser(User user);
 
-    int updateLastAccess(@Param("userId") Long userId);
+    int updateLastAccess(@Param("userId") Long userId, @Param("lastAccess") String lastAccess);
 }

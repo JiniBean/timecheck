@@ -138,6 +138,13 @@ function close() {
               <span class="field-label">직급</span>
               <input v-model="form.position" class="text-input" type="text" />
             </label>
+            <label class="field">
+              <span class="field-label">역할</span>
+              <select v-model="form.role" class="select-input">
+                <option value="USER">일반 사용자</option>
+                <option value="ADMIN">관리자</option>
+              </select>
+            </label>
 
             <dl class="admin-detail-stats">
               <div>
@@ -147,6 +154,10 @@ function close() {
                     {{ adminStatusLabel(user.status) }}
                   </span>
                 </dd>
+              </div>
+              <div>
+                <dt>최근 접속</dt>
+                <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
               </div>
               <div>
                 <dt>최근 근무 기록</dt>
@@ -165,19 +176,6 @@ function close() {
               <div>
                 <dt>전체 기록</dt>
                 <dd>{{ user.totalRecords }}건</dd>
-              </div>
-              <div>
-                <dt>역할</dt>
-                <dd>
-                  <select v-model="form.role" class="select-input admin-detail-role-select">
-                    <option value="USER">일반 사용자</option>
-                    <option value="ADMIN">관리자</option>
-                  </select>
-                </dd>
-              </div>
-              <div>
-                <dt>최근 접속</dt>
-                <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
               </div>
             </dl>
 
@@ -219,6 +217,13 @@ function close() {
           <span class="field-label">직급</span>
           <input v-model="form.position" class="text-input" type="text" />
         </label>
+        <label class="field">
+          <span class="field-label">역할</span>
+          <select v-model="form.role" class="select-input">
+            <option value="USER">일반 사용자</option>
+            <option value="ADMIN">관리자</option>
+          </select>
+        </label>
 
         <dl class="admin-detail-stats">
           <div>
@@ -228,6 +233,10 @@ function close() {
                 {{ adminStatusLabel(user.status) }}
               </span>
             </dd>
+          </div>
+          <div>
+            <dt>최근 접속</dt>
+            <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
           </div>
           <div>
             <dt>최근 근무 기록</dt>
@@ -246,19 +255,6 @@ function close() {
           <div>
             <dt>전체 기록</dt>
             <dd>{{ user.totalRecords }}건</dd>
-          </div>
-          <div>
-            <dt>역할</dt>
-            <dd>
-              <select v-model="form.role" class="select-input admin-detail-role-select">
-                <option value="USER">일반 사용자</option>
-                <option value="ADMIN">관리자</option>
-              </select>
-            </dd>
-          </div>
-          <div>
-            <dt>최근 접속</dt>
-            <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
           </div>
         </dl>
 

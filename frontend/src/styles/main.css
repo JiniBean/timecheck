@@ -1245,11 +1245,6 @@ body {
   font-weight: var(--weight-semibold);
 }
 
-.admin-detail-role-select {
-  width: 100%;
-  font-weight: var(--weight-medium);
-}
-
 .admin-detail-actions {
   display: flex;
   justify-content: flex-end;

@@ -276,9 +276,9 @@ onBeforeUnmount(() => {
                 <th>이름</th>
                 <th>부서</th>
                 <th class="admin-users-col--hide-mobile">상태</th>
-                <th>최근 접속</th>
                 <th class="admin-users-col--hide-mobile">이번 주</th>
                 <th>역할</th>
+                <th>최근 접속</th>
               </tr>
             </thead>
             <tbody>
@@ -307,14 +307,6 @@ onBeforeUnmount(() => {
                     {{ adminStatusLabel(user.status) }}
                   </span>
                 </td>
-                <td>
-                  <span class="admin-users-access--desktop">{{
-                    user.lastAccess ? formatAdminDateTime(user.lastAccess) : "—"
-                  }}</span>
-                  <span class="admin-users-access--mobile">{{
-                    user.lastAccess ? formatAdminDateTimeNoYear(user.lastAccess) : "—"
-                  }}</span>
-                </td>
                 <td class="admin-users-col--hide-mobile">
                   {{ user.weekDays }}일
                   <span v-if="weekStats(user).goalMet" class="admin-goal-met">달성</span>
@@ -323,6 +315,14 @@ onBeforeUnmount(() => {
                   </span>
                 </td>
                 <td>{{ user.role === "ADMIN" ? "관리자" : "일반" }}</td>
+                <td>
+                  <span class="admin-users-access--desktop">{{
+                    user.lastAccess ? formatAdminDateTime(user.lastAccess) : "—"
+                  }}</span>
+                  <span class="admin-users-access--mobile">{{
+                    user.lastAccess ? formatAdminDateTimeNoYear(user.lastAccess) : "—"
+                  }}</span>
+                </td>
               </tr>
             </tbody>
           </table>
