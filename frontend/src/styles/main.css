@@ -1081,6 +1081,24 @@ body {
   outline-offset: -2px;
 }
 
+.admin-users-access--mobile {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .admin-users-col--hide-mobile {
+    display: none;
+  }
+
+  .admin-users-access--desktop {
+    display: none;
+  }
+
+  .admin-users-access--mobile {
+    display: inline;
+  }
+}
+
 .admin-user-name {
   font-weight: var(--weight-semibold);
 }
@@ -1225,6 +1243,11 @@ body {
   margin: 2px 0 0;
   font-size: var(--font-sm);
   font-weight: var(--weight-semibold);
+}
+
+.admin-detail-role-select {
+  width: 100%;
+  font-weight: var(--weight-medium);
 }
 
 .admin-detail-actions {

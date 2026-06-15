@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, toRef } from "vue";
 import type { DayType } from "../../types/dashboard";
 import { DAY_TYPE_OPTIONS, isDayOff } from "../../utils/dayType";
+import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
 
 const props = withDefaults(
   defineProps<{
@@ -51,6 +52,12 @@ function selectDayType(dayType: DayType) {
 function onRemarkInput(event: Event) {
   emit("updateRemark", (event.target as HTMLInputElement).value);
 }
+
+useDialogKeyboard({
+  open: toRef(props, "open"),
+  onClose: closeSheet,
+  onSubmit: saveSheet
+});
 </script>
 
 <template>

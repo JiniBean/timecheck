@@ -86,4 +86,10 @@
         )
     </insert>
 
+    <update id="updateLastAccess">
+        UPDATE USERS
+        SET LAST_ACCESS = datetime('now', 'localtime')
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+    </update>
+
 </mapper>

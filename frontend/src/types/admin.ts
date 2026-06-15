@@ -24,6 +24,7 @@ export interface UserDetail {
   position: string | null;
   role: "USER" | "ADMIN";
   createdAt: string;
+  lastAccess: string | null;
   lastActivityDate: string | null;
   weekDays: number;
   totalRecords: number;

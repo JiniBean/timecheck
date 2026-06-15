@@ -19,4 +19,6 @@ public interface UserMapper {
     int insertUser(User user);
 
     int updateUser(User user);
+
+    int updateLastAccess(@Param("userId") Long userId);
 }

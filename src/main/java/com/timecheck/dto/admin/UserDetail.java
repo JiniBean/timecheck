@@ -12,6 +12,7 @@ public record UserDetail(
         String position,
         String role,
         String createdAt,
+        String lastAccess,
         String lastActivityDate,
         int weekDays,
         int totalRecords,

@@ -25,4 +25,6 @@ public class User {
     private String position;
     /** USERS.ROLE — USER | ADMIN */
     private String role;
+    /** USERS.LAST_ACCESS — 최근 앱 접속 시각 */
+    private String lastAccess;
 }

@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
+import { RouterLink } from "vue-router";
 import type { AuthUser, ProfileForm } from "../../types/auth";
 import { useAuthStore } from "../../stores/auth";
 import { useUsernameField } from "../../composables/useUsernameField";
+import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
 import { getApiErrorMessage } from "../../utils/apiError";
 
 const props = defineProps<{
@@ -20,6 +22,15 @@ const authStore = useAuthStore();
 const form = ref<ProfileForm>(createFormFromUser(props.user));
 const errorMessage = ref<string | null>(null);
 const loading = ref(false);
+const firstInputRef = ref<HTMLInputElement | null>(null);
+const visibleRef = computed(() => props.visible);
+
+useDialogKeyboard({
+  open: visibleRef,
+  onClose: close,
+  onSubmit: handleSubmit,
+  disabled: loading
+});
 
 const username = computed({
   get: () => form.value.username,
@@ -32,11 +43,13 @@ const { usernameError, busy, touch, reset } = useUsernameField(username, { excep
 
 watch(
   () => props.visible,
-  (visible) => {
+  async (visible) => {
     if (visible) {
       form.value = createFormFromUser(props.user);
       errorMessage.value = null;
       reset();
+      await nextTick();
+      firstInputRef.value?.focus();
     }
   }
 );
@@ -91,8 +104,20 @@ async function handleSubmit() {
   <Teleport to="body">
     <div v-if="visible" class="profile-modal-overlay" @click.self="close">
       <section class="card profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
-        <h2 id="profile-modal-title" class="profile-modal-title">회원정보 변경</h2>
-        <p class="profile-modal-subtitle">아이디, 비밀번호, 이름을 수정할 수 있습니다.</p>
+        <header class="profile-modal-header">
+          <div>
+            <h2 id="profile-modal-title" class="profile-modal-title">회원정보 변경</h2>
+            <p class="profile-modal-subtitle">아이디, 비밀번호, 이름을 수정할 수 있습니다.</p>
+          </div>
+          <RouterLink
+            v-if="authStore.isAdmin"
+            to="/admin"
+            class="profile-admin-link"
+            @click="close"
+          >
+            관리
+          </RouterLink>
+        </header>
 
         <form class="profile-modal-form" novalidate @submit.prevent="handleSubmit">
           <label class="field">
@@ -101,6 +126,7 @@ async function handleSubmit() {
               <span v-if="usernameError" class="field-label-feedback">{{ usernameError }}</span>
             </span>
             <input
+              ref="firstInputRef"
               v-model="form.username"
               class="text-input"
               :class="{ 'text-input--invalid': usernameError }"
@@ -176,15 +202,42 @@ async function handleSubmit() {
   overflow-y: auto;
 }
 
+.profile-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
 .profile-modal-title {
   margin: 0 0 8px;
   font-size: var(--font-title);
 }
 
 .profile-modal-subtitle {
-  margin: 0 0 20px;
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-base);
+}
+
+.profile-admin-link {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .profile-admin-link:hover {
+    background-color: var(--color-surface-muted);
+    color: var(--color-text);
+  }
 }
 
 .profile-modal-form {

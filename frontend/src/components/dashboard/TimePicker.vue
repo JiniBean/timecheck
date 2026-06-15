@@ -199,6 +199,7 @@ function onInlineKeydown(event: KeyboardEvent) {
   }
   if (event.key === "Escape") {
     event.preventDefault();
+    event.stopPropagation();
     cancelInlineEdit();
     return;
   }
@@ -291,6 +292,16 @@ function onMinuteKeydown(event: KeyboardEvent) {
 }
 
 function onSheetKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape") {
+    if (editingUnit.value) {
+      event.preventDefault();
+      cancelInlineEdit();
+      return;
+    }
+    event.preventDefault();
+    closePicker(false);
+    return;
+  }
   if (event.key === "Enter") {
     if (editingUnit.value) {
       return;
@@ -411,7 +422,7 @@ onUnmounted(() => {
         </div>
         <div class="actions">
           <button v-if="showReset" type="button" class="button button-soft button-sm" @click="resetPicker">초기화</button>
-          <button type="button" class="button button-primary button-sm" @click="closePicker(true)">확인</button>
+          <button type="button" class="button button-primary button-sm" @click="closePicker(true)">저장</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRef, watch } from "vue";
 import TimePicker from "./TimePicker.vue";
+import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
 import { fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
 import { localDateKey } from "../../utils/localDate";
 import type { WeeklyReport, Work } from "../../types/dashboard";
@@ -163,6 +164,14 @@ watch(
 function closeSheet() {
   emit("update:open", false);
 }
+
+const dialogKeyboardDisabled = computed(() => timePickerOpen.value);
+
+useDialogKeyboard({
+  open: toRef(props, "open"),
+  onClose: closeSheet,
+  disabled: dialogKeyboardDisabled
+});
 
 function resolvePickerInitial(row: WeekPreviewRow, field: "start" | "end"): string {
   const value = field === "start" ? row.rawStart : row.rawEnd;

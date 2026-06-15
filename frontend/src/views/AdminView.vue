@@ -7,7 +7,7 @@ import logoutIcon from "../assets/icons/logout.svg";
 import * as adminApi from "../api/admin";
 import { useAuthStore } from "../stores/auth";
 import type { Overview, Period, UserDetail, UserForm } from "../types/admin";
-import { adminStatusLabel } from "../utils/admin";
+import { adminStatusLabel, formatAdminDateTime, formatAdminDateTimeNoYear } from "../utils/admin";
 import { weekSummary } from "../utils/main";
 import { formatHmFromMinutes } from "../utils/time";
 
@@ -275,17 +275,18 @@ onBeforeUnmount(() => {
               <tr>
                 <th>이름</th>
                 <th>부서</th>
-                <th>상태</th>
-                <th>이번 주</th>
+                <th class="admin-users-col--hide-mobile">상태</th>
+                <th>최근 접속</th>
+                <th class="admin-users-col--hide-mobile">이번 주</th>
                 <th>역할</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="loadingUsers">
-                <td colspan="5">불러오는 중…</td>
+                <td colspan="6">불러오는 중…</td>
               </tr>
               <tr v-else-if="users.length === 0">
-                <td colspan="5">사용자가 없습니다.</td>
+                <td colspan="6">사용자가 없습니다.</td>
               </tr>
               <tr
                 v-for="user in users"
@@ -301,12 +302,20 @@ onBeforeUnmount(() => {
                   <span class="admin-user-name">{{ user.name }}</span>
                 </td>
                 <td>{{ user.department ?? "—" }}</td>
-                <td>
+                <td class="admin-users-col--hide-mobile">
                   <span class="admin-status-badge" :data-status="user.status">
                     {{ adminStatusLabel(user.status) }}
                   </span>
                 </td>
                 <td>
+                  <span class="admin-users-access--desktop">{{
+                    user.lastAccess ? formatAdminDateTime(user.lastAccess) : "—"
+                  }}</span>
+                  <span class="admin-users-access--mobile">{{
+                    user.lastAccess ? formatAdminDateTimeNoYear(user.lastAccess) : "—"
+                  }}</span>
+                </td>
+                <td class="admin-users-col--hide-mobile">
                   {{ user.weekDays }}일
                   <span v-if="weekStats(user).goalMet" class="admin-goal-met">달성</span>
                   <span v-else-if="weekStats(user).main > 0" class="admin-goal-pending">

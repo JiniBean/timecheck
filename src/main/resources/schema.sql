@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS USERS (
     POSITION TEXT,
     ROLE TEXT NOT NULL DEFAULT 'USER',
     CREATED_AT TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-    UPDATED_AT TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    UPDATED_AT TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    LAST_ACCESS TEXT
 );
 
 CREATE TABLE IF NOT EXISTS WORK (

@@ -23,6 +23,7 @@
             u.POSITION AS position,
             u.ROLE AS role,
             u.CREATED_AT AS createdAt,
+            u.LAST_ACCESS AS lastAccess,
             u.LAST_ACTIVITY AS lastActivityDate,
             COALESCE(w.RECORD_DAYS, 0) AS weekDays,
             COALESCE(t.TOTAL_RECORDS, 0) AS totalRecords,
@@ -37,6 +38,7 @@
                 POSITION,
                 ROLE,
                 CREATED_AT,
+                LAST_ACCESS,
                 (
                     SELECT MAX(WORK_DATE)
                     FROM WORK

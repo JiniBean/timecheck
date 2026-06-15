@@ -38,6 +38,11 @@ public class UserSchemaMigration implements ApplicationRunner {
                     stmt.execute("ALTER TABLE USERS RENAME COLUMN USER_NAME TO NAME");
                 }
             }
+            if (!hasColumn(conn.getMetaData(), "USERS", "LAST_ACCESS")) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER TABLE USERS ADD COLUMN LAST_ACCESS TEXT");
+                }
+            }
         }
     }
 

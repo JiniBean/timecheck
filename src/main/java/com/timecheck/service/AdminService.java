@@ -156,6 +156,7 @@ public class AdminService {
                 row.position(),
                 row.role(),
                 row.createdAt(),
+                row.lastAccess(),
                 row.lastActivityDate(),
                 row.weekDays(),
                 row.totalRecords(),
