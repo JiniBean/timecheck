@@ -5,8 +5,18 @@ const REPORT_CELL_PADDING = "6px";
 const REPORT_FONT_FAMILY = "\"Malgun Gothic\", \"맑은 고딕\", sans-serif";
 const REPORT_FONT_SIZE = "10pt";
 const REPORT_BORDER = "1px solid #222";
+const REPORT_FONT_WEIGHT = "normal";
 
 export { EMPTY_CELL };
+
+function stripBoldFromTree(root: ParentNode): void {
+  if (root instanceof HTMLElement) {
+    root.style.fontWeight = REPORT_FONT_WEIGHT;
+  }
+  root.querySelectorAll("*").forEach((node) => {
+    (node as HTMLElement).style.fontWeight = REPORT_FONT_WEIGHT;
+  });
+}
 
 function cellPlainText(cell: Element): string {
   return (cell.textContent ?? "").replace(/\t/g, " ").replace(/\n/g, " ").trim();
@@ -53,8 +63,10 @@ export function tableToInlineHtml(table: HTMLTableElement): string {
     el.style.textAlign =
       el.classList.contains("ot-report-detail") || el.classList.contains("left") ? "left" : "center";
     el.style.whiteSpace = el.classList.contains("ot-report-date") ? "nowrap" : "pre";
+    el.style.fontWeight = REPORT_FONT_WEIGHT;
   });
 
+  stripBoldFromTree(clone);
   return clone.outerHTML;
 }
 
@@ -132,8 +144,10 @@ function reportContentToHtml(root: HTMLElement): string {
     el.style.padding = "0";
     el.style.fontFamily = REPORT_FONT_FAMILY;
     el.style.fontSize = REPORT_FONT_SIZE;
+    el.style.fontWeight = REPORT_FONT_WEIGHT;
   });
 
+  stripBoldFromTree(clone);
   return clone.innerHTML;
 }
 
