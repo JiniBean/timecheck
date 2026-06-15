@@ -53,7 +53,7 @@ function createEmptyWeeklyReport(): WeeklyReport {
     header: {
       department: "",
       team: "",
-      userName: "",
+      name: "",
       position: null,
       reportMonth: 1,
       reportWeekNumber: 1

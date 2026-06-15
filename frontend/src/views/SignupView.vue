@@ -12,7 +12,7 @@ const router = useRouter();
 const form = ref<SignupForm>({
   username: "",
   password: "",
-  userName: "",
+  name: "",
   department: "",
   team: "",
   position: ""
@@ -82,7 +82,7 @@ async function handleSubmit() {
 
         <label class="field">
           <span class="field-label">이름</span>
-          <input v-model="form.userName" class="text-input" type="text" autocomplete="name" required />
+          <input v-model="form.name" class="text-input" type="text" autocomplete="name" required />
         </label>
 
         <label class="field">

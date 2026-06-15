@@ -4,7 +4,7 @@ package com.timecheck.dto.admin;
 public record UserRow(
         Long userId,
         String username,
-        String userName,
+        String name,
         String department,
         String team,
         String position,

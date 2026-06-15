@@ -10,7 +10,7 @@ export async function signup(form: SignupForm): Promise<AuthUser> {
   const { data } = await http.post<AuthResponse>("/auth/signup", {
     username: form.username,
     password: form.password,
-    userName: form.userName,
+    name: form.name,
     department: form.department || null,
     team: form.team || null,
     position: form.position || null
@@ -31,7 +31,7 @@ export async function updateMe(form: ProfileForm): Promise<AuthUser> {
   const { data } = await http.put<AuthResponse>("/auth/me", {
     username: form.username,
     password: form.password || null,
-    userName: form.userName,
+    name: form.name,
     department: form.department || null,
     team: form.team || null,
     position: form.position || null

@@ -17,7 +17,7 @@
         SELECT
             u.USER_ID AS userId,
             u.USERNAME AS username,
-            u.USER_NAME AS userName,
+            u.NAME AS name,
             u.DEPARTMENT AS department,
             u.TEAM AS team,
             u.POSITION AS position,
@@ -31,7 +31,7 @@
             SELECT
                 USER_ID,
                 USERNAME,
-                USER_NAME,
+                NAME,
                 DEPARTMENT,
                 TEAM,
                 POSITION,
@@ -132,7 +132,7 @@
     <update id="updateUserByAdmin">
         UPDATE USERS
         SET
-            USER_NAME = #{displayName, jdbcType=VARCHAR},
+            NAME = #{name, jdbcType=VARCHAR},
             DEPARTMENT = #{department, jdbcType=VARCHAR},
             TEAM = #{team, jdbcType=VARCHAR},
             POSITION = #{position, jdbcType=VARCHAR},

@@ -18,7 +18,7 @@ export interface WeekApiRsp {
   records: Work[];
   department: string;
   team: string;
-  userName: string;
+  name: string;
   position: string | null;
 }
 
@@ -83,7 +83,7 @@ function buildHeader(payload: WeekApiRsp, weekStart: string): WeeklyReportHeader
   return {
     department: payload.department ?? "",
     team: payload.team ?? "",
-    userName: payload.userName ?? "",
+    name: payload.name ?? "",
     position: payload.position ?? null,
     reportMonth: Number(weekStart.split("-")[1]) || 1,
     reportWeekNumber: weekNumberInMonth(weekStart)
@@ -135,7 +135,7 @@ export function weekSummary(
       records,
       department: "",
       team: "",
-      userName: "",
+      name: "",
       position: null
     },
     localDateKey(asOf),
@@ -299,7 +299,7 @@ export function buildWeekClip(
 ): WeekClip {
   const header = report.header;
   const titleLine = buildTitleLine(header);
-  const workerLine = `근무자 : ${header.userName || "-"}`;
+  const workerLine = `근무자 : ${header.name || "-"}`;
   const rows = report.days.map((day) => toReportRow(day, options));
   const totalMinutes = sumReportWorkedMinutes(report.days, options);
   const remarks = buildRemarks(report.days);
@@ -317,7 +317,7 @@ export function buildWeekClip(
 function buildTitleLine(header: WeeklyReportHeader): string {
   const dept = header.department?.trim() ?? "";
   const team = header.team?.trim() ?? "";
-  const name = header.userName?.trim() ?? "";
+  const name = header.name?.trim() ?? "";
   const rank = header.position?.trim() || "사원";
   const prefix = [dept, team, name].filter(Boolean).join(" ");
   const suffix = prefix ? `${prefix} ${rank}` : rank;

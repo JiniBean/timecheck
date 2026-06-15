@@ -17,8 +17,8 @@ public class User {
     private String username;
     /** USERS.PWD — API 응답에 포함하지 않음 */
     private String pwd;
-    /** USERS.USER_NAME */
-    private String displayName;
+    /** USERS.NAME — 표시 이름 */
+    private String name;
     private String department;
     private String team;
     /** USERS.POSITION — 직급 (nullable) */

@@ -119,7 +119,7 @@ export async function fetchWeek(userId: number, referenceDate?: string): Promise
       records: data.records ?? [],
       department: data.department ?? "",
       team: data.team ?? "",
-      userName: data.userName ?? "",
+      name: data.name ?? "",
       position: data.position ?? null
     },
     ref,

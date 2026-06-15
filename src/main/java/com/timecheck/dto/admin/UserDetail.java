@@ -6,7 +6,7 @@ import java.util.List;
 public record UserDetail(
         Long userId,
         String username,
-        String userName,
+        String name,
         String department,
         String team,
         String position,

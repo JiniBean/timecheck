@@ -54,7 +54,7 @@ function createFormFromUser(user: AuthUser): ProfileForm {
   return {
     username: user.username,
     password: "",
-    userName: user.userName,
+    name: user.name,
     department: user.department ?? "",
     team: user.team ?? "",
     position: user.position ?? ""
@@ -124,7 +124,7 @@ async function handleSubmit() {
 
           <label class="field">
             <span class="field-label">이름</span>
-            <input v-model="form.userName" class="text-input" type="text" autocomplete="name" required />
+            <input v-model="form.name" class="text-input" type="text" autocomplete="name" required />
           </label>
 
           <label class="field">

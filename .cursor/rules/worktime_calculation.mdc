@@ -234,8 +234,8 @@ REMARK = '개천절'
 ## 주간 근무 결과 보고서 규칙 (주 40시간 근무제)
 
 ### 헤더 표기
-- "{DEPARTMENT} {TEAM} {USER_NAME} 사원 {M월} {N주차} 근무 결과 보고서입니다."
-- "근무자 : {USER_NAME}"
+- "{DEPARTMENT} {TEAM} {NAME} 사원 {M월} {N주차} 근무 결과 보고서입니다."
+- "근무자 : {NAME}"
 
 ### 주차 계산
 - `work_policy.mdc` §7과 동일: 월요일 기준, 월요일이 속한 달로 계산

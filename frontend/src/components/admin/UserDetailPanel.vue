@@ -21,7 +21,7 @@ const emit = defineEmits<{
 const isDesktop = ref(true);
 
 const form = reactive<UserForm>({
-  userName: "",
+  name: "",
   department: "",
   team: "",
   position: "",
@@ -46,7 +46,7 @@ watch(
     if (!user) {
       return;
     }
-    form.userName = user.userName;
+    form.name = user.name;
     form.department = user.department ?? "";
     form.team = user.team ?? "";
     form.position = user.position ?? "";
@@ -124,7 +124,7 @@ function close() {
           <form class="admin-detail-form" @submit.prevent="submit">
             <label class="field">
               <span class="field-label">이름</span>
-              <input v-model="form.userName" class="text-input" type="text" required />
+              <input v-model="form.name" class="text-input" type="text" required />
             </label>
             <label class="field">
               <span class="field-label">부서</span>
@@ -199,7 +199,7 @@ function close() {
       <form class="admin-detail-form" @submit.prevent="submit">
         <label class="field">
           <span class="field-label">이름</span>
-          <input v-model="form.userName" class="text-input" type="text" required />
+          <input v-model="form.name" class="text-input" type="text" required />
         </label>
         <label class="field">
           <span class="field-label">부서</span>

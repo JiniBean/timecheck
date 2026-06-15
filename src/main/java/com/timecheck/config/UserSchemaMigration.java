@@ -9,7 +9,7 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-/** 기존 SQLite DB에 USERS.POSITION·ROLE 컬럼이 없으면 추가함 */
+/** 기존 SQLite DB 스키마 마이그레이션 — USER_NAME→NAME, POSITION·ROLE 추가 */
 @Component
 public class UserSchemaMigration implements ApplicationRunner {
 
@@ -30,6 +30,12 @@ public class UserSchemaMigration implements ApplicationRunner {
             if (!hasColumn(conn.getMetaData(), "USERS", "ROLE")) {
                 try (Statement stmt = conn.createStatement()) {
                     stmt.execute("ALTER TABLE USERS ADD COLUMN ROLE TEXT NOT NULL DEFAULT 'USER'");
+                }
+            }
+            if (hasColumn(conn.getMetaData(), "USERS", "USER_NAME")
+                    && !hasColumn(conn.getMetaData(), "USERS", "NAME")) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("ALTER TABLE USERS RENAME COLUMN USER_NAME TO NAME");
                 }
             }
         }

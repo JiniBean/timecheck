@@ -5,7 +5,7 @@ import com.timecheck.model.User;
 public record UserRsp(
         Long userId,
         String username,
-        String userName,
+        String name,
         String department,
         String team,
         String position,
@@ -19,7 +19,7 @@ public record UserRsp(
         return new UserRsp(
                 user.getUserId(),
                 user.getUsername(),
-                user.getDisplayName(),
+                user.getName(),
                 user.getDepartment(),
                 user.getTeam(),
                 user.getPosition(),

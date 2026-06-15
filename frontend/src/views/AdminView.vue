@@ -214,7 +214,7 @@ onBeforeUnmount(() => {
           </button>
         </nav>
         <div class="admin-user-bar">
-          <span class="dashboard-user-badge">{{ authStore.user?.userName }}</span>
+          <span class="dashboard-user-badge">{{ authStore.user?.name }}</span>
           <button type="button" class="dashboard-logout-btn" aria-label="로그아웃" @click="handleLogout">
             <img :src="logoutIcon" alt="" class="dashboard-logout-icon" />
           </button>
@@ -298,7 +298,7 @@ onBeforeUnmount(() => {
                 @keydown.enter="selectUser(user)"
               >
                 <td>
-                  <span class="admin-user-name">{{ user.userName }}</span>
+                  <span class="admin-user-name">{{ user.name }}</span>
                 </td>
                 <td>{{ user.department ?? "—" }}</td>
                 <td>

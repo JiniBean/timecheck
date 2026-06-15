@@ -18,7 +18,7 @@ export interface Overview {
 export interface UserDetail {
   userId: number;
   username: string;
-  userName: string;
+  name: string;
   department: string | null;
   team: string | null;
   position: string | null;
@@ -38,7 +38,7 @@ export interface UserList {
 }
 
 export interface UserForm {
-  userName: string;
+  name: string;
   department: string;
   team: string;
   position: string;

@@ -28,7 +28,7 @@ public class AuthService {
     private static final int USERNAME_MIN_LENGTH = 3;
     private static final int USERNAME_MAX_LENGTH = 50;
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_]+$");
-    private static final int USER_NAME_MAX_LENGTH = 100;
+    private static final int NAME_MAX_LENGTH = 100;
     private static final int DEPARTMENT_MAX_LENGTH = 100;
     private static final int PASSWORD_MIN_LENGTH = 4;
     private static final int PASSWORD_MAX_LENGTH = 100;
@@ -50,14 +50,14 @@ public class AuthService {
     public UserRsp signup(SignupReq req, HttpServletRequest httpRequest) {
         String username = normalizeRequired(req.username(), "아이디");
         String password = normalizeRequired(req.password(), "비밀번호");
-        String userName = normalizeRequired(req.userName(), "이름");
+        String name = normalizeRequired(req.name(), "이름");
         String department = normalizeOptional(req.department(), DEPARTMENT_MAX_LENGTH);
         String team = normalizeOptional(req.team(), DEPARTMENT_MAX_LENGTH);
         String position = normalizeOptional(req.position(), DEPARTMENT_MAX_LENGTH);
 
         validateUsername(username);
         validatePassword(password);
-        validateLength(userName, USER_NAME_MAX_LENGTH, "이름");
+        validateLength(name, NAME_MAX_LENGTH, "이름");
 
         if (userMapper.existsByUsername(username)) {
             throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
@@ -66,7 +66,7 @@ public class AuthService {
         User user = User.builder()
                 .username(username)
                 .pwd(passwordEncoder.encode(password))
-                .displayName(userName)
+                .name(name)
                 .department(department)
                 .team(team)
                 .position(position)
@@ -133,14 +133,14 @@ public class AuthService {
         User current = requireUserPwd(userId);
 
         String username = normalizeRequired(req.username(), "아이디");
-        String userName = normalizeRequired(req.userName(), "이름");
+        String name = normalizeRequired(req.name(), "이름");
         String department = normalizeOptional(req.department(), DEPARTMENT_MAX_LENGTH);
         String team = normalizeOptional(req.team(), DEPARTMENT_MAX_LENGTH);
         String position = normalizeOptional(req.position(), DEPARTMENT_MAX_LENGTH);
         String password = normPassword(req.password());
 
         validateUsername(username);
-        validateLength(userName, USER_NAME_MAX_LENGTH, "이름");
+        validateLength(name, NAME_MAX_LENGTH, "이름");
         if (password != null) {
             validatePassword(password);
         }
@@ -153,7 +153,7 @@ public class AuthService {
         User update = User.builder()
                 .userId(userId)
                 .username(username)
-                .displayName(userName)
+                .name(name)
                 .department(department)
                 .team(team)
                 .position(position)

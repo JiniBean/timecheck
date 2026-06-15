@@ -77,7 +77,7 @@ public class RecordService {
                 .records(records)
                 .department(user != null ? nullToEmpty(user.getDepartment()) : "")
                 .team(user != null ? nullToEmpty(user.getTeam()) : "")
-                .userName(user != null ? nullToEmpty(user.getDisplayName()) : "")
+                .name(user != null ? nullToEmpty(user.getName()) : "")
                 .position(user != null ? user.getPosition() : null)
                 .build();
     }

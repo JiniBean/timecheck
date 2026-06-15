@@ -227,7 +227,7 @@ onBeforeUnmount(() => {
       </div>
       <div class="dashboard-user-bar">
         <button type="button" class="dashboard-user-badge" @click="openProfileDialog">
-          {{ authStore.user?.userName }}
+          {{ authStore.user?.name }}
         </button>
         <router-link v-if="authStore.isAdmin" to="/admin" class="dashboard-admin-link">관리</router-link>
         <button type="button" class="dashboard-logout-btn" aria-label="로그아웃" @click="handleLogout">

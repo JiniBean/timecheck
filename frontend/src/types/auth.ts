@@ -3,7 +3,7 @@ export type UserRole = "USER" | "ADMIN";
 export interface AuthUser {
   userId: number;
   username: string;
-  userName: string;
+  name: string;
   department: string | null;
   team: string | null;
   position: string | null;
@@ -18,7 +18,7 @@ export interface LoginForm {
 export interface SignupForm {
   username: string;
   password: string;
-  userName: string;
+  name: string;
   department: string;
   team: string;
   position: string;
@@ -27,7 +27,7 @@ export interface SignupForm {
 export interface ProfileForm {
   username: string;
   password: string;
-  userName: string;
+  name: string;
   department: string;
   team: string;
   position: string;

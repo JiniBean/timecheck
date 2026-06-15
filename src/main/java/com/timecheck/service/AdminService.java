@@ -106,7 +106,7 @@ public class AdminService {
         Long currentUserId = SecurityUtils.requireCurrentUserId();
         UserDetail existing = findUser(userId);
 
-        String userName = normalizeRequired(req.userName(), "이름");
+        String name = normalizeRequired(req.name(), "이름");
         String department = normalizeOptional(req.department());
         String team = normalizeOptional(req.team());
         String position = normalizeOptional(req.position());
@@ -127,7 +127,7 @@ public class AdminService {
 
         User update = User.builder()
                 .userId(userId)
-                .displayName(userName)
+                .name(name)
                 .department(department)
                 .team(team)
                 .position(position)
@@ -150,7 +150,7 @@ public class AdminService {
         return new UserDetail(
                 row.userId(),
                 row.username(),
-                row.userName(),
+                row.name(),
                 row.department(),
                 row.team(),
                 row.position(),
