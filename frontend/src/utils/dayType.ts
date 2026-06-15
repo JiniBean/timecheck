@@ -2,11 +2,11 @@ import type { DayType } from "../types/dashboard";
 
 export const DAY_TYPE_OPTIONS: Array<{ value: DayType; label: string }> = [
   { value: "NOM", label: "일반근무" },
+  { value: "HOL", label: "공휴일" },
   { value: "AM", label: "오전반차" },
   { value: "PM", label: "오후반차" },
   { value: "ANN", label: "연차" },
-  { value: "MON", label: "월차" },
-  { value: "HOL", label: "공휴일" }
+  { value: "MON", label: "월차" }
 ];
 
 const DAY_OFF_TYPES: DayType[] = ["MON", "ANN", "HOL"];
