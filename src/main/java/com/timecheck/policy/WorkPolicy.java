@@ -8,8 +8,8 @@ public final class WorkPolicy {
     public static final int STD_HALF = 240;
 
     public static final int BREAK_BASE = 60;
-    public static final int BREAK_OVER = 0;
-    public static final int REST_EXTRA = 60;
+    public static final int BREAK_MAIN = 0;
+    public static final int BREAK_OVER = 60;
 
     public static final LocalTime STD_START = LocalTime.of(9, 0);
     public static final LocalTime STD_END = LocalTime.of(18, 0);

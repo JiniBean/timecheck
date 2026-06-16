@@ -272,20 +272,8 @@ function calculateWork(
     return calculateOtWork(input, dayType, rawStart, rawEnd);
   }
 
-  let total = minutesBetween(rawStart, rawEnd);
-
-  const skipBreak =
-    dayType === "PM" &&
-    rawStart.getTime() > atTime(input.workDate, WorkPolicy.LUNCH_END).getTime();
-  if (!skipBreak) {
-    total -= resolveBreakMinutes(input.workDate, rawStart, rawEnd);
-  }
-
-  if (dayType === "AM" || dayType === "PM") {
-    total += WorkPolicy.STD_HALF;
-  }
-
-  const main = clampMain(total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_OVER : total);
+  const total = computeMainMinutes(input.workDate, rawStart, rawEnd, dayType);
+  const main = clampMain(total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_MAIN : total);
   return {
     main,
     extra1: 0,
@@ -317,7 +305,7 @@ function calculateOtWork(
   const otStartDt =
     parseDateTime(input.otStart) ??
     parseDateTime(auto.otStart ?? null) ??
-    addMinutes(mainEndDt, WorkPolicy.REST_EXTRA);
+    addMinutes(mainEndDt, WorkPolicy.BREAK_OVER);
   const otEndDt =
     parseDateTime(input.otEnd) ??
     parseDateTime(auto.otEnd ?? null) ??
@@ -376,22 +364,6 @@ function addMinutes(date: Date, minutes: number): Date {
 
 function minutesBetween(start: Date, end: Date): number {
   return Math.floor((end.getTime() - start.getTime()) / 60_000);
-}
-
-function resolveBreakMinutes(workDate: string, rawStart: Date, rawEnd: Date): number {
-  const lunchStart = atTime(workDate, WorkPolicy.LUNCH_START);
-  const lunchEnd = atTime(workDate, WorkPolicy.LUNCH_END);
-  const overlap = overlapMinutes(rawStart, rawEnd, lunchStart, lunchEnd);
-  return Math.min(overlap, WorkPolicy.BREAK_BASE);
-}
-
-function overlapMinutes(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): number {
-  const start = Math.max(aStart.getTime(), bStart.getTime());
-  const end = Math.min(aEnd.getTime(), bEnd.getTime());
-  if (end <= start) {
-    return 0;
-  }
-  return Math.floor((end - start) / 60_000);
 }
 
 function pad2(value: number): string {

@@ -11,6 +11,7 @@ interface WorkResponse {
 export interface WorkPatch {
   workDate?: string;
   rawStart?: string | null;
+  mainStart?: string | null;
   rawEnd?: string | null;
   dayType?: DayType;
   isOt?: boolean;
@@ -153,6 +154,9 @@ function toPayload(workDate: string, options: WorkPatch) {
   if (options.rawStart !== undefined) {
     payload.rawStart = options.rawStart;
   }
+  if (options.mainStart !== undefined) {
+    payload.mainStart = options.mainStart;
+  }
   if (options.rawEnd !== undefined) {
     payload.rawEnd = options.rawEnd;
   }
@@ -189,6 +193,7 @@ function withCalc(source: Work, userId: number, date: string): Work {
     userId: source.userId ?? userId,
     workDate: source.workDate ?? date,
     rawStart: source.rawStart ?? null,
+    mainStart: source.mainStart ?? null,
     rawEnd: source.rawEnd ?? null,
     main: source.main ?? 0,
     extra1: source.extra1 ?? 0,

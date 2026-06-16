@@ -6,6 +6,7 @@ export interface Work {
   userId: number;
   workDate: string;
   rawStart: string | null;
+  mainStart?: string | null;
   rawEnd: string | null;
   main: number;
   extra1: number;

@@ -5,6 +5,7 @@ import SettingPicker from "./SettingPicker.vue";
 import type { DayType, WeeklyDayRow } from "../../types/dashboard";
 import { isDayOff, workCellLabel } from "../../utils/dayType";
 import { formatHm } from "../../utils/time";
+import { WorkPolicy } from "../../utils/workPolicy";
 
 const props = defineProps<{
   days: WeeklyDayRow[];
@@ -33,6 +34,7 @@ const timePickerInitial = ref("09:00");
 const timeEditField = ref<"start" | "end">("start");
 const editingDay = ref<WeeklyDayRow | null>(null);
 const timePickerCanReset = ref(false);
+const timePickerMinTime = ref("00:00");
 
 const dayTypeSheetOpen = ref(false);
 const dayTypeEditDay = ref<WeeklyDayRow | null>(null);
@@ -104,6 +106,10 @@ function openTimePicker(day: WeeklyDayRow, field: "start" | "end") {
         : resolvePickerInitial(day.rawEnd, field);
   }
   timePickerCanReset.value = hasTimeValue(day, field);
+  timePickerMinTime.value =
+    field === "end" && day.dayType === "PM"
+      ? `${String(WorkPolicy.HALF_DAY_BOUNDARY.hour).padStart(2, "0")}:${String(WorkPolicy.HALF_DAY_BOUNDARY.minute).padStart(2, "0")}`
+      : "00:00";
   timePickerOpen.value = true;
 }
 
@@ -122,6 +128,13 @@ function onTimeReset() {
 
 function onTimeConfirm(hhmm: string) {
   if (!editingDay.value) {
+    return;
+  }
+  if (
+    timeEditField.value === "end" &&
+    editingDay.value.dayType === "PM" &&
+    hhmm.localeCompare("14:00") < 0
+  ) {
     return;
   }
   const workDate = editingDay.value.workDate;
@@ -237,6 +250,7 @@ const settingsTitle = computed(() =>
     <TimePicker
       v-model:open="timePickerOpen"
       :initial-time="timePickerInitial"
+      :min-time="timePickerMinTime"
       :show-reset="timePickerCanReset"
       :title="timeEditField === 'start' ? '출근 시간' : '퇴근 시간'"
       @confirm="onTimeConfirm"

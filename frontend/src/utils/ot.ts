@@ -68,7 +68,7 @@ export function recalcOtAnchors(
         workDate,
         parseDateTime(patch?.mainEnd ?? work.mainEnd) ?? coreEndAt(workDate)
       );
-      const otStart = addMinutes(mainEnd, WorkPolicy.REST_EXTRA);
+      const otStart = addMinutes(mainEnd, WorkPolicy.BREAK_OVER);
       return {
         mainEnd: formatDateTime(workDate, mainEnd),
         otStart: formatDateTime(workDate, otStart),
@@ -78,8 +78,8 @@ export function recalcOtAnchors(
     case "ot_start": {
       const otStart =
         parseDateTime(patch?.otStart ?? work.otStart) ??
-        addMinutes(coreEndAt(workDate), WorkPolicy.REST_EXTRA);
-      const mainEnd = enforceMainEnd(workDate, addMinutes(otStart, -WorkPolicy.REST_EXTRA));
+        addMinutes(coreEndAt(workDate), WorkPolicy.BREAK_OVER);
+      const mainEnd = enforceMainEnd(workDate, addMinutes(otStart, -WorkPolicy.BREAK_OVER));
       return {
         mainEnd: formatDateTime(workDate, mainEnd),
         otStart: formatDateTime(workDate, otStart),
@@ -121,7 +121,7 @@ export function autoOtAnchors(
   }
 
   const otStart = addMinutes(otEnd, -extraTotal);
-  const mainEnd = enforceMainEnd(workDate, addMinutes(otStart, -WorkPolicy.REST_EXTRA));
+  const mainEnd = enforceMainEnd(workDate, addMinutes(otStart, -WorkPolicy.BREAK_OVER));
 
   return {
     mainEnd: formatDateTime(workDate, mainEnd),
@@ -136,7 +136,12 @@ export function computeMainMinutes(
   mainEnd: Date,
   dayType: DayType
 ): number {
-  let total = minutesBetween(rawStart, mainEnd);
+  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
+  const start =
+    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
+      ? halfBoundary
+      : rawStart;
+  let total = minutesBetween(start, mainEnd);
 
   const skipBreak =
     dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
@@ -203,7 +208,12 @@ function computeActualOtMinutes(
   rawEnd: Date,
   dayType: DayType
 ): number {
-  let total = minutesBetween(rawStart, rawEnd);
+  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
+  const start =
+    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
+      ? halfBoundary
+      : rawStart;
+  let total = minutesBetween(start, rawEnd);
 
   const skipBreak =
     dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
@@ -215,7 +225,7 @@ function computeActualOtMinutes(
     total += WorkPolicy.STD_HALF;
   }
 
-  return total - WorkPolicy.REST_EXTRA;
+  return total - WorkPolicy.BREAK_OVER;
 }
 
 export interface OtPreviewDisplay {
@@ -230,7 +240,7 @@ export function coreEndAt(workDate: string): Date {
 
 /** 코어타임 종료 + 야근 휴게시간 (예: 17:00) */
 export function otPreviewThresholdAt(workDate: string): Date {
-  return addMinutes(coreEndAt(workDate), WorkPolicy.REST_EXTRA);
+  return addMinutes(coreEndAt(workDate), WorkPolicy.BREAK_OVER);
 }
 
 export function isMainEndBeforeCore(mainEnd: Date, workDate: string): boolean {
@@ -249,7 +259,7 @@ export function syncOtAnchorsFromMainEnd(
   const mainEndDt = enforceMainEnd(workDate, parseDateTime(mainEnd)!);
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
-    otStart: formatDateTime(workDate, addMinutes(mainEndDt, WorkPolicy.REST_EXTRA))
+    otStart: formatDateTime(workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER))
   };
 }
 
@@ -258,7 +268,7 @@ export function syncOtAnchorsFromOtStart(
   otStart: string
 ): { mainEnd: string; otStart: string } {
   const otStartDt = parseDateTime(otStart)!;
-  const mainEndDt = enforceMainEnd(workDate, addMinutes(otStartDt, -WorkPolicy.REST_EXTRA));
+  const mainEndDt = enforceMainEnd(workDate, addMinutes(otStartDt, -WorkPolicy.BREAK_OVER));
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
     otStart: formatDateTime(workDate, otStartDt)
@@ -322,7 +332,7 @@ export function resolveOtPreviewDisplay(
     const eligible = !isMainEndBeforeCore(mainEndDt, work.workDate);
     const otStartStr =
       work.otStart ??
-      formatDateTime(work.workDate, addMinutes(mainEndDt, WorkPolicy.REST_EXTRA));
+      formatDateTime(work.workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER));
     return {
       mainEnd: work.mainEnd,
       otStart: eligible ? otStartStr : null,
@@ -355,7 +365,7 @@ export function resolveOtPreviewDisplay(
   // 3. main 8시간 충족: 퇴근=출근+8h(휴게반영), 야근=퇴근+휴게
   if (elapsedMain >= WorkPolicy.STD_WORK) {
     const mainEndDt = computeMainEndAtStdWork(workDate, rawStart, work.dayType);
-    const otStartDt = addMinutes(mainEndDt, WorkPolicy.REST_EXTRA);
+    const otStartDt = addMinutes(mainEndDt, WorkPolicy.BREAK_OVER);
     return {
       mainEnd: formatDateTime(workDate, mainEndDt),
       otStart: formatDateTime(workDate, otStartDt),
@@ -365,7 +375,7 @@ export function resolveOtPreviewDisplay(
 
   // 2. 코어 준수·main 8h 미만: 퇴근=야근 역산, 야근=현재
   const otStartDt = now;
-  const mainEndDt = addMinutes(otStartDt, -WorkPolicy.REST_EXTRA);
+  const mainEndDt = addMinutes(otStartDt, -WorkPolicy.BREAK_OVER);
   const coreOk = !isMainEndBeforeCore(mainEndDt, workDate);
 
   return {
@@ -382,7 +392,12 @@ export function computeElapsedMainMinutes(
   dayType: DayType
 ): number {
   const end = truncateToMinute(asOf);
-  let total = minutesBetween(rawStart, end);
+  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
+  const start =
+    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
+      ? halfBoundary
+      : rawStart;
+  let total = minutesBetween(start, end);
 
   const skipBreak =
     dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
@@ -395,7 +410,7 @@ export function computeElapsedMainMinutes(
   }
 
   const capped =
-    total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_OVER : total;
+    total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_MAIN : total;
   return Math.max(0, capped);
 }
 

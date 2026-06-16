@@ -98,6 +98,13 @@ function defaultProjectedStart(workDate: string, dayType: DayType, projectedStar
   return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
 }
 
+function halfDayBoundary(workDate: string): string {
+  return hhmmToDateTime(
+    workDate,
+    `${String(WorkPolicy.HALF_DAY_BOUNDARY.hour).padStart(2, "0")}:${String(WorkPolicy.HALF_DAY_BOUNDARY.minute).padStart(2, "0")}`
+  );
+}
+
 function computeEndAtMainMinutes(
   workDate: string,
   rawStart: Date,
@@ -107,14 +114,24 @@ function computeEndAtMainMinutes(
   const target = Math.max(0, targetMainMinutes);
   let cursor = addMinutes(rawStart, 30);
   const maxEnd = addMinutes(rawStart, 16 * 60);
+  const halfBoundary = parseDateTime(halfDayBoundary(workDate));
+  if (!halfBoundary) {
+    return maxEnd;
+  }
 
   while (cursor.getTime() <= maxEnd.getTime()) {
     if (computeMainMinutes(workDate, rawStart, cursor, dayType) >= target) {
+      if (dayType === "PM" && cursor.getTime() < halfBoundary.getTime()) {
+        return halfBoundary;
+      }
       return cursor;
     }
     cursor = addMinutes(cursor, 1);
   }
 
+  if (dayType === "PM" && maxEnd.getTime() < halfBoundary.getTime()) {
+    return halfBoundary;
+  }
   return maxEnd;
 }
 
@@ -270,9 +287,11 @@ export function buildWeekPreview(input: {
     const baseStart = isToday ? effectiveToday.rawStart : day.rawStart;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
 
-    const start =
-      override?.rawStart ?? baseStart ?? defaultProjectedStart(day.workDate, dayType, projectedStartHhmm);
-    const lockedEnd = override?.rawEnd ?? null;
+    const defaultStart = dayType === "AM"
+      ? halfDayBoundary(day.workDate)
+      : (baseStart ?? defaultProjectedStart(day.workDate, dayType, projectedStartHhmm));
+    const start = override?.rawStart ?? defaultStart;
+    const lockedEnd = override?.rawEnd ?? (dayType === "PM" ? halfDayBoundary(day.workDate) : null);
 
     if (lockedEnd) {
       const mainMinutes = resolveMainMinutes(day.workDate, dayType, start, lockedEnd);
