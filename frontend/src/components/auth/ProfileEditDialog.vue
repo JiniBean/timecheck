@@ -41,6 +41,10 @@ const username = computed({
 const except = computed(() => props.user.username);
 const { usernameError, busy, touch, reset } = useUsernameField(username, { except });
 
+function canAutoFocusInput(): boolean {
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
 watch(
   () => props.visible,
   async (visible) => {
@@ -48,8 +52,10 @@ watch(
       form.value = createFormFromUser(props.user);
       errorMessage.value = null;
       reset();
-      await nextTick();
-      firstInputRef.value?.focus();
+      if (canAutoFocusInput()) {
+        await nextTick();
+        firstInputRef.value?.focus();
+      }
     }
   }
 );
