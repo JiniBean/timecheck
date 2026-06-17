@@ -4,7 +4,7 @@ import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
 import type { DayType, WeeklyDayRow } from "../../types/dashboard";
 import { isDayOff, workCellLabel } from "../../utils/dayType";
-import { formatHm } from "../../utils/time";
+import { compareHm, formatHm } from "../../utils/time";
 import { WorkPolicy } from "../../utils/workPolicy";
 
 const props = defineProps<{
@@ -34,7 +34,6 @@ const timePickerInitial = ref("09:00");
 const timeEditField = ref<"start" | "end">("start");
 const editingDay = ref<WeeklyDayRow | null>(null);
 const timePickerCanReset = ref(false);
-const timePickerMinTime = ref("00:00");
 
 const dayTypeSheetOpen = ref(false);
 const dayTypeEditDay = ref<WeeklyDayRow | null>(null);
@@ -82,10 +81,17 @@ function hasTimeValue(day: WeeklyDayRow, field: "start" | "end"): boolean {
   return Boolean(day.rawEnd) || resolveCheckoutCell(day).preview;
 }
 
-function resolvePickerInitial(value: string | null, field: "start" | "end"): string {
+function resolvePickerInitial(day: WeeklyDayRow, field: "start" | "end"): string {
+  const value = field === "start" ? day.rawStart : day.rawEnd;
   const formatted = formatHm(value);
   if (formatted !== "-") {
     return formatted;
+  }
+  if (field === "start" && day.dayType === "AM") {
+    return WorkPolicy.HALF_DAY_HHMM;
+  }
+  if (field === "end" && day.dayType === "PM") {
+    return WorkPolicy.HALF_DAY_HHMM;
   }
   return field === "end" ? "16:00" : "09:00";
 }
@@ -96,20 +102,18 @@ function openTimePicker(day: WeeklyDayRow, field: "start" | "end") {
   }
   editingDay.value = day;
   timeEditField.value = field;
-  if (field === "start") {
-    timePickerInitial.value = resolvePickerInitial(day.rawStart, field);
-  } else {
+  if (field === "end") {
     const checkout = resolveCheckoutCell(day);
-    timePickerInitial.value =
-      checkout.preview && day.mainEnd
-        ? resolvePickerInitial(day.mainEnd, field)
-        : resolvePickerInitial(day.rawEnd, field);
+    if (checkout.preview && day.mainEnd) {
+      const mainEnd = formatHm(day.mainEnd);
+      timePickerInitial.value = mainEnd !== "-" ? mainEnd : resolvePickerInitial(day, field);
+    } else {
+      timePickerInitial.value = resolvePickerInitial(day, field);
+    }
+  } else {
+    timePickerInitial.value = resolvePickerInitial(day, field);
   }
   timePickerCanReset.value = hasTimeValue(day, field);
-  timePickerMinTime.value =
-    field === "end" && day.dayType === "PM"
-      ? `${String(WorkPolicy.HALF_DAY_BOUNDARY.hour).padStart(2, "0")}:${String(WorkPolicy.HALF_DAY_BOUNDARY.minute).padStart(2, "0")}`
-      : "00:00";
   timePickerOpen.value = true;
 }
 
@@ -133,7 +137,7 @@ function onTimeConfirm(hhmm: string) {
   if (
     timeEditField.value === "end" &&
     editingDay.value.dayType === "PM" &&
-    hhmm.localeCompare("14:00") < 0
+    compareHm(hhmm, WorkPolicy.HALF_DAY_HHMM) < 0
   ) {
     return;
   }
@@ -250,7 +254,6 @@ const settingsTitle = computed(() =>
     <TimePicker
       v-model:open="timePickerOpen"
       :initial-time="timePickerInitial"
-      :min-time="timePickerMinTime"
       :show-reset="timePickerCanReset"
       :title="timeEditField === 'start' ? '출근 시간' : '퇴근 시간'"
       @confirm="onTimeConfirm"

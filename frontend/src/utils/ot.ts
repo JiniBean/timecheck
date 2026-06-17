@@ -136,11 +136,7 @@ export function computeMainMinutes(
   mainEnd: Date,
   dayType: DayType
 ): number {
-  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
-  const start =
-    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
-      ? halfBoundary
-      : rawStart;
+  const start = amStart(workDate, rawStart, dayType);
   let total = minutesBetween(start, mainEnd);
 
   const skipBreak =
@@ -208,11 +204,7 @@ function computeActualOtMinutes(
   rawEnd: Date,
   dayType: DayType
 ): number {
-  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
-  const start =
-    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
-      ? halfBoundary
-      : rawStart;
+  const start = amStart(workDate, rawStart, dayType);
   let total = minutesBetween(start, rawEnd);
 
   const skipBreak =
@@ -392,11 +384,7 @@ export function computeElapsedMainMinutes(
   dayType: DayType
 ): number {
   const end = truncateToMinute(asOf);
-  const halfBoundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
-  const start =
-    dayType === "AM" && rawStart.getTime() < halfBoundary.getTime()
-      ? halfBoundary
-      : rawStart;
+  const start = amStart(workDate, rawStart, dayType);
   let total = minutesBetween(start, end);
 
   const skipBreak =
@@ -417,6 +405,14 @@ export function computeElapsedMainMinutes(
 function enforceMainEnd(workDate: string, candidate: Date): Date {
   const coreEnd = coreEndAt(workDate);
   return candidate.getTime() < coreEnd.getTime() ? coreEnd : candidate;
+}
+
+function amStart(workDate: string, rawStart: Date, dayType: DayType): Date {
+  if (dayType !== "AM") {
+    return rawStart;
+  }
+  const boundary = atTime(workDate, WorkPolicy.HALF_DAY_BOUNDARY);
+  return rawStart.getTime() < boundary.getTime() ? boundary : rawStart;
 }
 
 function parseDateTime(value: string | null | undefined): Date | null {

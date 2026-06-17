@@ -2,7 +2,7 @@ import type { DayType, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboa
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
 import { MAIN_WEEK_TARGET_MINUTES, avgPerDay } from "./main";
 import { computeMainMinutes } from "./ot";
-import { formatHm, formatHmFromMinutes } from "./time";
+import { formatHm, formatHmFromMinutes, hhmmToDateTime } from "./time";
 import {
   calculateWorkMinutes,
   resolveEffectiveTodayWork,
@@ -84,25 +84,19 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-export function hhmmToDateTime(workDate: string, hhmm: string): string {
-  const [h, m] = hhmm.slice(0, 5).split(":");
-  return `${workDate} ${String(Number(h) || 0).padStart(2, "0")}:${String(Number(m) || 0).padStart(2, "0")}`;
-}
+export { hhmmToDateTime } from "./time";
 
 const DEFAULT_PROJECTED_START_HHMM = "09:00";
 
-function defaultProjectedStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
-  if (dayType === "AM") {
-    return hhmmToDateTime(workDate, "14:00");
-  }
-  return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
+function halfDayBoundary(workDate: string): string {
+  return hhmmToDateTime(workDate, WorkPolicy.HALF_DAY_HHMM);
 }
 
-function halfDayBoundary(workDate: string): string {
-  return hhmmToDateTime(
-    workDate,
-    `${String(WorkPolicy.HALF_DAY_BOUNDARY.hour).padStart(2, "0")}:${String(WorkPolicy.HALF_DAY_BOUNDARY.minute).padStart(2, "0")}`
-  );
+function defaultProjectedStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
+  if (dayType === "AM") {
+    return halfDayBoundary(workDate);
+  }
+  return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
 }
 
 function computeEndAtMainMinutes(
@@ -114,24 +108,14 @@ function computeEndAtMainMinutes(
   const target = Math.max(0, targetMainMinutes);
   let cursor = addMinutes(rawStart, 30);
   const maxEnd = addMinutes(rawStart, 16 * 60);
-  const halfBoundary = parseDateTime(halfDayBoundary(workDate));
-  if (!halfBoundary) {
-    return maxEnd;
-  }
 
   while (cursor.getTime() <= maxEnd.getTime()) {
     if (computeMainMinutes(workDate, rawStart, cursor, dayType) >= target) {
-      if (dayType === "PM" && cursor.getTime() < halfBoundary.getTime()) {
-        return halfBoundary;
-      }
       return cursor;
     }
     cursor = addMinutes(cursor, 1);
   }
 
-  if (dayType === "PM" && maxEnd.getTime() < halfBoundary.getTime()) {
-    return halfBoundary;
-  }
   return maxEnd;
 }
 

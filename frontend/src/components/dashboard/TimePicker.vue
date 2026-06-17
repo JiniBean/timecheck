@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from "vue";
+import { nextTick, onUnmounted, ref, watch } from "vue";
 
 const props = withDefaults(
   defineProps<{
@@ -8,7 +8,6 @@ const props = withDefaults(
     title?: string;
     hint?: string;
     showReset?: boolean;
-    minTime?: string;
     zIndex?: number;
   }>(),
   {
@@ -16,7 +15,6 @@ const props = withDefaults(
     title: "시간 선택",
     hint: "위·아래로 스크롤해 선택하세요",
     showReset: false,
-    minTime: "00:00",
     zIndex: 200
   }
 );
@@ -58,26 +56,6 @@ function parseHhMm(s: string): { h: number; m: number } {
   return { h, m };
 }
 
-function toMinutes(h: number, m: number): number {
-  return h * 60 + m;
-}
-
-const minSelection = computed(() => parseHhMm(props.minTime));
-const minHour = computed(() => minSelection.value.h);
-const minMinute = computed(() => minSelection.value.m);
-const minTotalMinutes = computed(() => toMinutes(minHour.value, minMinute.value));
-
-function isBeforeMinSelection(h: number, m: number): boolean {
-  return toMinutes(h, m) < minTotalMinutes.value;
-}
-
-function clampByMinSelection(h: number, m: number): { h: number; m: number } {
-  if (!isBeforeMinSelection(h, m)) {
-    return { h, m };
-  }
-  return { h: minHour.value, m: minMinute.value };
-}
-
 watch(
   () => props.open,
   async (isOpen) => {
@@ -85,16 +63,15 @@ watch(
       return;
     }
     const { h, m } = parseHhMm(props.initialTime);
-    const clamped = clampByMinSelection(h, m);
-    selectedHour.value = clamped.h;
-    selectedMinute.value = clamped.m;
+    selectedHour.value = h;
+    selectedMinute.value = m;
     editingUnit.value = null;
     await nextTick();
     if (hCol.value) {
-      hCol.value.scrollTop = clamped.h * ITEM;
+      hCol.value.scrollTop = h * ITEM;
     }
     if (mCol.value) {
-      mCol.value.scrollTop = clamped.m * ITEM;
+      mCol.value.scrollTop = m * ITEM;
     }
     sheetRef.value?.focus();
   }
@@ -120,10 +97,9 @@ function snapColumn(el: HTMLDivElement | null, min: number, max: number, smooth 
 }
 
 function syncInputWithScroll() {
-  const scrolled = readScroll();
-  const clamped = clampByMinSelection(scrolled.h, scrolled.m);
-  selectedHour.value = clamped.h;
-  selectedMinute.value = clamped.m;
+  const { h, m } = readScroll();
+  selectedHour.value = h;
+  selectedMinute.value = m;
   if (!editingUnit.value) {
     return;
   }
@@ -160,25 +136,14 @@ function beginInlineEdit(unit: "h" | "m", value: number) {
 }
 
 function onHourItemClick(hour: number) {
-  if (hour < minHour.value) {
-    return;
-  }
   if (hCol.value) {
     hCol.value.scrollTop = hour * ITEM;
   }
   selectedHour.value = hour;
-  const nextMinute = hour === minHour.value ? Math.max(selectedMinute.value, minMinute.value) : selectedMinute.value;
-  selectedMinute.value = nextMinute;
-  if (mCol.value) {
-    mCol.value.scrollTop = nextMinute * ITEM;
-  }
   beginInlineEdit("h", hour);
 }
 
 function onMinuteItemClick(minute: number) {
-  if (selectedHour.value === minHour.value && minute < minMinute.value) {
-    return;
-  }
   if (mCol.value) {
     mCol.value.scrollTop = minute * ITEM;
   }
@@ -203,18 +168,10 @@ function commitInlineEdit() {
     if (hCol.value) {
       hCol.value.scrollTop = number * ITEM;
     }
-    selectedHour.value = number < minHour.value ? minHour.value : number;
-    if (selectedHour.value === minHour.value && selectedMinute.value < minMinute.value) {
-      selectedMinute.value = minMinute.value;
-      if (mCol.value) {
-        mCol.value.scrollTop = minMinute.value * ITEM;
-      }
-    }
+    selectedHour.value = number;
   } else if (mCol.value) {
-    const nextMinute =
-      selectedHour.value === minHour.value && number < minMinute.value ? minMinute.value : number;
-    mCol.value.scrollTop = nextMinute * ITEM;
-    selectedMinute.value = nextMinute;
+    mCol.value.scrollTop = number * ITEM;
+    selectedMinute.value = number;
   }
   editingUnit.value = null;
 }
@@ -226,8 +183,7 @@ function cancelInlineEdit() {
 function closePicker(save: boolean) {
   if (save) {
     commitInlineEdit();
-    const clamped = clampByMinSelection(selectedHour.value, selectedMinute.value);
-    emit("confirm", formatTime(clamped.h, clamped.m));
+    emit("confirm", formatTime(selectedHour.value, selectedMinute.value));
   } else {
     cancelInlineEdit();
   }
@@ -430,7 +386,6 @@ onUnmounted(() => {
                 :key="h"
                 type="button"
                 class="wheel-item"
-                :disabled="h < minHour"
                 @mousedown.prevent="onHourItemClick(h)"
               >
                 <span :class="{ 'is-hidden': editingUnit === 'h' && selectedHour === h }">
@@ -455,7 +410,6 @@ onUnmounted(() => {
                 :key="m"
                 type="button"
                 class="wheel-item"
-                :disabled="selectedHour === minHour && m < minMinute"
                 @mousedown.prevent="onMinuteItemClick(m)"
               >
                 <span :class="{ 'is-hidden': editingUnit === 'm' && selectedMinute === m }">

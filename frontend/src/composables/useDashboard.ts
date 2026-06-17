@@ -25,6 +25,8 @@ import {
 import { getApiErrorMessage } from "../utils/apiError";
 import { copyTextToClipboard } from "../utils/reportClipboard";
 import { currentDateKey, isSameWeek, shiftDateKey } from "../utils/weekNav";
+import { compareHm } from "../utils/time";
+import { WorkPolicy } from "../utils/workPolicy";
 
 function createInitialTodayWork(userId: number): Work {
   const cached = loadCachedTodayWork(userId);
@@ -163,7 +165,7 @@ export function useDashboard(userId: number) {
     if (dayType !== "PM") {
       return true;
     }
-    return compareHm(hhmm, "14:00") >= 0;
+    return compareHm(hhmm, WorkPolicy.HALF_DAY_HHMM) >= 0;
   }
 
   async function loadDashboard() {
@@ -257,7 +259,7 @@ export function useDashboard(userId: number) {
         state.value.todayWork.dayType === "PM" &&
         !state.value.actionLoading
       ) {
-        state.value.errorMessage = "오후반차는 14:00 이후에만 퇴근할 수 있습니다.";
+        state.value.errorMessage = `오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`;
       }
       return;
     }
@@ -388,7 +390,7 @@ export function useDashboard(userId: number) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
       if (!isCheckoutAllowedByHalfDayRule(existing.dayType, hhmm)) {
-        throw new Error("오후반차는 14:00 이후에만 퇴근할 수 있습니다.");
+        throw new Error(`오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`);
       }
       const rawEnd = toDateTimeValue(workDate, hhmm);
       const { work } = processOtOnCheckout({ ...existing, rawEnd }, rawEnd!);
@@ -801,15 +803,4 @@ function toDateTimeValue(workDate: string, timeValue: string): string | null {
     return null;
   }
   return `${workDate} ${timeValue}`;
-}
-
-function compareHm(a: string, b: string): number {
-  return hmToMinutes(a) - hmToMinutes(b);
-}
-
-function hmToMinutes(value: string): number {
-  const [h, m] = value.slice(0, 5).split(":");
-  const hour = Number.parseInt(h ?? "0", 10) || 0;
-  const minute = Number.parseInt(m ?? "0", 10) || 0;
-  return hour * 60 + minute;
 }

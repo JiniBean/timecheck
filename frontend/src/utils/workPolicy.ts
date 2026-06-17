@@ -3,6 +3,7 @@ export const WorkPolicy = {
   STD_WORK: 480,
   STD_HALF: 240,
   HALF_DAY_BOUNDARY: { hour: 14, minute: 0 },
+  HALF_DAY_HHMM: "14:00",
   BREAK_BASE: 60,
   BREAK_MAIN: 0,
   BREAK_OVER: 60,
