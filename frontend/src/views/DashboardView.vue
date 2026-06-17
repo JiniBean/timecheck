@@ -231,7 +231,7 @@ onBeforeUnmount(() => {
       @saved="handleProfileSaved"
     />
 
-    <WeekPreviewSheet v-model:open="weekPreviewOpen" :user-id="userId" />
+    <WeekPreviewSheet v-model:open="weekPreviewOpen" :user-id="userId" :as-of="now" />
 
     <section class="dashboard-body">
         <WeekNavigator

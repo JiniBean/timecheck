@@ -29,6 +29,7 @@ const ON_TIME_HHMM = `${String(WorkPolicy.STD_START.hour).padStart(2, "0")}:${St
 const props = defineProps<{
   open: boolean;
   userId: number;
+  asOf?: Date;
 }>();
 
 const emit = defineEmits<{
@@ -62,7 +63,8 @@ const preview = computed(() => {
     todayWork: todayWork.value,
     todayDateKey: todayDateKey.value,
     overrides: overrides.value,
-    projectedStartHhmm: projectedStartHhmm.value
+    projectedStartHhmm: projectedStartHhmm.value,
+    asOf: props.asOf
   });
 });
 

@@ -209,6 +209,9 @@ interface AutoDaySlot {
   day: WeekDay;
   edit: DayEditability;
   start: string;
+  dayType: DayType;
+  isToday: boolean;
+  hasRecordedStart: boolean;
   lockedEnd: string | null;
 }
 
@@ -218,10 +221,12 @@ export function buildPrv(input: {
   todayDateKey: string;
   overrides?: PrvOvrs;
   projectedStartHhmm?: string;
+  asOf?: Date;
 }): PrvResult {
   const { weeklyReport, todayWork, todayDateKey } = input;
   const overrides = input.overrides ?? {};
   const projectedStartHhmm = input.projectedStartHhmm ?? DEFAULT_PROJECTED_START_HHMM;
+  const asOf = input.asOf ?? new Date();
   const effectiveToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
   const targetMinutes = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
 
@@ -255,6 +260,8 @@ export function buildPrv(input: {
     const isToday = day.workDate === todayDateKey;
     const baseStart = isToday ? effectiveToday.rawStart : day.rawStart;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
+    const isOt = isToday ? effectiveToday.isOt : day.isOt;
+    const hasRecordedStart = Boolean(baseStart);
 
     const fallbackStart = dayType === "AM"
       ? halfDayBoundary(day.workDate)
@@ -275,19 +282,66 @@ export function buildPrv(input: {
       continue;
     }
 
-    autoSlots.push({ day, edit, start, lockedEnd: null });
+    if (isOt && !override?.rawEnd) {
+      const startDt = parseDateTime(start);
+      const endDt = startDt ? endAtMainMin(day.workDate, startDt, dayType, WorkPolicy.STD_WORK) : null;
+      const rawEnd = endDt ? formatDateTime(day.workDate, endDt) : null;
+      fixedMinutes += WorkPolicy.STD_WORK;
+      resolved.set(day.workDate, {
+        rawStart: start,
+        rawEnd,
+        mainMinutes: WorkPolicy.STD_WORK,
+        isProjected: true,
+        kind: "projected"
+      });
+      continue;
+    }
+
+    autoSlots.push({
+      day,
+      edit,
+      start,
+      dayType,
+      isToday,
+      hasRecordedStart,
+      lockedEnd: null
+    });
   }
 
   // 어제까지 확정 실적 + 오늘 퇴근 저장분만 반영하고, 오늘 진행 중 분은 제외한 뒤 남은 일에 분배
   const weekRemaining = Math.max(0, targetMinutes - fixedMinutes);
-  const perDayMinutes =
-    autoSlots.length > 0
-      ? avgPerDay(weekRemaining, autoSlots.length)
-      : 0;
+  const initialPerDayMinutes = autoSlots.length > 0 ? avgPerDay(weekRemaining, autoSlots.length) : 0;
+  const todayIdx = autoSlots.findIndex((slot) => slot.isToday && slot.hasRecordedStart);
+
+  let todayAssignedMinutes: number | null = null;
+  let todayForcedEnd: Date | null = null;
+
+  if (todayIdx >= 0) {
+    const todaySlot = autoSlots[todayIdx];
+    const startDt = parseDateTime(todaySlot.start);
+    if (startDt) {
+      const scheduledEnd = endAtMainMin(
+        todaySlot.day.workDate,
+        startDt,
+        todaySlot.dayType,
+        initialPerDayMinutes
+      );
+      const scheduledMinutes = mainMin(todaySlot.day.workDate, startDt, scheduledEnd, todaySlot.dayType);
+      if (asOf.getTime() > scheduledEnd.getTime()) {
+        const liveMinutes = mainMin(todaySlot.day.workDate, startDt, asOf, todaySlot.dayType);
+        todayAssignedMinutes = Math.max(scheduledMinutes, liveMinutes);
+        todayForcedEnd = asOf;
+      } else {
+        todayAssignedMinutes = scheduledMinutes;
+      }
+    }
+  }
+
+  const futureSlotCount = Math.max(0, autoSlots.length - (todayAssignedMinutes !== null ? 1 : 0));
+  const futureRemainingMinutes = Math.max(0, weekRemaining - Math.max(0, todayAssignedMinutes ?? 0));
+  const futurePerDayMinutes = futureSlotCount > 0 ? avgPerDay(futureRemainingMinutes, futureSlotCount) : 0;
 
   for (const slot of autoSlots) {
-    const isToday = slot.day.workDate === todayDateKey;
-    const dayType = isToday ? effectiveToday.dayType : slot.day.dayType;
     const startDt = parseDateTime(slot.start);
     if (!startDt) {
       resolved.set(slot.day.workDate, {
@@ -300,9 +354,16 @@ export function buildPrv(input: {
       continue;
     }
 
-    const endDt = endAtMainMin(slot.day.workDate, startDt, dayType, perDayMinutes);
+    const targetMainMinutes =
+      slot.isToday && todayAssignedMinutes !== null
+        ? todayAssignedMinutes
+        : futurePerDayMinutes;
+    const endDt =
+      slot.isToday && todayForcedEnd
+        ? todayForcedEnd
+        : endAtMainMin(slot.day.workDate, startDt, slot.dayType, targetMainMinutes);
     const rawEnd = formatDateTime(slot.day.workDate, endDt);
-    const mainMinutes = mainMin(slot.day.workDate, startDt, endDt, dayType);
+    const mainMinutes = mainMin(slot.day.workDate, startDt, endDt, slot.dayType);
 
     resolved.set(slot.day.workDate, {
       rawStart: slot.start,
@@ -349,7 +410,7 @@ export function buildPrv(input: {
   const weekMainMin = rows.reduce((sum, row) => sum + row.mainMinutes, 0);
   const weekRemMin = Math.max(0, targetMinutes - weekMainMin);
   const weekOverMin = Math.max(0, weekMainMin - targetMinutes);
-  const avgPerDayMin = perDayMinutes;
+  const avgPerDayMin = futurePerDayMinutes;
 
   return {
     rows,
