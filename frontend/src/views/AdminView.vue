@@ -7,9 +7,9 @@ import logoutIcon from "../assets/icons/logout.svg";
 import * as adminApi from "../api/admin";
 import { useAuthStore } from "../stores/auth";
 import type { Overview, Period, UserDetail, UserForm } from "../types/admin";
-import { adminStatusLabel, formatAdminDateTime, formatAdminDateTimeNoYear } from "../utils/admin";
+import { adminStatusLabel, fmtAdminDt, fmtAdminDtShort } from "../utils/admin";
 import { weekSummary } from "../utils/main";
-import { formatHmFromMinutes } from "../utils/time";
+import { fmtMinutes } from "../utils/time";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -22,7 +22,7 @@ const weekStart = ref("");
 const weekEnd = ref("");
 const selectedUser = ref<UserDetail | null>(null);
 const statusFilter = ref("");
-const departmentFilter = ref("");
+const deptFilter = ref("");
 const loadingOverview = ref(false);
 const loadingUsers = ref(false);
 const savingUser = ref(false);
@@ -42,7 +42,7 @@ const departments = computed(() => {
   return [...set].sort();
 });
 
-const weeklyGoalStats = computed(() => {
+const goalStats = computed(() => {
   if (!weekStart.value || !weekEnd.value || users.value.length === 0) {
     return { metUsers: 0, rate: 0 };
   }
@@ -102,7 +102,7 @@ async function loadUsers() {
   error.value = "";
   try {
     const data = await adminApi.fetchUsers({
-      department: departmentFilter.value || undefined,
+      department: deptFilter.value || undefined,
       status: statusFilter.value || undefined
     });
     weekStart.value = data.weekStart;
@@ -243,8 +243,8 @@ onBeforeUnmount(() => {
         :overview="overview"
         :loading="loadingOverview || loadingUsers"
         :period="period"
-        :weekly-goal-met-users="weeklyGoalStats.metUsers"
-        :weekly-goal-rate="weeklyGoalStats.rate"
+        :weekly-goal-met-users="goalStats.metUsers"
+        :weekly-goal-rate="goalStats.rate"
       />
     </section>
 
@@ -252,7 +252,7 @@ onBeforeUnmount(() => {
       <div class="admin-toolbar">
         <label class="admin-period-label">
           부서
-          <select v-model="departmentFilter" class="select-input admin-toolbar-select" @change="loadUsers">
+          <select v-model="deptFilter" class="select-input admin-toolbar-select" @change="loadUsers">
             <option value="">전체</option>
             <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
           </select>
@@ -311,16 +311,16 @@ onBeforeUnmount(() => {
                   {{ user.weekDays }}일
                   <span v-if="weekStats(user).goalMet" class="admin-goal-met">달성</span>
                   <span v-else-if="weekStats(user).main > 0" class="admin-goal-pending">
-                    {{ formatHmFromMinutes(weekStats(user).main) }}
+                    {{ fmtMinutes(weekStats(user).main) }}
                   </span>
                 </td>
                 <td>{{ user.role === "ADMIN" ? "관리자" : "일반" }}</td>
                 <td>
                   <span class="admin-users-access--desktop">{{
-                    user.lastAccess ? formatAdminDateTime(user.lastAccess) : "—"
+                    user.lastAccess ? fmtAdminDt(user.lastAccess) : "—"
                   }}</span>
                   <span class="admin-users-access--mobile">{{
-                    user.lastAccess ? formatAdminDateTimeNoYear(user.lastAccess) : "—"
+                    user.lastAccess ? fmtAdminDtShort(user.lastAccess) : "—"
                   }}</span>
                 </td>
               </tr>

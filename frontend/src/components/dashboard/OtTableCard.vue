@@ -2,10 +2,11 @@
 import { computed, ref } from "vue";
 import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
-import type { DayType, WeeklyDayRow } from "../../types/dashboard";
+import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
+import type { DayType, WeekDay } from "../../types/dashboard";
 import { isDayOff } from "../../utils/dayType";
-import { formatHm, formatHmFromMinutes } from "../../utils/time";
-import { dayExtraTotal, resolveDayExtraMinutes, type TodayExtraMinutes } from "../../utils/ot";
+import { formatHm, fmtMinutes } from "../../utils/time";
+import { dayExtraTotal, dayExtra, type DayExtra } from "../../utils/ot";
 
 interface TodayOtContext {
   extra1: number;
@@ -15,19 +16,19 @@ interface TodayOtContext {
 }
 
 const props = defineProps<{
-  days: WeeklyDayRow[];
+  days: WeekDay[];
   todayWorkDate: string;
-  todayExtraMinutes?: TodayExtraMinutes;
-  todayOtContext?: TodayOtContext;
-  useLiveToday?: boolean;
+  todayExtra?: DayExtra;
+  otCtx?: TodayOtContext;
+  isLiveToday?: boolean;
 }>();
 
 const emit = defineEmits<{
-  updateOtStart: [workDate: string, hhmm: string];
-  updateOtEnd: [workDate: string, hhmm: string];
-  clearOtStart: [workDate: string];
-  clearOtEnd: [workDate: string];
-  saveDaySettings: [
+  "update-ot-start": [workDate: string, hhmm: string];
+  "update-ot-end": [workDate: string, hhmm: string];
+  "clear-ot-start": [workDate: string];
+  "clear-ot-end": [workDate: string];
+  "save-day-settings": [
     payload: {
       workDate: string;
       dayType: DayType;
@@ -40,29 +41,37 @@ const emit = defineEmits<{
 const timePickerOpen = ref(false);
 const timePickerInitial = ref("19:00");
 const timeEditField = ref<"start" | "end">("start");
-const editingDay = ref<WeeklyDayRow | null>(null);
+const editingDay = ref<WeekDay | null>(null);
 const timePickerCanReset = ref(false);
 
 const dayTypeSheetOpen = ref(false);
-const dayTypeEditDay = ref<WeeklyDayRow | null>(null);
-const dayTypeDraft = ref<DayType>("NOM");
-const otDraft = ref(false);
-const remarkDraft = ref("");
+const dayTypeEditDay = ref<WeekDay | null>(null);
+
+const {
+  dayTypeDraft,
+  otDraft,
+  remarkDraft,
+  loadDraft,
+  setDayType,
+  onToggleOt,
+  setRemark,
+  buildPayload
+} = useDaySettingsDraft();
 
 const displayDays = computed(() =>
   props.days.map((day) => {
     const isToday = day.workDate === props.todayWorkDate;
     const dayOff = isDayOff(day.dayType);
     const extra =
-      props.useLiveToday && isToday
-        ? resolveDayExtraMinutes(day, props.todayWorkDate, props.todayExtraMinutes)
+      props.isLiveToday && isToday
+        ? dayExtra(day, props.todayWorkDate, props.todayExtra)
         : { extra1: day.extra1, extra2: day.extra2 };
     const totalExtra = dayExtraTotal(extra);
     const hasOt = day.isOt && !dayOff;
-    const useLive = Boolean(props.useLiveToday && isToday);
+    const useLive = Boolean(props.isLiveToday && isToday);
 
-    const otStart = useLive ? props.todayOtContext?.otStart ?? day.otStart : day.otStart;
-    const otEnd = useLive ? props.todayOtContext?.otEnd ?? day.otEnd : day.otEnd;
+    const otStart = useLive ? props.otCtx?.otStart ?? day.otStart : day.otStart;
+    const otEnd = useLive ? props.otCtx?.otEnd ?? day.otEnd : day.otEnd;
 
     const otStartPreview = hasOt && !day.rawEnd && Boolean(otStart);
     const otEndPreview = hasOt && !day.rawEnd && Boolean(otEnd);
@@ -81,7 +90,7 @@ const displayDays = computed(() =>
       durationPreview,
       startLabel: dayOff || !hasOt ? "-" : formatHm(otStart),
       endLabel: dayOff || !hasOt ? "-" : formatHm(otEnd),
-      durationLabel: dayOff || !hasOt ? "-" : formatHmFromMinutes(totalExtra)
+      durationLabel: dayOff || !hasOt ? "-" : fmtMinutes(totalExtra)
     };
   })
 );
@@ -112,9 +121,9 @@ function onTimeReset() {
   }
   const workDate = editingDay.value.workDate;
   if (timeEditField.value === "start") {
-    emit("clearOtStart", workDate);
+    emit("clear-ot-start", workDate);
   } else {
-    emit("clearOtEnd", workDate);
+    emit("clear-ot-end", workDate);
   }
   editingDay.value = null;
 }
@@ -125,18 +134,20 @@ function onTimeConfirm(hhmm: string) {
   }
   const workDate = editingDay.value.workDate;
   if (timeEditField.value === "start") {
-    emit("updateOtStart", workDate, hhmm);
+    emit("update-ot-start", workDate, hhmm);
   } else {
-    emit("updateOtEnd", workDate, hhmm);
+    emit("update-ot-end", workDate, hhmm);
   }
   editingDay.value = null;
 }
 
-function openDayTypeSheet(day: WeeklyDayRow) {
+function openDayTypeSheet(day: WeekDay) {
   dayTypeEditDay.value = day;
-  dayTypeDraft.value = day.dayType;
-  otDraft.value = day.isOt;
-  remarkDraft.value = day.remark ?? "";
+  loadDraft({
+    dayType: day.dayType,
+    isOt: day.isOt,
+    remark: day.remark
+  });
   dayTypeSheetOpen.value = true;
 }
 
@@ -145,36 +156,14 @@ function closeDayTypeSheet() {
   dayTypeEditDay.value = null;
 }
 
-function onUpdateDayType(dayType: DayType) {
-  dayTypeDraft.value = dayType;
-  if (isDayOff(dayType)) {
-    otDraft.value = false;
-  }
-}
-
-function onToggleOt() {
-  if (isDayOff(dayTypeDraft.value)) {
-    return;
-  }
-  otDraft.value = !otDraft.value;
-}
-
-function onUpdateRemark(value: string) {
-  remarkDraft.value = value;
-}
-
 function saveDaySettings() {
   if (!dayTypeEditDay.value) {
     return;
   }
-  const showRemark = dayTypeDraft.value === "HOL" || (otDraft.value && !isDayOff(dayTypeDraft.value));
-  const remark = showRemark ? remarkDraft.value.trim() || null : null;
-
-  emit("saveDaySettings", {
+  const payload = buildPayload();
+  emit("save-day-settings", {
     workDate: dayTypeEditDay.value.workDate,
-    dayType: dayTypeDraft.value,
-    isOt: isDayOff(dayTypeDraft.value) ? false : otDraft.value,
-    remark
+    ...payload
   });
   closeDayTypeSheet();
 }
@@ -242,9 +231,9 @@ const settingsTitle = computed(() =>
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
-      @update-day-type="onUpdateDayType"
+      @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
-      @update-remark="onUpdateRemark"
+      @update-remark="setRemark"
       @save="saveDaySettings"
     />
   </section>

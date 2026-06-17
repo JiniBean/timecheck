@@ -4,21 +4,20 @@ import TimePicker from "./TimePicker.vue";
 import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
 import { fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
 import { localDateKey } from "../../utils/localDate";
-import type { WeeklyReport, Work } from "../../types/dashboard";
-import { computeTypicalCheckInHhmm, recentCheckInRange } from "../../utils/checkInAverage";
+import type { WeekReport, Work } from "../../types/dashboard";
+import { typicalCheckIn, checkInRange } from "../../utils/checkInAverage";
 import { isDayOff } from "../../utils/dayType";
-import { formatHm, formatHmFromMinutes } from "../../utils/time";
+import { formatHm, fmtMinutes, hhmmToDateTime } from "../../utils/time";
 import { currentDateKey } from "../../utils/weekNav";
 import { WorkPolicy } from "../../utils/workPolicy";
 import {
-  buildWeekPreview,
-  formatPreviewCheckIn,
-  formatPreviewCheckOut,
-  formatPreviewWork,
-  hhmmToDateTime,
-  isPreviewCheckoutNextDay,
-  type WeekPreviewOverrides,
-  type WeekPreviewRow
+  buildPrv,
+  fmtIn,
+  fmtOut,
+  fmtWork,
+  isNextDay,
+  type PrvOvrs,
+  type PrvRow
 } from "../../utils/weekPreview";
 
 type ProjectedStartMode = "on-time" | "average" | "custom";
@@ -37,9 +36,9 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(false);
-const weeklyReport = ref<WeeklyReport | null>(null);
+const weeklyReport = ref<WeekReport | null>(null);
 const todayWork = ref<Work | null>(null);
-const overrides = ref<WeekPreviewOverrides>({});
+const overrides = ref<PrvOvrs>({});
 
 const projectedStartMode = ref<ProjectedStartMode>("on-time");
 const projectedStartHhmm = ref(ON_TIME_HHMM);
@@ -50,7 +49,7 @@ const timePickerOpen = ref(false);
 const timePickerInitial = ref(ON_TIME_HHMM);
 const timePickerContext = ref<TimePickerContext>("row");
 const timeEditField = ref<"start" | "end">("start");
-const editingRow = ref<WeekPreviewRow | null>(null);
+const editingRow = ref<PrvRow | null>(null);
 
 const todayDateKey = computed(() => currentDateKey());
 
@@ -58,7 +57,7 @@ const preview = computed(() => {
   if (!weeklyReport.value || !todayWork.value) {
     return null;
   }
-  return buildWeekPreview({
+  return buildPrv({
     weeklyReport: weeklyReport.value,
     todayWork: todayWork.value,
     todayDateKey: todayDateKey.value,
@@ -88,16 +87,16 @@ const presetToggleAverage = computed(() => {
 });
 
 const balanceLabel = computed(() =>
-  preview.value && preview.value.weekOverMinutes > 0 ? "남음" : "부족"
+  preview.value && preview.value.weekOverMin > 0 ? "남음" : "부족"
 );
 
 const balanceValue = computed(() => {
   if (!preview.value) {
     return "-";
   }
-  return preview.value.weekOverMinutes > 0
-    ? formatHmFromMinutes(preview.value.weekOverMinutes)
-    : formatHmFromMinutes(preview.value.weekRemainingMinutes);
+  return preview.value.weekOverMin > 0
+    ? fmtMinutes(preview.value.weekOverMin)
+    : fmtMinutes(preview.value.weekRemMin);
 });
 
 function resetProjectedStartState() {
@@ -113,7 +112,7 @@ function clearStartOverrides() {
   }
   const next = { ...overrides.value };
   for (const row of preview.value.rows) {
-    if (!row.canEditCheckIn) {
+    if (!row.canEditIn) {
       continue;
     }
     const entry = next[row.workDate];
@@ -144,7 +143,7 @@ watch(
 
     loading.value = true;
     try {
-      const range = recentCheckInRange(todayDateKey.value);
+      const range = checkInRange(todayDateKey.value);
       const [weekly, today, rangeRecords] = await Promise.all([
         fetchWeek(props.userId, todayDateKey.value),
         fetchWork(props.userId, localDateKey()),
@@ -154,7 +153,7 @@ watch(
       todayWork.value = today;
       overrides.value = {};
       resetProjectedStartState();
-      avgCheckInHhmm.value = computeTypicalCheckInHhmm(rangeRecords);
+      avgCheckInHhmm.value = typicalCheckIn(rangeRecords);
     } finally {
       loading.value = false;
     }
@@ -173,7 +172,7 @@ useDialogKeyboard({
   disabled: dialogKeyboardDisabled
 });
 
-function resolvePickerInitial(row: WeekPreviewRow, field: "start" | "end"): string {
+function resolvePickerInitial(row: PrvRow, field: "start" | "end"): string {
   const value = field === "start" ? row.rawStart : row.rawEnd;
   const formatted = formatHm(value);
   return formatted !== "-" ? formatted : field === "end" ? "18:00" : "09:00";
@@ -223,11 +222,11 @@ function handlePresetSelect(target: PresetMode) {
   selectAverage();
 }
 
-function openTimePicker(row: WeekPreviewRow, field: "start" | "end") {
-  if (field === "start" && !row.canEditCheckIn) {
+function openTimePicker(row: PrvRow, field: "start" | "end") {
+  if (field === "start" && !row.canEditIn) {
     return;
   }
-  if (field === "end" && !row.canEditCheckOut) {
+  if (field === "end" && !row.canEditOut) {
     return;
   }
   if (isDayOff(row.dayType)) {
@@ -275,19 +274,19 @@ function hasOverride(workDate: string, field: "start" | "end"): boolean {
   return field === "start" ? Boolean(override.rawStart) : Boolean(override.rawEnd);
 }
 
-function cellToneClass(row: WeekPreviewRow, field: "start" | "end" | "work"): string {
+function cellToneClass(row: PrvRow, field: "start" | "end" | "work"): string {
   if (isDayOff(row.dayType)) {
     return "cell-tone-muted";
   }
 
-  if (row.recordGap !== "none") {
+  if (row.missingGap !== "none") {
     if (field === "work") {
       return "cell-tone-fixed";
     }
   }
 
   if (field === "start") {
-    if (!row.canEditCheckIn) {
+    if (!row.canEditIn) {
       return "cell-tone-fixed";
     }
     if (hasOverride(row.workDate, "start")) {
@@ -300,7 +299,7 @@ function cellToneClass(row: WeekPreviewRow, field: "start" | "end" | "work"): st
   }
 
   if (field === "end") {
-    if (!row.canEditCheckOut) {
+    if (!row.canEditOut) {
       return "cell-tone-fixed";
     }
     if (hasOverride(row.workDate, "end")) {
@@ -324,18 +323,18 @@ function cellToneClass(row: WeekPreviewRow, field: "start" | "end" | "work"): st
   return "cell-tone-fixed";
 }
 
-function weekdayToneClass(row: WeekPreviewRow): string {
+function weekdayToneClass(row: PrvRow): string {
   if (isDayOff(row.dayType)) {
     return "cell-tone-muted";
   }
-  if (!row.canEditCheckIn && !row.canEditCheckOut) {
+  if (!row.canEditIn && !row.canEditOut) {
     return "cell-tone-fixed";
   }
   return "cell-tone-weekday-preview";
 }
 
-function rowToneClass(row: WeekPreviewRow): string {
-  if (row.canEditCheckIn || row.canEditCheckOut) {
+function rowToneClass(row: PrvRow): string {
+  if (row.canEditIn || row.canEditOut) {
     return "row-tone-preview";
   }
   return "row-tone-fixed";
@@ -374,7 +373,7 @@ function rowToneClass(row: WeekPreviewRow): string {
             <div class="stat-row stat-row--3">
               <div class="stat-item">
                 <p class="stat-label">총 근무</p>
-                <p class="stat-value">{{ formatHmFromMinutes(preview.weekWorkedMinutes) }}</p>
+                <p class="stat-value">{{ fmtMinutes(preview.weekMainMin) }}</p>
               </div>
               <div class="stat-item stat-item--divider">
                 <p class="stat-label">{{ balanceLabel }}</p>
@@ -444,25 +443,25 @@ function rowToneClass(row: WeekPreviewRow): string {
                 >
                   <th scope="row" :class="weekdayToneClass(row)">{{ row.weekdayLabel }}</th>
                   <td
-                    :class="[cellToneClass(row, 'start'), { 'cell-editable': row.canEditCheckIn }]"
+                    :class="[cellToneClass(row, 'start'), { 'cell-editable': row.canEditIn }]"
                     @click="openTimePicker(row, 'start')"
                   >
-                    {{ formatPreviewCheckIn(row) }}
+                    {{ fmtIn(row) }}
                   </td>
                   <td
-                    :class="[cellToneClass(row, 'end'), { 'cell-editable': row.canEditCheckOut }]"
+                    :class="[cellToneClass(row, 'end'), { 'cell-editable': row.canEditOut }]"
                     @click="openTimePicker(row, 'end')"
                   >
-                    <template v-if="isPreviewCheckoutNextDay(row)">
+                    <template v-if="isNextDay(row)">
                       {{ formatHm(row.rawEnd) }}<span class="cell-next-day">(+1)</span>
                     </template>
                     <template v-else>
-                      {{ formatPreviewCheckOut(row) }}
+                      {{ fmtOut(row) }}
                     </template>
                   </td>
                   <td>
                     <span :class="cellToneClass(row, 'work')">
-                      {{ formatPreviewWork(row) }}
+                      {{ fmtWork(row) }}
                     </span>
                   </td>
                 </tr>

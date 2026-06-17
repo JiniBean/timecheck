@@ -1,10 +1,10 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 
-export const DEFAULT_API_ERROR_MESSAGE =
+export const DEFAULT_API_ERR =
   "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
 
-export function getApiErrorMessage(error: unknown, fallback = DEFAULT_API_ERROR_MESSAGE): string {
+export function apiErrMsg(error: unknown, fallback = DEFAULT_API_ERR): string {
   if (axios.isAxiosError(error)) {
     const message = error.response?.data?.message;
     if (typeof message === "string" && message.trim()) {
@@ -24,5 +24,5 @@ export function getApiErrorMessage(error: unknown, fallback = DEFAULT_API_ERROR_
 }
 
 export function showApiError(error: unknown, fallback?: string): void {
-  ElMessage.error(getApiErrorMessage(error, fallback));
+  ElMessage.error(apiErrMsg(error, fallback));
 }

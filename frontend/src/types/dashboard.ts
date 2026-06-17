@@ -22,15 +22,15 @@ export interface Work {
   remark: string | null;
 }
 
-export interface WeeklySummary {
+export interface WeekSummary {
   workedMinutes: number;
   targetMinutes: number;
   remainingMinutes: number;
-  avgRequiredPerDayMinutes: number;
-  remainingWorkDays: number;
+  avgPerDayMin: number;
+  daysAfter: number;
 }
 
-export interface WeeklyDayRow {
+export interface WeekDay {
   workDate: string;
   weekdayLabel: string;
   rawStart: string | null;
@@ -46,27 +46,27 @@ export interface WeeklyDayRow {
   remark: string | null;
 }
 
-export interface WeeklyReportHeader {
+export interface ReportHeader {
   department: string;
   team: string;
   name: string;
   position: string | null;
   reportMonth: number;
-  reportWeekNumber: number;
+  weekNum: number;
 }
 
-export interface WeeklyReport {
+export interface WeekReport {
   weekStart: string;
   weekEnd: string;
-  summary: WeeklySummary;
-  days: WeeklyDayRow[];
-  header: WeeklyReportHeader;
+  summary: WeekSummary;
+  days: WeekDay[];
+  header: ReportHeader;
 }
 
 export interface DashboardState {
   todayStatus: TodayStatus;
   todayWork: Work;
-  weeklyReport: WeeklyReport;
+  weeklyReport: WeekReport;
   loading: boolean;
   actionLoading: boolean;
   errorMessage: string | null;

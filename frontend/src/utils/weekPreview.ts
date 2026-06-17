@@ -1,34 +1,34 @@
-import type { DayType, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboard";
+import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
-import { MAIN_WEEK_TARGET_MINUTES, avgPerDay } from "./main";
-import { computeMainMinutes } from "./ot";
-import { formatHm, formatHmFromMinutes, hhmmToDateTime } from "./time";
+import { WEEK_TARGET_MIN, avgPerDay } from "./main";
+import { mainMin } from "./ot";
+import { formatDateTime, formatHm, fmtMinutes, hhmmToDateTime, parseDateTime } from "./time";
 import {
-  calculateWorkMinutes,
-  resolveEffectiveTodayWork,
-  type WorkCalcInput
+  workMin,
+  mergeToday,
+  type CalcInput
 } from "./timeCalculator";
 import { WorkPolicy } from "./workPolicy";
 
 export type PreviewRowKind = "actual" | "projected";
 
 /** 과거 근무일 기록 누락 유형 */
-export type PreviewRecordGap = "none" | "missing-checkout" | "missing-both";
+export type MissingGap = "none" | "missing-checkout" | "missing-both";
 
-export interface PreviewIncompleteDay {
+export interface MissingDay {
   workDate: string;
   weekdayLabel: string;
-  gap: Exclude<PreviewRecordGap, "none">;
+  gap: Exclude<MissingGap, "none">;
 }
 
-export interface WeekPreviewOverrides {
+export interface PrvOvrs {
   [workDate: string]: {
     rawStart?: string;
     rawEnd?: string;
   };
 }
 
-export interface WeekPreviewRow {
+export interface PrvRow {
   workDate: string;
   weekdayLabel: string;
   dayType: DayType;
@@ -37,25 +37,25 @@ export interface WeekPreviewRow {
   mainMinutes: number;
   kind: PreviewRowKind;
   isToday: boolean;
-  canEditCheckIn: boolean;
-  canEditCheckOut: boolean;
+  canEditIn: boolean;
+  canEditOut: boolean;
   isProjected: boolean;
-  recordGap: PreviewRecordGap;
+  missingGap: MissingGap;
 }
 
-export interface WeekPreviewResult {
-  rows: WeekPreviewRow[];
-  weekWorkedMinutes: number;
-  weekTargetMinutes: number;
-  weekRemainingMinutes: number;
-  weekOverMinutes: number;
-  avgRequiredPerDayMinutes: number;
-  incompletePastDays: PreviewIncompleteDay[];
+export interface PrvResult {
+  rows: PrvRow[];
+  weekMainMin: number;
+  weekTargetMin: number;
+  weekRemMin: number;
+  weekOverMin: number;
+  avgPerDayMin: number;
+  incompletePastDays: MissingDay[];
 }
 
 interface DayEditability {
-  canEditCheckIn: boolean;
-  canEditCheckOut: boolean;
+  canEditIn: boolean;
+  canEditOut: boolean;
   isFixed: boolean;
 }
 
@@ -67,24 +67,9 @@ interface ResolvedDayTimes {
   kind: PreviewRowKind;
 }
 
-function parseDateTime(value: string | null | undefined): Date | null {
-  if (!value) {
-    return null;
-  }
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function formatDateTime(workDate: string, date: Date): string {
-  return `${workDate} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
-
-export { hhmmToDateTime } from "./time";
 
 const DEFAULT_PROJECTED_START_HHMM = "09:00";
 
@@ -92,14 +77,14 @@ function halfDayBoundary(workDate: string): string {
   return hhmmToDateTime(workDate, WorkPolicy.HALF_DAY_HHMM);
 }
 
-function defaultProjectedStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
+function defaultStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
   if (dayType === "AM") {
     return halfDayBoundary(workDate);
   }
   return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
 }
 
-function computeEndAtMainMinutes(
+function endAtMainMin(
   workDate: string,
   rawStart: Date,
   dayType: DayType,
@@ -110,7 +95,7 @@ function computeEndAtMainMinutes(
   const maxEnd = addMinutes(rawStart, 16 * 60);
 
   while (cursor.getTime() <= maxEnd.getTime()) {
-    if (computeMainMinutes(workDate, rawStart, cursor, dayType) >= target) {
+    if (mainMin(workDate, rawStart, cursor, dayType) >= target) {
       return cursor;
     }
     cursor = addMinutes(cursor, 1);
@@ -124,7 +109,7 @@ function calcInput(
   dayType: DayType,
   rawStart: string | null,
   rawEnd: string | null
-): WorkCalcInput {
+): CalcInput {
   return {
     workDate,
     rawStart,
@@ -147,10 +132,10 @@ function resolveMainMinutes(
   if (!rawStart || !rawEnd) {
     return fallback;
   }
-  return calculateWorkMinutes(calcInput(workDate, dayType, rawStart, rawEnd)).main;
+  return workMin(calcInput(workDate, dayType, rawStart, rawEnd)).main;
 }
 
-function resolvePastRecordGap(day: WeeklyDayRow, todayDate: string): PreviewRecordGap {
+function missingGap(day: WeekDay, todayDate: string): MissingGap {
   if (day.workDate >= todayDate || isDayOff(day.dayType)) {
     return "none";
   }
@@ -163,34 +148,34 @@ function resolvePastRecordGap(day: WeeklyDayRow, todayDate: string): PreviewReco
   return "missing-checkout";
 }
 
-function resolveEditability(
-  day: WeeklyDayRow,
+function editPerms(
+  day: WeekDay,
   todayDate: string,
   effectiveToday: Work
 ): DayEditability {
   if (isDayOff(day.dayType)) {
-    return { canEditCheckIn: false, canEditCheckOut: false, isFixed: true };
+    return { canEditIn: false, canEditOut: false, isFixed: true };
   }
 
   const workDate = day.workDate;
   if (workDate < todayDate) {
-    return { canEditCheckIn: false, canEditCheckOut: false, isFixed: true };
+    return { canEditIn: false, canEditOut: false, isFixed: true };
   }
 
   const rawStart = workDate === todayDate ? effectiveToday.rawStart : day.rawStart;
   const rawEnd = workDate === todayDate ? effectiveToday.rawEnd : day.rawEnd;
 
   if (rawEnd) {
-    return { canEditCheckIn: false, canEditCheckOut: false, isFixed: true };
+    return { canEditIn: false, canEditOut: false, isFixed: true };
   }
   if (rawStart) {
-    return { canEditCheckIn: false, canEditCheckOut: true, isFixed: false };
+    return { canEditIn: false, canEditOut: true, isFixed: false };
   }
-  return { canEditCheckIn: true, canEditCheckOut: true, isFixed: false };
+  return { canEditIn: true, canEditOut: true, isFixed: false };
 }
 
-function resolveActualTimes(
-  day: WeeklyDayRow,
+function actualTimes(
+  day: WeekDay,
   todayDate: string,
   effectiveToday: Work
 ): ResolvedDayTimes {
@@ -221,37 +206,37 @@ function resolveActualTimes(
 }
 
 interface AutoDaySlot {
-  day: WeeklyDayRow;
+  day: WeekDay;
   edit: DayEditability;
   start: string;
   lockedEnd: string | null;
 }
 
-export function buildWeekPreview(input: {
-  weeklyReport: WeeklyReport;
+export function buildPrv(input: {
+  weeklyReport: WeekReport;
   todayWork: Work;
   todayDateKey: string;
-  overrides?: WeekPreviewOverrides;
+  overrides?: PrvOvrs;
   projectedStartHhmm?: string;
-}): WeekPreviewResult {
+}): PrvResult {
   const { weeklyReport, todayWork, todayDateKey } = input;
   const overrides = input.overrides ?? {};
   const projectedStartHhmm = input.projectedStartHhmm ?? DEFAULT_PROJECTED_START_HHMM;
-  const effectiveToday = resolveEffectiveTodayWork(todayWork, weeklyReport.days, todayDateKey);
-  const targetMinutes = weeklyReport.summary.targetMinutes || MAIN_WEEK_TARGET_MINUTES;
+  const effectiveToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
+  const targetMinutes = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
 
   let fixedMinutes = 0;
   const autoSlots: AutoDaySlot[] = [];
   const resolved = new Map<string, ResolvedDayTimes>();
 
   for (const day of weeklyReport.days) {
-    const edit = resolveEditability(day, todayDateKey, effectiveToday);
+    const edit = editPerms(day, todayDateKey, effectiveToday);
     const override = overrides[day.workDate];
 
     if (edit.isFixed) {
-      const actual = resolveActualTimes(day, todayDateKey, effectiveToday);
-      const recordGap = resolvePastRecordGap(day, todayDateKey);
-      const mainMinutes = recordGap !== "none" ? 0 : actual.mainMinutes;
+      const actual = actualTimes(day, todayDateKey, effectiveToday);
+      const gap = missingGap(day, todayDateKey);
+      const mainMinutes = gap !== "none" ? 0 : actual.mainMinutes;
       resolved.set(day.workDate, {
         ...actual,
         mainMinutes
@@ -261,7 +246,7 @@ export function buildWeekPreview(input: {
     }
 
     if (isDayOff(day.dayType)) {
-      const actual = resolveActualTimes(day, todayDateKey, effectiveToday);
+      const actual = actualTimes(day, todayDateKey, effectiveToday);
       resolved.set(day.workDate, actual);
       fixedMinutes += WorkPolicy.STD_WORK;
       continue;
@@ -271,10 +256,10 @@ export function buildWeekPreview(input: {
     const baseStart = isToday ? effectiveToday.rawStart : day.rawStart;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
 
-    const defaultStart = dayType === "AM"
+    const fallbackStart = dayType === "AM"
       ? halfDayBoundary(day.workDate)
-      : (baseStart ?? defaultProjectedStart(day.workDate, dayType, projectedStartHhmm));
-    const start = override?.rawStart ?? defaultStart;
+      : (baseStart ?? defaultStart(day.workDate, dayType, projectedStartHhmm));
+    const start = override?.rawStart ?? fallbackStart;
     const lockedEnd = override?.rawEnd ?? (dayType === "PM" ? halfDayBoundary(day.workDate) : null);
 
     if (lockedEnd) {
@@ -315,9 +300,9 @@ export function buildWeekPreview(input: {
       continue;
     }
 
-    const endDt = computeEndAtMainMinutes(slot.day.workDate, startDt, dayType, perDayMinutes);
+    const endDt = endAtMainMin(slot.day.workDate, startDt, dayType, perDayMinutes);
     const rawEnd = formatDateTime(slot.day.workDate, endDt);
-    const mainMinutes = computeMainMinutes(slot.day.workDate, startDt, endDt, dayType);
+    const mainMinutes = mainMin(slot.day.workDate, startDt, endDt, dayType);
 
     resolved.set(slot.day.workDate, {
       rawStart: slot.start,
@@ -328,20 +313,20 @@ export function buildWeekPreview(input: {
     });
   }
 
-  const incompletePastDays: PreviewIncompleteDay[] = [];
+  const incompletePastDays: MissingDay[] = [];
 
-  const rows: WeekPreviewRow[] = weeklyReport.days.map((day) => {
-    const edit = resolveEditability(day, todayDateKey, effectiveToday);
+  const rows: PrvRow[] = weeklyReport.days.map((day) => {
+    const edit = editPerms(day, todayDateKey, effectiveToday);
     const times = resolved.get(day.workDate)!;
     const isToday = day.workDate === todayDateKey;
     const dayType = isToday ? effectiveToday.dayType : day.dayType;
-    const recordGap = resolvePastRecordGap(day, todayDateKey);
+    const gap = missingGap(day, todayDateKey);
 
-    if (recordGap !== "none") {
+    if (gap !== "none") {
       incompletePastDays.push({
         workDate: day.workDate,
         weekdayLabel: day.weekdayLabel,
-        gap: recordGap
+        gap
       });
     }
 
@@ -354,30 +339,30 @@ export function buildWeekPreview(input: {
       mainMinutes: times.mainMinutes,
       kind: times.kind,
       isToday,
-      canEditCheckIn: edit.canEditCheckIn,
-      canEditCheckOut: edit.canEditCheckOut,
+      canEditIn: edit.canEditIn,
+      canEditOut: edit.canEditOut,
       isProjected: times.isProjected,
-      recordGap
+      missingGap: gap
     };
   });
 
-  const weekWorkedMinutes = rows.reduce((sum, row) => sum + row.mainMinutes, 0);
-  const weekRemainingMinutes = Math.max(0, targetMinutes - weekWorkedMinutes);
-  const weekOverMinutes = Math.max(0, weekWorkedMinutes - targetMinutes);
-  const avgRequiredPerDayMinutes = perDayMinutes;
+  const weekMainMin = rows.reduce((sum, row) => sum + row.mainMinutes, 0);
+  const weekRemMin = Math.max(0, targetMinutes - weekMainMin);
+  const weekOverMin = Math.max(0, weekMainMin - targetMinutes);
+  const avgPerDayMin = perDayMinutes;
 
   return {
     rows,
-    weekWorkedMinutes,
-    weekTargetMinutes: targetMinutes,
-    weekRemainingMinutes,
-    weekOverMinutes,
-    avgRequiredPerDayMinutes,
+    weekMainMin,
+    weekTargetMin: targetMinutes,
+    weekRemMin,
+    weekOverMin,
+    avgPerDayMin,
     incompletePastDays
   };
 }
 
-export function formatIncompletePastSummary(days: PreviewIncompleteDay[]): string {
+export function missingSummary(days: MissingDay[]): string {
   if (days.length === 0) {
     return "";
   }
@@ -388,8 +373,8 @@ export function formatIncompletePastSummary(days: PreviewIncompleteDay[]): strin
   return `${labels.join(", ")} — 일반 근무표에서 입력해 주세요`;
 }
 
-export function isPreviewCheckoutNextDay(row: WeekPreviewRow): boolean {
-  if (isDayOff(row.dayType) || row.recordGap !== "none" || !row.rawStart || !row.rawEnd) {
+export function isNextDay(row: PrvRow): boolean {
+  if (isDayOff(row.dayType) || row.missingGap !== "none" || !row.rawStart || !row.rawEnd) {
     return false;
   }
   const start = parseDateTime(row.rawStart);
@@ -400,24 +385,24 @@ export function isPreviewCheckoutNextDay(row: WeekPreviewRow): boolean {
   return end.getTime() <= start.getTime() || end.getHours() < 6;
 }
 
-export function formatPreviewCheckIn(row: WeekPreviewRow): string {
+export function fmtIn(row: PrvRow): string {
   if (isDayOff(row.dayType)) {
     return "-";
   }
-  if (row.recordGap === "missing-both") {
+  if (row.missingGap === "missing-both") {
     return "-";
   }
   return formatHm(row.rawStart);
 }
 
-export function formatPreviewCheckOut(row: WeekPreviewRow): string {
+export function fmtOut(row: PrvRow): string {
   if (isDayOff(row.dayType)) {
     return "-";
   }
-  if (row.recordGap === "missing-checkout") {
+  if (row.missingGap === "missing-checkout") {
     return "-";
   }
-  if (row.recordGap === "missing-both") {
+  if (row.missingGap === "missing-both") {
     return "-";
   }
   const formatted = formatHm(row.rawEnd);
@@ -427,12 +412,12 @@ export function formatPreviewCheckOut(row: WeekPreviewRow): string {
   return formatted;
 }
 
-export function formatPreviewWork(row: WeekPreviewRow): string {
+export function fmtWork(row: PrvRow): string {
   if (isDayOff(row.dayType)) {
     return dayTypeLabel(row.dayType);
   }
-  if (row.recordGap !== "none") {
-    return formatHmFromMinutes(0);
+  if (row.missingGap !== "none") {
+    return fmtMinutes(0);
   }
   return workCellLabel(row.dayType, row.mainMinutes);
 }

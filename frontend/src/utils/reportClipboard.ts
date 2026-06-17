@@ -152,19 +152,19 @@ function reportContentToHtml(root: HTMLElement): string {
 }
 
 /** 헤더 문장·근무자·표·비고 전체를 클립보드에 복사 */
-export async function copyReportToClipboard(root: HTMLElement): Promise<void> {
+export async function copyReport(root: HTMLElement): Promise<void> {
   const plain = reportContentToPlain(root);
   const html = reportContentToHtml(root);
   await writeClipboardPayload(plain, html);
 }
 
-export async function copyTableToClipboard(table: HTMLTableElement, footerText?: string): Promise<void> {
+export async function copyTable(table: HTMLTableElement, footerText?: string): Promise<void> {
   const tsv = tableToTsv(table, footerText);
   const html = tableToInlineHtml(table);
   await writeClipboardPayload(tsv, html);
 }
 
-export async function copyTextToClipboard(text: string): Promise<void> {
+export async function copyText(text: string): Promise<void> {
   if (navigator.clipboard?.writeText && window.isSecureContext) {
     await navigator.clipboard.writeText(text);
     return;

@@ -1,5 +1,5 @@
-import type { DayType, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboard";
-import { formatHm } from "./time";
+import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
+import { formatDateTime, formatHm, parseDateTime } from "./time";
 import { WorkPolicy } from "./workPolicy";
 
 // --- Recalc ---
@@ -130,7 +130,7 @@ export function autoOtAnchors(
   };
 }
 
-export function computeMainMinutes(
+export function mainMin(
   workDate: string,
   rawStart: Date,
   mainEnd: Date,
@@ -152,7 +152,7 @@ export function computeMainMinutes(
   return Math.max(0, total);
 }
 
-export function computeExtraSplit(
+export function extraSplit(
   workDate: string,
   otStart: Date,
   otEnd: Date
@@ -178,7 +178,7 @@ export function computeExtraSplit(
   return { extra1, extra2, extraTotal };
 }
 
-export function applyOtAnchorPatch(work: Work, patch: OtAnchorPatch): Work {
+export function setAnchorPatch(work: Work, patch: OtAnchorPatch): Work {
   const next: Work = { ...work };
   if (patch.clearMainEnd) {
     next.mainEnd = null;
@@ -231,20 +231,20 @@ export function coreEndAt(workDate: string): Date {
 }
 
 /** 코어타임 종료 + 야근 휴게시간 (예: 17:00) */
-export function otPreviewThresholdAt(workDate: string): Date {
+export function otThresholdAt(workDate: string): Date {
   return addMinutes(coreEndAt(workDate), WorkPolicy.BREAK_OVER);
 }
 
-export function isMainEndBeforeCore(mainEnd: Date, workDate: string): boolean {
+export function isBeforeCore(mainEnd: Date, workDate: string): boolean {
   return mainEnd.getTime() < coreEndAt(workDate).getTime();
 }
 
 /** 퇴근 시 야근을 취소해야 하는지 (코어타임+휴게 17:00 이하) */
-export function shouldCancelOtOnCheckout(workDate: string, checkoutAt: Date): boolean {
-  return checkoutAt.getTime() <= otPreviewThresholdAt(workDate).getTime();
+export function shouldCancelOt(workDate: string, checkoutAt: Date): boolean {
+  return checkoutAt.getTime() <= otThresholdAt(workDate).getTime();
 }
 
-export function syncOtAnchorsFromMainEnd(
+export function syncFromMainEnd(
   workDate: string,
   mainEnd: string
 ): { mainEnd: string; otStart: string } {
@@ -255,7 +255,7 @@ export function syncOtAnchorsFromMainEnd(
   };
 }
 
-export function syncOtAnchorsFromOtStart(
+export function syncFromOtStart(
   workDate: string,
   otStart: string
 ): { mainEnd: string; otStart: string } {
@@ -270,7 +270,7 @@ export function syncOtAnchorsFromOtStart(
 /**
  * 일반근무 8시간(480분)이 채워지는 시각을 산출합니다.
  */
-export function computeMainEndAtStdWork(
+export function mainEndAtStd(
   workDate: string,
   rawStart: Date,
   dayType: DayType
@@ -279,7 +279,7 @@ export function computeMainEndAtStdWork(
   const maxEnd = addMinutes(rawStart, 16 * 60);
 
   while (cursor.getTime() <= maxEnd.getTime()) {
-    if (computeMainMinutes(workDate, rawStart, cursor, dayType) >= WorkPolicy.STD_WORK) {
+    if (mainMin(workDate, rawStart, cursor, dayType) >= WorkPolicy.STD_WORK) {
       return cursor;
     }
     cursor = addMinutes(cursor, 1);
@@ -292,7 +292,7 @@ export function computeMainEndAtStdWork(
  * 야근 표시용 mainEnd·otStart (미저장).
  * 퇴근 전 3단계: 코어미준수 / 코어준수·main8h미만 / main8h충족
  */
-export function resolveOtPreviewDisplay(
+export function otPreview(
   work: Pick<
     Work,
     "workDate" | "rawStart" | "rawEnd" | "dayType" | "isOt" | "mainEnd" | "otStart" | "otEnd"
@@ -308,7 +308,7 @@ export function resolveOtPreviewDisplay(
     const mainEndStr = work.mainEnd ?? auto.mainEnd ?? null;
     const otStartStr = work.otStart ?? auto.otStart ?? null;
     const mainEndDt = parseDateTime(mainEndStr);
-    const eligible = Boolean(mainEndDt && !isMainEndBeforeCore(mainEndDt, work.workDate));
+    const eligible = Boolean(mainEndDt && !isBeforeCore(mainEndDt, work.workDate));
     return {
       mainEnd: mainEndStr,
       otStart: eligible ? otStartStr : null,
@@ -321,7 +321,7 @@ export function resolveOtPreviewDisplay(
     if (!mainEndDt) {
       return { mainEnd: null, otStart: null, otCoreEligible: true };
     }
-    const eligible = !isMainEndBeforeCore(mainEndDt, work.workDate);
+    const eligible = !isBeforeCore(mainEndDt, work.workDate);
     const otStartStr =
       work.otStart ??
       formatDateTime(work.workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER));
@@ -344,7 +344,7 @@ export function resolveOtPreviewDisplay(
   }
 
   // 1. 코어 미준수: 퇴근=현재, 야근=-
-  if (now.getTime() <= otPreviewThresholdAt(workDate).getTime()) {
+  if (now.getTime() <= otThresholdAt(workDate).getTime()) {
     return {
       mainEnd: formatDateTime(workDate, now),
       otStart: null,
@@ -352,11 +352,11 @@ export function resolveOtPreviewDisplay(
     };
   }
 
-  const elapsedMain = computeElapsedMainMinutes(workDate, rawStart, now, work.dayType);
+  const elapsedMain = elapsedMainMin(workDate, rawStart, now, work.dayType);
 
   // 3. main 8시간 충족: 퇴근=출근+8h(휴게반영), 야근=퇴근+휴게
   if (elapsedMain >= WorkPolicy.STD_WORK) {
-    const mainEndDt = computeMainEndAtStdWork(workDate, rawStart, work.dayType);
+    const mainEndDt = mainEndAtStd(workDate, rawStart, work.dayType);
     const otStartDt = addMinutes(mainEndDt, WorkPolicy.BREAK_OVER);
     return {
       mainEnd: formatDateTime(workDate, mainEndDt),
@@ -368,7 +368,7 @@ export function resolveOtPreviewDisplay(
   // 2. 코어 준수·main 8h 미만: 퇴근=야근 역산, 야근=현재
   const otStartDt = now;
   const mainEndDt = addMinutes(otStartDt, -WorkPolicy.BREAK_OVER);
-  const coreOk = !isMainEndBeforeCore(mainEndDt, workDate);
+  const coreOk = !isBeforeCore(mainEndDt, workDate);
 
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
@@ -377,7 +377,7 @@ export function resolveOtPreviewDisplay(
   };
 }
 
-export function computeElapsedMainMinutes(
+export function elapsedMainMin(
   workDate: string,
   rawStart: Date,
   asOf: Date,
@@ -415,21 +415,8 @@ function amStart(workDate: string, rawStart: Date, dayType: DayType): Date {
   return rawStart.getTime() < boundary.getTime() ? boundary : rawStart;
 }
 
-function parseDateTime(value: string | null | undefined): Date | null {
-  if (!value) {
-    return null;
-  }
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
 function atTime(workDate: string, time: { hour: number; minute: number }): Date {
   return new Date(`${workDate}T${pad2(time.hour)}:${pad2(time.minute)}:00`);
-}
-
-function formatDateTime(workDate: string, date: Date): string {
-  return `${workDate} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 export function truncateToMinute(date: Date): Date {
@@ -475,42 +462,42 @@ function pad2(value: number): string {
 
 // --- Week extra aggregation ---
 
-export interface TodayExtraMinutes {
+export interface DayExtra {
   extra1: number;
   extra2: number;
 }
 
-export function sumWeekExtra1Minutes(
-  days: WeeklyDayRow[],
+export function sumExtra1(
+  days: WeekDay[],
   todayWorkDate: string,
-  todayExtraMinutes?: TodayExtraMinutes
+  todayExtra?: DayExtra
 ): number {
   return days.reduce((sum, day) => {
     const extra1 =
-      day.workDate === todayWorkDate ? (todayExtraMinutes?.extra1 ?? day.extra1) : day.extra1;
+      day.workDate === todayWorkDate ? (todayExtra?.extra1 ?? day.extra1) : day.extra1;
     return sum + extra1;
   }, 0);
 }
 
-export function sumWeekExtra2Minutes(
-  days: WeeklyDayRow[],
+export function sumExtra2(
+  days: WeekDay[],
   todayWorkDate: string,
-  todayExtraMinutes?: TodayExtraMinutes
+  todayExtra?: DayExtra
 ): number {
   return days.reduce((sum, day) => {
     const extra2 =
-      day.workDate === todayWorkDate ? (todayExtraMinutes?.extra2 ?? day.extra2) : day.extra2;
+      day.workDate === todayWorkDate ? (todayExtra?.extra2 ?? day.extra2) : day.extra2;
     return sum + extra2;
   }, 0);
 }
 
-export function resolveDayExtraMinutes(
-  day: WeeklyDayRow,
+export function dayExtra(
+  day: WeekDay,
   todayWorkDate: string,
-  todayExtraMinutes?: TodayExtraMinutes
-): TodayExtraMinutes {
-  if (day.workDate === todayWorkDate && todayExtraMinutes) {
-    return todayExtraMinutes;
+  todayExtra?: DayExtra
+): DayExtra {
+  if (day.workDate === todayWorkDate && todayExtra) {
+    return todayExtra;
   }
   return {
     extra1: day.extra1,
@@ -518,7 +505,7 @@ export function resolveDayExtraMinutes(
   };
 }
 
-export function dayExtraTotal(extra: TodayExtraMinutes): number {
+export function dayExtraTotal(extra: DayExtra): number {
   return extra.extra1 + extra.extra2;
 }
 
@@ -551,14 +538,14 @@ interface OtDayContext {
 }
 
 export function buildOtReport(
-  report: WeeklyReport,
+  report: WeekReport,
   options: {
     todayWorkDate: string;
-    todayOtContext?: OtDayContext;
-    useLiveToday: boolean;
+    otCtx?: OtDayContext;
+    isLiveToday: boolean;
   }
 ): BuiltOtReport {
-  const weekLabel = `${report.header.reportMonth}월 ${report.header.reportWeekNumber}주차`;
+  const weekLabel = `${report.header.reportMonth}월 ${report.header.weekNum}주차`;
   const titleLine = "아래와 같이 시간외근무 실적을 보고드립니다.";
 
   const rows = report.days.flatMap((day) => {
@@ -570,15 +557,15 @@ export function buildOtReport(
 }
 
 function resolveOtDayContext(
-  day: WeeklyDayRow,
+  day: WeekDay,
   options: {
     todayWorkDate: string;
-    todayOtContext?: OtDayContext;
-    useLiveToday: boolean;
+    otCtx?: OtDayContext;
+    isLiveToday: boolean;
   }
 ): OtDayContext {
-  if (options.useLiveToday && day.workDate === options.todayWorkDate && options.todayOtContext) {
-    return options.todayOtContext;
+  if (options.isLiveToday && day.workDate === options.todayWorkDate && options.otCtx) {
+    return options.otCtx;
   }
 
   return {
@@ -648,14 +635,14 @@ function createRow(
     performDate: workDate,
     startTime: segment.start,
     endTime: segment.end,
-    durationLabel: formatOtDuration(minutes),
+    durationLabel: fmtOtDur(minutes),
     workType,
     workDetail,
     note: OT_REPORT_NOTE
   };
 }
 
-export function formatOtDuration(minutes: number): string {
+export function fmtOtDur(minutes: number): string {
   const safe = Math.max(0, minutes);
   const hour = Math.floor(safe / 60);
   const minute = safe % 60;

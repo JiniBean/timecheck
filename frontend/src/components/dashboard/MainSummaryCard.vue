@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { MainSummaryResult } from "../../utils/main";
-import { formatDurationKo, formatHmFromMinutes } from "../../utils/time";
+import type { SummaryOut } from "../../utils/main";
+import { fmtDurKo, fmtMinutes } from "../../utils/time";
 
 const props = defineProps<{
-  summary: MainSummaryResult;
+  summary: SummaryOut;
   isCurrentWeek: boolean;
 }>();
 
@@ -12,20 +12,20 @@ const emit = defineEmits<{
   openPreview: [];
 }>();
 
-const balanceLabel = computed(() => (props.summary.weekOverMinutes > 0 ? "남음" : "부족"));
+const balanceLabel = computed(() => (props.summary.weekOverMin > 0 ? "남음" : "부족"));
 
 const balanceValue = computed(() =>
-  props.summary.weekOverMinutes > 0
-    ? formatHmFromMinutes(props.summary.weekOverMinutes)
-    : formatHmFromMinutes(props.summary.weekRemainingMinutes)
+  props.summary.weekOverMin > 0
+    ? fmtMinutes(props.summary.weekOverMin)
+    : fmtMinutes(props.summary.weekRemMin)
 );
 
 const avgDisplay = computed(() =>
-  props.isCurrentWeek ? formatDurationKo(props.summary.avgRequiredPerDayMinutes) : "-"
+  props.isCurrentWeek ? fmtDurKo(props.summary.avgPerDayMin) : "-"
 );
 
-const remainingWorkDaysDisplay = computed(() =>
-  props.isCurrentWeek ? `${props.summary.remainingWorkDays}일` : "-"
+const daysAfterDisplay = computed(() =>
+  props.isCurrentWeek ? `${props.summary.daysAfter}일` : "-"
 );
 
 function openPreview() {
@@ -46,7 +46,7 @@ function openPreview() {
     <div class="stat-row stat-row--4">
       <div class="stat-item">
         <p class="stat-label">총 근무</p>
-        <p class="stat-value">{{ formatHmFromMinutes(summary.weekWorkedMinutes) }}</p>
+        <p class="stat-value">{{ fmtMinutes(summary.weekMainMin) }}</p>
       </div>
       <div class="stat-item stat-item--divider">
         <p class="stat-label">{{ balanceLabel }}</p>
@@ -58,7 +58,7 @@ function openPreview() {
       </div>
       <div class="stat-item stat-item--divider">
         <p class="stat-label">남은 근무</p>
-        <p class="stat-value">{{ remainingWorkDaysDisplay }}</p>
+        <p class="stat-value">{{ daysAfterDisplay }}</p>
       </div>
     </div>
   </section>

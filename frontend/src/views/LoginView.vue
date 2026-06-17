@@ -2,7 +2,7 @@
 import { onMounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
-import { getApiErrorMessage } from "../utils/apiError";
+import { apiErrMsg } from "../utils/apiError";
 import type { LoginForm } from "../types/auth";
 
 const authStore = useAuthStore();
@@ -30,7 +30,7 @@ async function handleSubmit() {
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
     await router.replace(redirect);
   } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, "로그인에 실패했습니다.");
+    errorMessage.value = apiErrMsg(error, "로그인에 실패했습니다.");
   } finally {
     loading.value = false;
   }

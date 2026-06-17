@@ -33,7 +33,7 @@ function median(values: number[]): number {
 }
 
 /** NOM 출근 기록에서 중앙값 기준 이상치를 제외한 평균 출근 시각(HH:mm) */
-export function computeTypicalCheckInHhmm(records: Work[]): string | null {
+export function typicalCheckIn(records: Work[]): string | null {
   const minutes = records
     .filter((record) => record.dayType === "NOM" && record.rawStart)
     .map((record) => parseCheckInMinutes(record.rawStart!))
@@ -51,7 +51,7 @@ export function computeTypicalCheckInHhmm(records: Work[]): string | null {
 }
 
 /** today 기준 최근 30일 조회 구간 [start, end] (yyyy-MM-dd) */
-export function recentCheckInRange(todayDateKey: string): { start: string; end: string } {
+export function checkInRange(todayDateKey: string): { start: string; end: string } {
   return {
     start: shiftDateKey(todayDateKey, -(LOOKBACK_DAYS - 1)),
     end: todayDateKey

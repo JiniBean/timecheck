@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { WeeklyReport } from "../../types/dashboard";
+import type { WeekReport } from "../../types/dashboard";
 import { showApiError } from "../../utils/apiError";
-import { copyReportToClipboard } from "../../utils/reportClipboard";
+import { copyReport } from "../../utils/reportClipboard";
 import { buildWeekClip } from "../../utils/main";
 
 const props = defineProps<{
-  weeklyReport: WeeklyReport;
+  weeklyReport: WeekReport;
   todayWorkDate: string;
-  todayWorkedMinutes: number;
-  useLiveToday: boolean;
+  todayMainMin: number;
+  isLiveToday: boolean;
   hidden?: boolean;
 }>();
 
@@ -20,8 +20,8 @@ let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
 const built = computed(() =>
   buildWeekClip(props.weeklyReport, {
     todayWorkDate: props.todayWorkDate,
-    todayWorkedMinutes: props.todayWorkedMinutes,
-    useLiveToday: props.useLiveToday
+    todayMainMin: props.todayMainMin,
+    isLiveToday: props.isLiveToday
   })
 );
 
@@ -30,7 +30,7 @@ async function handleCopy() {
     return;
   }
   try {
-    await copyReportToClipboard(copyRootRef.value);
+    await copyReport(copyRootRef.value);
     if (!props.hidden) {
       showCopyToast.value = true;
       if (copyToastTimer) {

@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 import { useUsernameField } from "../composables/useUsernameField";
-import { getApiErrorMessage } from "../utils/apiError";
+import { apiErrMsg } from "../utils/apiError";
 import type { SignupForm } from "../types/auth";
 
 const authStore = useAuthStore();
@@ -40,7 +40,7 @@ async function handleSubmit() {
     await authStore.signup(form.value);
     await router.replace("/");
   } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, "회원가입에 실패했습니다.");
+    errorMessage.value = apiErrMsg(error, "회원가입에 실패했습니다.");
   } finally {
     loading.value = false;
   }

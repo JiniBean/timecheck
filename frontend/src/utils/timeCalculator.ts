@@ -1,24 +1,25 @@
-import type { DayType, WeeklyDayRow, Work } from "../types/dashboard";
+import type { DayType, WeekDay, Work } from "../types/dashboard";
 import { localDateKey } from "./localDate";
 import { isDayOff } from "./dayType";
 import {
-  applyOtAnchorPatch,
+  setAnchorPatch,
   autoOtAnchors,
-  computeElapsedMainMinutes,
-  computeExtraSplit,
-  computeMainMinutes,
+  elapsedMainMin,
+  extraSplit,
+  mainMin,
   recalcOtAnchors,
-  resolveOtPreviewDisplay,
+  otPreview,
   truncateToMinute,
   type OtRecalcTrigger
 } from "./ot";
 
-export { resolveOtPreviewDisplay, type OtPreviewDisplay } from "./ot";
+export { otPreview, type OtPreviewDisplay } from "./ot";
+import { formatDateTime, parseDateTime } from "./time";
 import { WorkPolicy } from "./workPolicy";
 
 export type { OtRecalcTrigger };
 
-export interface WorkCalcInput {
+export interface CalcInput {
   workDate: string;
   rawStart: string | null;
   rawEnd: string | null;
@@ -31,7 +32,7 @@ export interface WorkCalcInput {
   otEnd?: string | null;
 }
 
-export interface WorkCalcResult {
+export interface CalcResult {
   base: number;
   main: number;
   extra1: number;
@@ -41,7 +42,7 @@ export interface WorkCalcResult {
   mainEnd: string | null;
 }
 
-export function toWorkCalcInput(work: Work): WorkCalcInput {
+export function toCalcInput(work: Work): CalcInput {
   return {
     workDate: work.workDate,
     rawStart: work.rawStart,
@@ -57,7 +58,7 @@ export function toWorkCalcInput(work: Work): WorkCalcInput {
 }
 
 /** 출근만 있고 퇴근이 없는 진행 중 근무 */
-export function isWorkingInProgress(work: Pick<Work, "rawStart" | "rawEnd" | "dayType">): boolean {
+export function isWorking(work: Pick<Work, "rawStart" | "rawEnd" | "dayType">): boolean {
   return Boolean(work.rawStart && !work.rawEnd && !isDayOff(work.dayType));
 }
 
@@ -65,9 +66,9 @@ export function isWorkingInProgress(work: Pick<Work, "rawStart" | "rawEnd" | "da
  * 실시간 계산에 쓸 오늘 Work.
  * todayWork(출근 버튼·API)를 우선하고, 주간 테이블 row는 보조로 병합합니다.
  */
-export function resolveEffectiveTodayWork(
+export function mergeToday(
   todayWork: Work,
-  weeklyDays: WeeklyDayRow[],
+  weeklyDays: WeekDay[],
   todayDate: string = localDateKey()
 ): Work {
   const row = weeklyDays.find((day) => day.workDate === todayDate);
@@ -105,8 +106,8 @@ function pickTimeValue(primary: string | null | undefined, fallback: string | nu
 }
 
 /** DB 원시값 + 계산 필드를 합친 Work (표시·집계용) */
-export function applyCalculatedFields(work: Work, asOf?: Date): Work {
-  const calc = resolveWorkCalcResult(work, asOf);
+export function withCalc(work: Work, asOf?: Date): Work {
+  const calc = calcResult(work, asOf);
   return {
     ...work,
     base: calc.base,
@@ -120,14 +121,14 @@ export function applyCalculatedFields(work: Work, asOf?: Date): Work {
 }
 
 /** 야근 앵커를 트리거에 맞게 갱신한 Work를 반환합니다. */
-export function applyOtRecalc(work: Work, trigger: OtRecalcTrigger, patch?: Parameters<typeof recalcOtAnchors>[2]): Work {
+export function withOtRecalc(work: Work, trigger: OtRecalcTrigger, patch?: Parameters<typeof recalcOtAnchors>[2]): Work {
   const anchorPatch = recalcOtAnchors(work, trigger, patch);
-  const merged = applyOtAnchorPatch(work, anchorPatch);
-  return applyCalculatedFields(merged);
+  const merged = setAnchorPatch(work, anchorPatch);
+  return withCalc(merged);
 }
 
-export function resolveWorkCalcResult(work: Work, asOf?: Date): WorkCalcResult {
-  const input = toWorkCalcInput(work);
+export function calcResult(work: Work, asOf?: Date): CalcResult {
+  const input = toCalcInput(work);
   if (isDayOff(input.dayType)) {
     return {
       base: WorkPolicy.STD_WORK,
@@ -141,9 +142,9 @@ export function resolveWorkCalcResult(work: Work, asOf?: Date): WorkCalcResult {
   }
 
   const base = calculateBase(input);
-  const useLive = asOf != null && isWorkingInProgress(work);
+  const useLive = asOf != null && isWorking(work);
   const worked = useLive
-    ? calculateLiveWorkMinutes(input, asOf)
+    ? liveWorkMin(input, asOf)
     : calculateWork(input, input.dayType);
 
   return {
@@ -157,7 +158,7 @@ export function resolveWorkCalcResult(work: Work, asOf?: Date): WorkCalcResult {
   };
 }
 
-export function calculateWorkMinutes(input: WorkCalcInput): WorkCalcResult {
+export function workMin(input: CalcInput): CalcResult {
   const dayType = input.dayType;
 
   if (isDayOff(dayType)) {
@@ -177,14 +178,14 @@ export function calculateWorkMinutes(input: WorkCalcInput): WorkCalcResult {
   return { base, ...worked };
 }
 
-export function calculateLiveMainMinutes(input: WorkCalcInput, asOf: Date = new Date()): number {
-  return calculateLiveWorkMinutes(input, asOf).main;
+export function liveMainMin(input: CalcInput, asOf: Date = new Date()): number {
+  return liveWorkMin(input, asOf).main;
 }
 
-export function calculateLiveWorkMinutes(
-  input: WorkCalcInput,
+export function liveWorkMin(
+  input: CalcInput,
   asOf: Date = new Date()
-): Pick<WorkCalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
+): Pick<CalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
   if (!input.rawStart) {
     return { main: 0, extra1: 0, extra2: 0, otStart: null, otEnd: null, mainEnd: null };
   }
@@ -195,7 +196,7 @@ export function calculateLiveWorkMinutes(
   }
 
   if (input.isOt && !input.rawEnd) {
-    const preview = resolveOtPreviewDisplay(
+    const preview = otPreview(
       {
         workDate: input.workDate,
         rawStart: input.rawStart,
@@ -210,8 +211,8 @@ export function calculateLiveWorkMinutes(
     );
     const mainEndDt = parseDateTime(preview.mainEnd);
     const main = mainEndDt
-      ? computeMainMinutes(input.workDate, rawStart, mainEndDt, input.dayType)
-      : computeElapsedMainMinutes(input.workDate, rawStart, asOf, input.dayType);
+      ? mainMin(input.workDate, rawStart, mainEndDt, input.dayType)
+      : elapsedMainMin(input.workDate, rawStart, asOf, input.dayType);
 
     return {
       main,
@@ -225,7 +226,7 @@ export function calculateLiveWorkMinutes(
 
   const rawEnd =
     input.rawEnd ?? formatDateTime(input.workDate, truncateToMinute(asOf));
-  const result = calculateWorkMinutes({ ...input, rawEnd });
+  const result = workMin({ ...input, rawEnd });
   return {
     main: result.main,
     extra1: result.extra1,
@@ -236,7 +237,7 @@ export function calculateLiveWorkMinutes(
   };
 }
 
-function calculateBase(input: WorkCalcInput): number {
+function calculateBase(input: CalcInput): number {
   let offMins = 0;
 
   if (input.lateIn) {
@@ -258,9 +259,9 @@ function calculateBase(input: WorkCalcInput): number {
 }
 
 function calculateWork(
-  input: WorkCalcInput,
+  input: CalcInput,
   dayType: DayType
-): Pick<WorkCalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
+): Pick<CalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
   const rawStart = parseDateTime(input.rawStart);
   const rawEnd = parseDateTime(input.rawEnd);
 
@@ -272,7 +273,7 @@ function calculateWork(
     return calculateOtWork(input, dayType, rawStart, rawEnd);
   }
 
-  const total = computeMainMinutes(input.workDate, rawStart, rawEnd, dayType);
+  const total = mainMin(input.workDate, rawStart, rawEnd, dayType);
   const main = clampMain(total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_MAIN : total);
   return {
     main,
@@ -285,11 +286,11 @@ function calculateWork(
 }
 
 function calculateOtWork(
-  input: WorkCalcInput,
+  input: CalcInput,
   dayType: DayType,
   rawStart: Date,
   rawEnd: Date
-): Pick<WorkCalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
+): Pick<CalcResult, "main" | "extra1" | "extra2" | "otStart" | "otEnd" | "mainEnd"> {
   const workDate = input.workDate;
   const auto = autoOtAnchors({
     workDate,
@@ -311,10 +312,10 @@ function calculateOtWork(
     parseDateTime(auto.otEnd ?? null) ??
     truncateToTenMinutes(rawEnd);
 
-  const main = computeMainMinutes(workDate, rawStart, mainEndDt, dayType);
+  const main = mainMin(workDate, rawStart, mainEndDt, dayType);
   const hasExtra = otStartDt.getTime() < otEndDt.getTime();
   const { extra1, extra2 } = hasExtra
-    ? computeExtraSplit(workDate, otStartDt, otEndDt)
+    ? extraSplit(workDate, otStartDt, otEndDt)
     : { extra1: 0, extra2: 0 };
 
   return {
@@ -322,18 +323,9 @@ function calculateOtWork(
     extra1,
     extra2,
     otStart: hasExtra ? formatDateTime(workDate, otStartDt) : null,
-    otEnd: hasExtra ? formatDateTime(workDate, otEndDt) : formatDateTime(workDate, otEndDt),
+    otEnd: formatDateTime(workDate, otEndDt),
     mainEnd: formatDateTime(workDate, mainEndDt)
   };
-}
-
-function parseDateTime(value: string | null | undefined): Date | null {
-  if (!value) {
-    return null;
-  }
-  const normalized = value.includes("T") ? value : value.replace(" ", "T");
-  const date = new Date(normalized);
-  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function parseHm(value: string): { hour: number; minute: number } {
@@ -346,10 +338,6 @@ function parseHm(value: string): { hour: number; minute: number } {
 
 function atTime(workDate: string, time: { hour: number; minute: number }): Date {
   return new Date(`${workDate}T${pad2(time.hour)}:${pad2(time.minute)}:00`);
-}
-
-function formatDateTime(workDate: string, date: Date): string {
-  return `${workDate} ${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 function truncateToTenMinutes(date: Date): Date {

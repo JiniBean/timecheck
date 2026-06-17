@@ -17,9 +17,10 @@ import logoutIcon from "../assets/icons/logout.svg";
 import { useDashboard } from "../composables/useDashboard";
 import { useAuthStore } from "../stores/auth";
 import { buildOtReport } from "../utils/ot";
-import { isWorkingInProgress, resolveEffectiveTodayWork, resolveWorkCalcResult } from "../utils/timeCalculator";
+import { isWorking, mergeToday, calcResult } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
-import { computeMainSummary } from "../utils/main";
+import { mainSummary } from "../utils/main";
+import { hhmmToDateTime, parseDateTime } from "../utils/time";
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -28,33 +29,34 @@ const userId = authStore.user!.userId;
 const {
   state,
   isCurrentWeek,
-  actionTimeDisplay,
-  isActionTimeEditable,
-  isActionTimeLocked,
+  actTime,
+  isActTimeEditable,
+  isActTimeLocked,
   applyPickedTime,
+  syncActTime,
   canCheckIn,
   canCheckOut,
   handleCheckIn,
   handleCheckOut,
-  applyWorkSettings,
-  updateTodayMainEnd,
-  updateTodayOtStart,
-  persistWorkSettings,
-  updateWeeklyCheckIn,
-  updateWeeklyCheckOut,
-  updateWeeklyOtStart,
-  updateWeeklyOtEnd,
-  clearWeeklyCheckIn,
-  clearWeeklyCheckOut,
-  clearWeeklyOtStart,
-  clearWeeklyOtEnd,
-  saveWeeklyDaySettings,
+  setWorkSettings,
+  setMainEnd,
+  setOtStart,
+  saveWorkSettings,
+  setWeekIn,
+  setWeekOut,
+  setWeekOtStart,
+  setWeekOtEnd,
+  clearWeekIn,
+  clearWeekOut,
+  clearWeekOtStart,
+  clearWeekOtEnd,
+  saveWeekSettings,
   shiftWeek,
   goToThisWeek,
   loadDashboard
 } = useDashboard(userId);
 
-const profileDialogVisible = ref(false);
+const isProfileOpen = ref(false);
 const weekPreviewOpen = ref(false);
 const mobileWorkTab = ref<WorkTab>("main");
 
@@ -73,12 +75,12 @@ async function handleLogout() {
   await router.replace("/login");
 }
 
-function openProfileDialog() {
-  profileDialogVisible.value = true;
+function openProfile() {
+  isProfileOpen.value = true;
 }
 
-function closeProfileDialog() {
-  profileDialogVisible.value = false;
+function closeProfile() {
+  isProfileOpen.value = false;
 }
 
 function openWeekPreview() {
@@ -90,9 +92,7 @@ async function handleProfileSaved() {
 }
 
 const now = ref(new Date());
-const workTimeNow = ref(new Date());
 let clockTimerId: number | null = null;
-let workTimeTimerId: number | null = null;
 
 const weeklyReportRef = ref<{ copy: () => Promise<void> } | null>(null);
 const otReportRef = ref<{ copy: () => Promise<void>; hasRows: boolean } | null>(null);
@@ -112,53 +112,46 @@ const nowLabel = computed(() =>
 
 const todayDateKey = computed(() => localDateKey());
 
-const effectiveTodayWork = computed(() =>
-  resolveEffectiveTodayWork(
+const mergedToday = computed(() =>
+  mergeToday(
     state.value.todayWork,
     state.value.weeklyReport.days,
     todayDateKey.value
   )
 );
 
-function parseActionTimeAsDate(workDate: string, hhmm: string): Date {
-  const [h, m] = hhmm.slice(0, 5).split(":");
-  return new Date(
-    `${workDate}T${String(Number(h) || 0).padStart(2, "0")}:${String(Number(m) || 0).padStart(2, "0")}:00`
-  );
-}
-
-const todayPreviewTime = computed(() => {
-  const work = effectiveTodayWork.value;
-  if (isWorkingInProgress(work) && isCurrentWeek.value) {
-    return parseActionTimeAsDate(todayDateKey.value, actionTimeDisplay.value);
+const prvTime = computed(() => {
+  const work = mergedToday.value;
+  if (isWorking(work) && isCurrentWeek.value) {
+    return parseDateTime(hhmmToDateTime(todayDateKey.value, actTime.value)) ?? now.value;
   }
-  return workTimeNow.value;
+  return now.value;
 });
 
 const todayLiveWork = computed(() => {
-  const work = effectiveTodayWork.value;
-  if (isWorkingInProgress(work) && isCurrentWeek.value) {
-    return resolveWorkCalcResult(work, todayPreviewTime.value);
+  const work = mergedToday.value;
+  if (isWorking(work) && isCurrentWeek.value) {
+    return calcResult(work, prvTime.value);
   }
-  return resolveWorkCalcResult(work);
+  return calcResult(work);
 });
 
-const todayWorkedMinutes = computed(() => {
-  if (isWorkingInProgress(effectiveTodayWork.value) && isCurrentWeek.value) {
+const todayMainMin = computed(() => {
+  if (isWorking(mergedToday.value) && isCurrentWeek.value) {
     return todayLiveWork.value.main;
   }
-  return effectiveTodayWork.value.main;
+  return mergedToday.value.main;
 });
 
-const todayExtraMinutes = computed(() => ({
+const todayExtra = computed(() => ({
   extra1: todayLiveWork.value.extra1,
   extra2: todayLiveWork.value.extra2
 }));
 
-const todayOtContext = computed(() => {
-  const work = effectiveTodayWork.value;
+const otCtx = computed(() => {
+  const work = mergedToday.value;
   const live = todayLiveWork.value;
-  const useLive = isWorkingInProgress(work) && isCurrentWeek.value;
+  const useLive = isWorking(work) && isCurrentWeek.value;
 
   return {
     extra1: live.extra1,
@@ -170,28 +163,28 @@ const todayOtContext = computed(() => {
 });
 
 const workSummary = computed(() =>
-  computeMainSummary({
+  mainSummary({
     weeklyReport: state.value.weeklyReport,
-    todayWork: effectiveTodayWork.value,
+    todayWork: mergedToday.value,
     todayDateKey: todayDateKey.value,
-    todayWorkedMinutes: todayWorkedMinutes.value,
-    todayExtraMinutes: todayExtraMinutes.value,
-    useLiveToday: isCurrentWeek.value
+    todayMainMin: todayMainMin.value,
+    todayExtra: todayExtra.value,
+    isLiveToday: isCurrentWeek.value
   })
 );
 
-const highlightTodayDate = computed(() => (isCurrentWeek.value ? todayDateKey.value : ""));
+const todayHighlight = computed(() => (isCurrentWeek.value ? todayDateKey.value : ""));
 
-const otReportHasRows = computed(
+const hasOtRows = computed(
   () =>
     buildOtReport(state.value.weeklyReport, {
       todayWorkDate: todayDateKey.value,
-      todayOtContext: todayOtContext.value,
-      useLiveToday: isCurrentWeek.value
+      otCtx: otCtx.value,
+      isLiveToday: isCurrentWeek.value
     }).rows.length > 0
 );
 
-async function copyWeeklyReport() {
+async function copyWeekReport() {
   await weeklyReportRef.value?.copy();
 }
 
@@ -202,18 +195,13 @@ async function copyOtReport() {
 onMounted(() => {
   clockTimerId = window.setInterval(() => {
     now.value = new Date();
+    syncActTime(now.value);
   }, 1000);
-  workTimeTimerId = window.setInterval(() => {
-    workTimeNow.value = new Date();
-  }, 60_000);
 });
 
 onBeforeUnmount(() => {
   if (clockTimerId !== null) {
     clearInterval(clockTimerId);
-  }
-  if (workTimeTimerId !== null) {
-    clearInterval(workTimeTimerId);
   }
 });
 </script>
@@ -226,7 +214,7 @@ onBeforeUnmount(() => {
         <p class="dashboard-clock">{{ nowLabel }}</p>
       </div>
       <div class="dashboard-user-bar">
-        <button type="button" class="dashboard-user-badge" @click="openProfileDialog">
+        <button type="button" class="dashboard-user-badge" @click="openProfile">
           {{ authStore.user?.name }}
         </button>
         <button type="button" class="dashboard-logout-btn" aria-label="로그아웃" @click="handleLogout">
@@ -237,9 +225,9 @@ onBeforeUnmount(() => {
 
     <ProfileEditDialog
       v-if="authStore.user"
-      :visible="profileDialogVisible"
+      :visible="isProfileOpen"
       :user="authStore.user"
-      @close="closeProfileDialog"
+      @close="closeProfile"
       @saved="handleProfileSaved"
     />
 
@@ -267,7 +255,7 @@ onBeforeUnmount(() => {
         >
           <div class="dashboard-column-toolbar">
             <h2 class="dashboard-table-heading">일반 근무</h2>
-            <ReportCopyButton @copy="copyWeeklyReport" />
+            <ReportCopyButton @copy="copyWeekReport" />
           </div>
           <MainSummaryCard
             :summary="workSummary"
@@ -276,14 +264,14 @@ onBeforeUnmount(() => {
           />
           <MainTable
             :days="state.weeklyReport.days"
-            :today-work-date="highlightTodayDate"
-            :today-worked-minutes="todayWorkedMinutes"
-            :use-live-today="isCurrentWeek"
-            @update-check-in="updateWeeklyCheckIn"
-            @update-check-out="updateWeeklyCheckOut"
-            @clear-check-in="clearWeeklyCheckIn"
-            @clear-check-out="clearWeeklyCheckOut"
-            @save-day-settings="saveWeeklyDaySettings"
+            :today-work-date="todayHighlight"
+            :today-main-min="todayMainMin"
+            :is-live-today="isCurrentWeek"
+            @update-check-in="setWeekIn"
+            @update-check-out="setWeekOut"
+            @clear-check-in="clearWeekIn"
+            @clear-check-out="clearWeekOut"
+            @save-day-settings="saveWeekSettings"
           />
         </div>
 
@@ -295,20 +283,20 @@ onBeforeUnmount(() => {
         >
           <div class="dashboard-column-toolbar">
             <h2 class="dashboard-table-heading">시간외 근무</h2>
-            <ReportCopyButton :disabled="!otReportHasRows" @copy="copyOtReport" />
+            <ReportCopyButton :disabled="!hasOtRows" @copy="copyOtReport" />
           </div>
           <OtSummaryCard :summary="workSummary" />
           <OtTableCard
             :days="state.weeklyReport.days"
-            :today-work-date="highlightTodayDate"
-            :today-extra-minutes="todayExtraMinutes"
-            :today-ot-context="todayOtContext"
-            :use-live-today="isCurrentWeek"
-            @update-ot-start="updateWeeklyOtStart"
-            @update-ot-end="updateWeeklyOtEnd"
-            @clear-ot-start="clearWeeklyOtStart"
-            @clear-ot-end="clearWeeklyOtEnd"
-            @save-day-settings="saveWeeklyDaySettings"
+            :today-work-date="todayHighlight"
+            :today-extra="todayExtra"
+            :ot-ctx="otCtx"
+            :is-live-today="isCurrentWeek"
+            @update-ot-start="setWeekOtStart"
+            @update-ot-end="setWeekOtEnd"
+            @clear-ot-start="clearWeekOtStart"
+            @clear-ot-end="clearWeekOtEnd"
+            @save-day-settings="saveWeekSettings"
           />
         </div>
 
@@ -318,16 +306,16 @@ onBeforeUnmount(() => {
           hidden
           :weekly-report="state.weeklyReport"
           :today-work-date="todayDateKey"
-          :today-worked-minutes="todayWorkedMinutes"
-          :use-live-today="isCurrentWeek"
+          :today-main-min="todayMainMin"
+          :is-live-today="isCurrentWeek"
         />
         <OtReportPreview
           ref="otReportRef"
           hidden
           :weekly-report="state.weeklyReport"
           :today-work-date="todayDateKey"
-          :today-ot-context="todayOtContext"
-          :use-live-today="isCurrentWeek"
+          :ot-ctx="otCtx"
+          :is-live-today="isCurrentWeek"
         />
       </div>
 
@@ -342,18 +330,18 @@ onBeforeUnmount(() => {
         :remark="state.todayWork.remark"
         :display-main-end="todayLiveWork.mainEnd ?? null"
         :display-ot-start="todayLiveWork.otStart ?? null"
-        :has-check-in="Boolean(effectiveTodayWork.rawStart)"
+        :has-check-in="Boolean(mergedToday.rawStart)"
         :toast-message="state.toastMessage"
-        :action-time-display="actionTimeDisplay"
-        :is-action-time-editable="isActionTimeEditable"
-        :is-action-time-locked="isActionTimeLocked"
+        :act-time="actTime"
+        :is-act-time-editable="isActTimeEditable"
+        :is-act-time-locked="isActTimeLocked"
         :error-message="state.errorMessage"
         @check-in="handleCheckIn"
         @check-out="handleCheckOut"
-        @apply-settings="applyWorkSettings"
-        @update-main-end="updateTodayMainEnd"
-        @update-ot-start="updateTodayOtStart"
-        @save-settings="persistWorkSettings"
+        @apply-settings="setWorkSettings"
+        @update-main-end="setMainEnd"
+        @update-ot-start="setOtStart"
+        @save-settings="saveWorkSettings"
         @apply-picked-time="applyPickedTime"
       />
     </section>

@@ -2,45 +2,44 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import {
   checkIn,
   checkOut,
-  createEmptyWork,
+  emptyWork,
   fetchWeek,
   fetchWork,
-  loadCachedTodayWork,
+  loadTodayCache,
   patchWork,
   type WorkPatch
 } from "../api/dashboard";
-import type { DashboardState, DayType, TodayStatus, WeeklyDayRow, WeeklyReport, Work } from "../types/dashboard";
+import type { DashboardState, DayType, TodayStatus, WeekDay, WeekReport, Work } from "../types/dashboard";
 import {
-  isMainEndBeforeCore,
-  shouldCancelOtOnCheckout,
-  syncOtAnchorsFromMainEnd,
-  syncOtAnchorsFromOtStart
+  isBeforeCore,
+  shouldCancelOt,
+  syncFromMainEnd,
+  syncFromOtStart
 } from "../utils/ot";
-import { applyCalculatedFields, applyOtRecalc } from "../utils/timeCalculator";
+import { withCalc, withOtRecalc } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import {
   avgPerDay,
-  countDaysAfterToday
+  daysAfter
 } from "../utils/main";
-import { getApiErrorMessage } from "../utils/apiError";
-import { copyTextToClipboard } from "../utils/reportClipboard";
+import { apiErrMsg } from "../utils/apiError";
+import { copyText } from "../utils/reportClipboard";
 import { currentDateKey, isSameWeek, shiftDateKey } from "../utils/weekNav";
-import { compareHm } from "../utils/time";
+import { isDayOff } from "../utils/dayType";
+import { compareHm, formatNowHm, hhmmToDateTime } from "../utils/time";
 import { WorkPolicy } from "../utils/workPolicy";
 
-function createInitialTodayWork(userId: number): Work {
-  const cached = loadCachedTodayWork(userId);
+function initTodayWork(userId: number): Work {
+  const cached = loadTodayCache(userId);
   if (cached) {
     return cached;
   }
-  return createEmptyWork(userId, localDateKey());
+  return emptyWork(userId, localDateKey());
 }
 
-const DAY_OFF_TYPES: DayType[] = ["MON", "ANN", "HOL"];
+let loadGen = 0;
 
-let dashboardLoadGeneration = 0;
-
-function createEmptyWeeklyReport(): WeeklyReport {
+function emptyWeekReport(): WeekReport {
   return {
     weekStart: "",
     weekEnd: "",
@@ -48,8 +47,8 @@ function createEmptyWeeklyReport(): WeeklyReport {
       workedMinutes: 0,
       targetMinutes: 40 * 60,
       remainingMinutes: 40 * 60,
-      avgRequiredPerDayMinutes: 8 * 60,
-      remainingWorkDays: 5
+      avgPerDayMin: 8 * 60,
+      daysAfter: 5
     },
     days: [],
     header: {
@@ -58,12 +57,12 @@ function createEmptyWeeklyReport(): WeeklyReport {
       name: "",
       position: null,
       reportMonth: 1,
-      reportWeekNumber: 1
+      weekNum: 1
     }
   };
 }
 
-export interface DaySettingsPayload {
+export interface DaySettings {
   workDate: string;
   dayType: DayType;
   isOt: boolean;
@@ -73,8 +72,8 @@ export interface DaySettingsPayload {
 export function useDashboard(userId: number) {
   const state = ref<DashboardState>({
     todayStatus: "BEFORE_CHECK_IN",
-    todayWork: createInitialTodayWork(userId),
-    weeklyReport: createEmptyWeeklyReport(),
+    todayWork: initTodayWork(userId),
+    weeklyReport: emptyWeekReport(),
     loading: false,
     actionLoading: false,
     errorMessage: null,
@@ -88,15 +87,15 @@ export function useDashboard(userId: number) {
     () =>
       state.value.todayStatus === "BEFORE_CHECK_IN" &&
       !state.value.actionLoading &&
-      !DAY_OFF_TYPES.includes(state.value.todayWork.dayType)
+      !isDayOff(state.value.todayWork.dayType)
   );
 
   const canCheckOut = computed(
     () =>
       state.value.todayStatus === "WORKING" &&
       !state.value.actionLoading &&
-      !DAY_OFF_TYPES.includes(state.value.todayWork.dayType) &&
-      isCheckoutAllowedByHalfDayRule(state.value.todayWork.dayType, resolveApiTime())
+      !isDayOff(state.value.todayWork.dayType) &&
+      canCheckoutHalfDay(state.value.todayWork.dayType, resolveApiTime())
   );
 
   const referenceDate = ref(currentDateKey());
@@ -105,63 +104,57 @@ export function useDashboard(userId: number) {
     isSameWeek(referenceDate.value, currentDateKey())
   );
 
-  const actionTimeDisplay = ref("00:00");
-  const isActionTimeManual = ref(false);
-  const isActionTimeLocked = ref(false);
-  let timeIntervalId: number | null = null;
+  const actTime = ref("00:00");
+  const isActTimeManual = ref(false);
+  const isActTimeLocked = ref(false);
 
-  function applyWeeklyReport(weekly: WeeklyReport) {
-    const merged = isCurrentWeek.value
-      ? mergeWeeklyWithToday(weekly, state.value.todayWork)
-      : weekly;
-    state.value.weeklyReport = merged;
-  }
-
-  async function loadWeeklyReport() {
-    const weeklyReport = await fetchWeek(userId, referenceDate.value);
-    applyWeeklyReport(weeklyReport);
-  }
-
-  function formatNowHm(): string {
-    const d = new Date();
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  }
-
-  function applyActionTimeTick() {
-    if (isActionTimeLocked.value) {
+  function syncActTime(date: Date) {
+    if (isActTimeLocked.value) {
       return;
     }
-    if (isActionTimeManual.value) {
+    if (isActTimeManual.value) {
       return;
     }
     const s = state.value.todayStatus;
     if (s !== "BEFORE_CHECK_IN" && s !== "WORKING" && s !== "DONE") {
       return;
     }
-    actionTimeDisplay.value = formatNowHm();
+    actTime.value = formatNowHm(date);
   }
 
-  const isActionTimeEditable = computed(
+  const isActTimeEditable = computed(
     () =>
       (state.value.todayStatus === "BEFORE_CHECK_IN" ||
         state.value.todayStatus === "WORKING" ||
         state.value.todayStatus === "DONE") &&
-      !DAY_OFF_TYPES.includes(state.value.todayWork.dayType)
+      !isDayOff(state.value.todayWork.dayType)
   );
 
+  function setWeekReport(weekly: WeekReport) {
+    const merged = isCurrentWeek.value
+      ? mergeWeekToday(weekly, state.value.todayWork)
+      : weekly;
+    state.value.weeklyReport = merged;
+  }
+
+  async function loadWeekReport() {
+    const weeklyReport = await fetchWeek(userId, referenceDate.value);
+    setWeekReport(weeklyReport);
+  }
+
   function applyPickedTime(hhmm: string) {
-    isActionTimeManual.value = true;
-    actionTimeDisplay.value = hhmm;
+    isActTimeManual.value = true;
+    actTime.value = hhmm;
     if (state.value.todayWork.isOt && !state.value.todayWork.rawEnd) {
-      clearOtAnchorsLocal(state.value.todayWork);
+      Object.assign(state.value.todayWork, clearAnchors(state.value.todayWork));
     }
   }
 
   function resolveApiTime(): string {
-    return actionTimeDisplay.value.slice(0, 5);
+    return actTime.value.slice(0, 5);
   }
 
-  function isCheckoutAllowedByHalfDayRule(dayType: DayType, hhmm: string): boolean {
+  function canCheckoutHalfDay(dayType: DayType, hhmm: string): boolean {
     if (dayType !== "PM") {
       return true;
     }
@@ -169,7 +162,7 @@ export function useDashboard(userId: number) {
   }
 
   async function loadDashboard() {
-    const generation = ++dashboardLoadGeneration;
+    const generation = ++loadGen;
     state.value.loading = true;
     state.value.errorMessage = null;
     try {
@@ -178,66 +171,65 @@ export function useDashboard(userId: number) {
         fetchWeek(userId, referenceDate.value)
       ]);
 
-      if (generation !== dashboardLoadGeneration) {
+      if (generation !== loadGen) {
         return;
       }
 
       state.value.todayWork = todayWork;
-      applyWeeklyReport(weeklyReport);
+      setWeekReport(weeklyReport);
       state.value.todayStatus = resolveStatus(todayWork);
-      isActionTimeLocked.value = false;
-      isActionTimeManual.value = false;
-      actionTimeDisplay.value = formatNowHm();
-      applyActionTimeTick();
+      isActTimeLocked.value = false;
+      isActTimeManual.value = false;
+      syncActTime(new Date());
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      if (generation === dashboardLoadGeneration) {
-        state.value.errorMessage = getApiErrorMessage(error);
+      if (generation === loadGen) {
+        state.value.errorMessage = apiErrMsg(error);
       }
     } finally {
-      if (generation === dashboardLoadGeneration) {
+      if (generation === loadGen) {
         state.value.loading = false;
       }
     }
   }
 
-  async function refreshWeeklyWithToday(updated: Work) {
+  async function refreshWeek(updated: Work) {
     const weeklyReport = await fetchWeek(userId, referenceDate.value);
     if (updated.workDate === localDateKey()) {
       state.value.todayWork = updated;
       state.value.todayStatus = resolveStatus(updated);
-      isActionTimeManual.value = false;
-      isActionTimeLocked.value = false;
-      applyActionTimeTick();
+      isActTimeManual.value = false;
+      isActTimeLocked.value = false;
+      syncActTime(new Date());
     }
-    applyWeeklyReport(weeklyReport);
+    setWeekReport(weeklyReport);
   }
 
   async function handleCheckIn() {
     if (!canCheckIn.value) {
       return;
     }
-    void copyTextToClipboard(`출근보고 ${resolveApiTime()}`);
+    void copyText(`출근보고 ${resolveApiTime()}`);
     await runAction(async () => {
       const today = localDateKey();
-      const rawStart = toDateTimeValue(today, resolveApiTime());
+      const rawStart = hhmmToDateTime(today, resolveApiTime());
       let work: Work = {
         ...state.value.todayWork,
         rawStart
       };
       if (work.isOt && work.rawEnd) {
-        work = applyOtRecalc(work, "raw_start");
+        work = withOtRecalc(work, "raw_start");
       }
       const updated = await checkIn(userId, toWorkPatch(work, { rawStart }));
       if (isCurrentWeek.value) {
-        await refreshWeeklyWithToday(updated);
+        await refreshWeek(updated);
       } else {
         state.value.todayWork = updated;
         state.value.todayStatus = resolveStatus(updated);
       }
-      isActionTimeManual.value = false;
-      isActionTimeLocked.value = false;
-      applyActionTimeTick();
+      isActTimeManual.value = false;
+      isActTimeLocked.value = false;
+      syncActTime(new Date());
     });
   }
 
@@ -263,11 +255,11 @@ export function useDashboard(userId: number) {
       }
       return;
     }
-    void copyTextToClipboard(`퇴근보고 ${resolveApiTime()}`);
+    void copyText(`퇴근보고 ${resolveApiTime()}`);
     await runAction(async () => {
       const today = localDateKey();
-      const rawEnd = toDateTimeValue(today, resolveApiTime());
-      const { work, cancelled: otCancelled } = processOtOnCheckout(
+      const rawEnd = hhmmToDateTime(today, resolveApiTime());
+      const { work, cancelled: otCancelled } = otOnCheckout(
         { ...state.value.todayWork, rawEnd },
         rawEnd!
       );
@@ -277,14 +269,14 @@ export function useDashboard(userId: number) {
         showToast("코어타임 종료 이전이라 야근이 취소되었습니다.");
       }
       if (isCurrentWeek.value) {
-        await refreshWeeklyWithToday(updated);
+        await refreshWeek(updated);
       } else {
         state.value.todayWork = updated;
         state.value.todayStatus = resolveStatus(updated);
       }
-      isActionTimeManual.value = false;
-      isActionTimeLocked.value = false;
-      applyActionTimeTick();
+      isActTimeManual.value = false;
+      isActTimeLocked.value = false;
+      syncActTime(new Date());
     });
   }
 
@@ -293,9 +285,9 @@ export function useDashboard(userId: number) {
     if (dayType !== "HOL" && !state.value.todayWork.isOt) {
       state.value.todayWork.remark = null;
     }
-    if (DAY_OFF_TYPES.includes(dayType)) {
+    if (isDayOff(dayType)) {
       state.value.todayWork.isOt = false;
-      clearOtAnchorsLocal(state.value.todayWork);
+      Object.assign(state.value.todayWork, clearAnchors(state.value.todayWork));
     }
   }
 
@@ -310,41 +302,41 @@ export function useDashboard(userId: number) {
       if (work.dayType !== "HOL") {
         work.remark = null;
       }
-      clearOtAnchorsLocal(work);
+      Object.assign(work, clearAnchors(work));
     }
     state.value.todayWork = work;
   }
 
-  function updateTodayMainEnd(hhmm: string) {
-    const work = state.value.todayWork;
-    const mainEnd = toDateTimeValue(work.workDate, hhmm);
-    if (!mainEnd) {
+  function setMainEnd(hhmm: string) {
+    if (!hhmm) {
       return;
     }
+    const work = state.value.todayWork;
+    const mainEnd = hhmmToDateTime(work.workDate, hhmm);
     if (!work.rawEnd) {
-      const anchors = syncOtAnchorsFromMainEnd(work.workDate, mainEnd);
+      const anchors = syncFromMainEnd(work.workDate, mainEnd);
       state.value.todayWork = { ...work, ...anchors };
       return;
     }
-    state.value.todayWork = applyOtRecalc(work, "main_end", { mainEnd });
+    state.value.todayWork = withOtRecalc(work, "main_end", { mainEnd });
   }
 
-  function updateTodayOtStart(hhmm: string) {
-    const work = state.value.todayWork;
-    const otStart = toDateTimeValue(work.workDate, hhmm);
-    if (!otStart) {
+  function setOtStart(hhmm: string) {
+    if (!hhmm) {
       return;
     }
+    const work = state.value.todayWork;
+    const otStart = hhmmToDateTime(work.workDate, hhmm);
     if (!work.rawEnd) {
-      const anchors = syncOtAnchorsFromOtStart(work.workDate, otStart);
+      const anchors = syncFromOtStart(work.workDate, otStart);
       state.value.todayWork = { ...work, ...anchors };
       return;
     }
-    state.value.todayWork = applyOtRecalc(work, "ot_start", { otStart });
+    state.value.todayWork = withOtRecalc(work, "ot_start", { otStart });
   }
 
-  function applyWorkSettings(payload: { dayType: DayType; isOt: boolean; remark: string | null }) {
-    const finalIsOt = DAY_OFF_TYPES.includes(payload.dayType) ? false : payload.isOt;
+  function setWorkSettings(payload: { dayType: DayType; isOt: boolean; remark: string | null }) {
+    const finalIsOt = isDayOff(payload.dayType) ? false : payload.isOt;
     const finalRemark =
       payload.dayType === "HOL" || finalIsOt ? payload.remark?.trim() || null : null;
 
@@ -356,104 +348,104 @@ export function useDashboard(userId: number) {
     };
 
     if (!finalIsOt) {
-      clearOtAnchorsLocal(work);
+      Object.assign(work, clearAnchors(work));
     }
 
     state.value.todayWork = work;
   }
 
-  async function persistWorkSettings() {
+  async function saveWorkSettings() {
     await runAction(async () => {
       const work = state.value.todayWork;
       if (!work.rawEnd) {
-        clearOtAnchorsLocal(work);
+        Object.assign(work, clearAnchors(work));
       }
       const updated = await patchWork(userId, toSettingsPatch(work));
-      await syncAfterWeeklyEdit(normalizeWorkAfterSettingsSave(updated));
+      await afterWeekEdit(recalcAnchors(updated));
     });
   }
 
-  async function updateWeeklyCheckIn(workDate: string, hhmm: string) {
+  async function setWeekIn(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const rawStart = toDateTimeValue(workDate, hhmm);
+      const rawStart = hhmmToDateTime(workDate, hhmm);
       let work: Work = { ...existing, rawStart };
       if (work.isOt && work.rawEnd) {
-        work = applyOtRecalc(work, "raw_start");
+        work = withOtRecalc(work, "raw_start");
       }
       const updated = await checkIn(userId, toWorkPatch(work, { rawStart, workDate }));
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function updateWeeklyCheckOut(workDate: string, hhmm: string) {
+  async function setWeekOut(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      if (!isCheckoutAllowedByHalfDayRule(existing.dayType, hhmm)) {
+      if (!canCheckoutHalfDay(existing.dayType, hhmm)) {
         throw new Error(`오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`);
       }
-      const rawEnd = toDateTimeValue(workDate, hhmm);
-      const { work } = processOtOnCheckout({ ...existing, rawEnd }, rawEnd!);
+      const rawEnd = hhmmToDateTime(workDate, hhmm);
+      const { work } = otOnCheckout({ ...existing, rawEnd }, rawEnd!);
       const updated = await checkOut(userId, toWorkPatch(work, { rawEnd, workDate }));
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function updateWeeklyOtStart(workDate: string, hhmm: string) {
+  async function setWeekOtStart(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const otStart = toDateTimeValue(workDate, hhmm);
-      const work = applyOtRecalc({ ...existing, otStart }, "ot_start", { otStart });
+      const otStart = hhmmToDateTime(workDate, hhmm);
+      const work = withOtRecalc({ ...existing, otStart }, "ot_start", { otStart });
       const updated = await patchWork(userId, toWorkPatch(work, { workDate }));
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function updateWeeklyOtEnd(workDate: string, hhmm: string) {
+  async function setWeekOtEnd(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      const otEnd = toDateTimeValue(workDate, hhmm);
-      const work = applyOtRecalc({ ...existing, otEnd }, "ot_end", { otEnd });
+      const otEnd = hhmmToDateTime(workDate, hhmm);
+      const work = withOtRecalc({ ...existing, otEnd }, "ot_end", { otEnd });
       const updated = await patchWork(userId, toWorkPatch(work, { workDate }));
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function clearWeeklyCheckIn(workDate: string) {
+  async function clearWeekIn(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
       const updated = await patchWork(userId, {
         workDate,
         dayType: existing.dayType,
         isOt: existing.isOt,
-        remark: resolveRemarkForApi(existing),
+        remark: remarkForApi(existing),
         clearRawStart: true,
         clearMainEnd: true,
         clearOtStart: true,
         clearOtEnd: true
       });
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function clearWeeklyCheckOut(workDate: string) {
+  async function clearWeekOut(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
       const updated = await patchWork(userId, {
         workDate,
         dayType: existing.dayType,
         isOt: existing.isOt,
-        remark: resolveRemarkForApi(existing),
+        remark: remarkForApi(existing),
         clearRawEnd: true,
         clearMainEnd: true,
         clearOtStart: true,
         clearOtEnd: true
       });
-      await syncAfterWeeklyEdit(updated);
+      await afterWeekEdit(updated);
     });
   }
 
-  async function clearWeeklyOtStart(workDate: string) {
+  async function clearWeekOtStart(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
       const updated = await patchWork(
@@ -464,11 +456,11 @@ export function useDashboard(userId: number) {
           clearOtStart: true
         })
       );
-      await syncAfterWeeklyEdit(normalizeWorkAfterSettingsSave(updated));
+      await afterWeekEdit(recalcAnchors(updated));
     });
   }
 
-  async function clearWeeklyOtEnd(workDate: string) {
+  async function clearWeekOtEnd(workDate: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
       const updated = await patchWork(
@@ -478,14 +470,14 @@ export function useDashboard(userId: number) {
           clearOtEnd: true
         })
       );
-      await syncAfterWeeklyEdit(updated.rawEnd ? updated : normalizeWorkAfterSettingsSave(updated));
+      await afterWeekEdit(updated.rawEnd ? updated : recalcAnchors(updated));
     });
   }
 
-  async function saveWeeklyDaySettings(payload: DaySettingsPayload) {
+  async function saveWeekSettings(payload: DaySettings) {
     await runAction(async () => {
       const existing = await fetchWork(userId, payload.workDate);
-      const finalIsOt = DAY_OFF_TYPES.includes(payload.dayType) ? false : payload.isOt;
+      const finalIsOt = isDayOff(payload.dayType) ? false : payload.isOt;
       const finalRemark =
         payload.dayType === "HOL" || finalIsOt ? payload.remark?.trim() || null : null;
 
@@ -497,7 +489,7 @@ export function useDashboard(userId: number) {
       };
 
       if (!finalIsOt) {
-        clearOtAnchorsLocal(work);
+        Object.assign(work, clearAnchors(work));
       }
 
       const settingsOverride: WorkPatch = {
@@ -514,7 +506,7 @@ export function useDashboard(userId: number) {
           toSettingsPatch(work, settingsOverride)
         );
       } else if (!existing.isOt && finalIsOt && work.rawStart && work.rawEnd) {
-        work = applyOtRecalc(work, "auto");
+        work = withOtRecalc(work, "auto");
         updated = await patchWork(
           userId,
           toWorkPatch(work, settingsOverride)
@@ -525,12 +517,12 @@ export function useDashboard(userId: number) {
           toSettingsPatch(work, settingsOverride)
         );
       }
-      await syncAfterWeeklyEdit(normalizeWorkAfterSettingsSave(updated));
+      await afterWeekEdit(recalcAnchors(updated));
     });
   }
 
-  async function syncAfterWeeklyEdit(updated: Work) {
-    await refreshWeeklyWithToday(updated);
+  async function afterWeekEdit(updated: Work) {
+    await refreshWeek(updated);
   }
 
   async function shiftWeek(delta: number) {
@@ -541,10 +533,10 @@ export function useDashboard(userId: number) {
     state.value.errorMessage = null;
     try {
       referenceDate.value = shiftDateKey(referenceDate.value, delta * 7);
-      await loadWeeklyReport();
+      await loadWeekReport();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = getApiErrorMessage(error);
+      state.value.errorMessage = apiErrMsg(error);
     } finally {
       state.value.loading = false;
     }
@@ -558,10 +550,10 @@ export function useDashboard(userId: number) {
     state.value.loading = true;
     state.value.errorMessage = null;
     try {
-      await loadWeeklyReport();
+      await loadWeekReport();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = getApiErrorMessage(error);
+      state.value.errorMessage = apiErrMsg(error);
     } finally {
       state.value.loading = false;
     }
@@ -572,14 +564,14 @@ export function useDashboard(userId: number) {
   }
 
   async function runAction(callback: () => Promise<void>) {
-    dashboardLoadGeneration += 1;
+    loadGen += 1;
     state.value.actionLoading = true;
     state.value.errorMessage = null;
     try {
       await callback();
       state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
-      state.value.errorMessage = getApiErrorMessage(error);
+      state.value.errorMessage = apiErrMsg(error);
     } finally {
       state.value.actionLoading = false;
     }
@@ -587,13 +579,9 @@ export function useDashboard(userId: number) {
 
   onMounted(() => {
     void loadDashboard();
-    timeIntervalId = window.setInterval(applyActionTimeTick, 1000);
   });
 
   onUnmounted(() => {
-    if (timeIntervalId !== null) {
-      clearInterval(timeIntervalId);
-    }
     if (toastTimerId !== null) {
       window.clearTimeout(toastTimerId);
     }
@@ -603,10 +591,11 @@ export function useDashboard(userId: number) {
     state,
     referenceDate,
     isCurrentWeek,
-    actionTimeDisplay,
-    isActionTimeEditable,
-    isActionTimeLocked,
+    actTime,
+    isActTimeEditable,
+    isActTimeLocked,
     applyPickedTime,
+    syncActTime,
     canCheckIn,
     canCheckOut,
     loadDashboard,
@@ -618,23 +607,23 @@ export function useDashboard(userId: number) {
     setDayType,
     setRemark,
     toggleOt,
-    applyWorkSettings,
-    updateTodayMainEnd,
-    updateTodayOtStart,
-    persistWorkSettings,
-    updateWeeklyCheckIn,
-    updateWeeklyCheckOut,
-    updateWeeklyOtStart,
-    updateWeeklyOtEnd,
-    clearWeeklyCheckIn,
-    clearWeeklyCheckOut,
-    clearWeeklyOtStart,
-    clearWeeklyOtEnd,
-    saveWeeklyDaySettings
+    setWorkSettings,
+    setMainEnd,
+    setOtStart,
+    saveWorkSettings,
+    setWeekIn,
+    setWeekOut,
+    setWeekOtStart,
+    setWeekOtEnd,
+    clearWeekIn,
+    clearWeekOut,
+    clearWeekOtStart,
+    clearWeekOtEnd,
+    saveWeekSettings
   };
 }
 
-function processOtOnCheckout(
+function otOnCheckout(
   work: Work,
   rawEnd: string
 ): { work: Work; cancelled: boolean } {
@@ -643,25 +632,23 @@ function processOtOnCheckout(
   }
 
   const checkoutAt = new Date(rawEnd.replace(" ", "T"));
-  if (shouldCancelOtOnCheckout(work.workDate, checkoutAt)) {
+  if (shouldCancelOt(work.workDate, checkoutAt)) {
     const next = { ...work, rawEnd, isOt: false };
-    clearOtAnchorsLocal(next);
-    return { work: next, cancelled: true };
+    return { work: clearAnchors(next), cancelled: true };
   }
 
-  let next = applyOtRecalc({ ...work, rawEnd }, "raw_end");
-  const calc = applyCalculatedFields({ ...next, rawEnd });
+  let next = withOtRecalc({ ...work, rawEnd }, "raw_end");
+  const calc = withCalc({ ...next, rawEnd });
   const mainEndDt = calc.mainEnd ? new Date(calc.mainEnd.replace(" ", "T")) : null;
   const hasExtra = calc.extra1 + calc.extra2 > 0;
   const eligible =
     mainEndDt != null &&
-    !isMainEndBeforeCore(mainEndDt, work.workDate) &&
+    !isBeforeCore(mainEndDt, work.workDate) &&
     calc.otStart != null;
 
   if (!eligible || !hasExtra) {
     next = { ...next, rawEnd, isOt: false };
-    clearOtAnchorsLocal(next);
-    return { work: next, cancelled: true };
+    return { work: clearAnchors(next), cancelled: true };
   }
 
   return { work: next, cancelled: false };
@@ -676,7 +663,7 @@ function toSettingsPatch(work: Work, override: WorkPatch = {}): WorkPatch {
     dayType: safeOverride.dayType ?? work.dayType,
     isOt: safeOverride.isOt ?? work.isOt,
     remark:
-      safeOverride.remark !== undefined ? safeOverride.remark : resolveRemarkForApi(work),
+      safeOverride.remark !== undefined ? safeOverride.remark : remarkForApi(work),
     ...(hasCheckout
       ? {}
       : {
@@ -688,12 +675,15 @@ function toSettingsPatch(work: Work, override: WorkPatch = {}): WorkPatch {
   };
 }
 
-function normalizeWorkAfterSettingsSave(work: Work): Work {
+function clearAnchors(work: Work): Work {
+  return { ...work, mainEnd: null, otStart: null, otEnd: null };
+}
+
+function recalcAnchors(work: Work): Work {
   if (work.rawEnd) {
     return work;
   }
-  const stripped = { ...work, mainEnd: null, otStart: null, otEnd: null };
-  return applyCalculatedFields(stripped);
+  return withCalc(clearAnchors(work));
 }
 
 function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
@@ -708,12 +698,12 @@ function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
     };
   }
 
-  const calc = applyCalculatedFields(merged);
+  const calc = withCalc(merged);
   return {
     workDate: work.workDate,
     dayType: merged.dayType,
     isOt: merged.isOt,
-    remark: resolveRemarkForApi(merged),
+    remark: remarkForApi(merged),
     mainEnd: calc.mainEnd,
     mainStart,
     otStart: calc.otStart,
@@ -725,13 +715,7 @@ function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
   };
 }
 
-function clearOtAnchorsLocal(work: Work): void {
-  work.mainEnd = null;
-  work.otStart = null;
-  work.otEnd = null;
-}
-
-function resolveRemarkForApi(work: Work): string | null {
+function remarkForApi(work: Work): string | null {
   if (work.dayType === "HOL" || work.isOt) {
     return work.remark?.trim() || null;
   }
@@ -748,18 +732,18 @@ function resolveStatus(work: Work): TodayStatus {
   return "BEFORE_CHECK_IN";
 }
 
-function mergeWeeklyWithToday(weekly: WeeklyReport, today: Work, asOf = new Date()): WeeklyReport {
+function mergeWeekToday(weekly: WeekReport, today: Work, asOf = new Date()): WeekReport {
   const todayDate = localDateKey(asOf);
   const normalizedToday = { ...today, workDate: todayDate };
-  const calculatedToday = applyCalculatedFields(normalizedToday, asOf);
-  const days = weekly.days.map((day) => mergeDayWithToday(day, calculatedToday, todayDate));
+  const calculatedToday = withCalc(normalizedToday, asOf);
+  const days = weekly.days.map((day) => mergeDayToday(day, calculatedToday, todayDate));
   const workedMinutes = days.reduce((sum, day) => sum + day.main, 0);
   const targetMinutes = weekly.summary.targetMinutes;
   const remainingMinutes = Math.max(targetMinutes - workedMinutes, 0);
-  const remainingWorkDays = countDaysAfterToday(todayDate, weekly.weekEnd);
-  const avgRequiredPerDayMinutes = avgPerDay(
+  const remainingDays = daysAfter(todayDate, weekly.weekEnd);
+  const avgPerDayMin = avgPerDay(
     remainingMinutes,
-    remainingWorkDays
+    remainingDays
   );
 
   return {
@@ -768,24 +752,24 @@ function mergeWeeklyWithToday(weekly: WeeklyReport, today: Work, asOf = new Date
       workedMinutes,
       targetMinutes,
       remainingMinutes,
-      avgRequiredPerDayMinutes,
-      remainingWorkDays
+      avgPerDayMin,
+      daysAfter: remainingDays
     },
     days
   };
 }
 
-function mergeDayWithToday(day: WeeklyDayRow, today: Work, todayDate: string): WeeklyDayRow {
+function mergeDayToday(day: WeekDay, today: Work, todayDate: string): WeekDay {
   if (day.workDate !== todayDate) {
     return day;
   }
 
-  const isDayOff = DAY_OFF_TYPES.includes(today.dayType);
+  const dayOff = isDayOff(today.dayType);
 
   return {
     ...day,
-    rawStart: isDayOff ? null : today.rawStart,
-    rawEnd: isDayOff ? null : today.rawEnd,
+    rawStart: dayOff ? null : today.rawStart,
+    rawEnd: dayOff ? null : today.rawEnd,
     main: today.main,
     extra1: today.extra1,
     extra2: today.extra2,
@@ -796,11 +780,4 @@ function mergeDayWithToday(day: WeeklyDayRow, today: Work, todayDate: string): W
     dayType: today.dayType,
     remark: today.remark
   };
-}
-
-function toDateTimeValue(workDate: string, timeValue: string): string | null {
-  if (!timeValue) {
-    return null;
-  }
-  return `${workDate} ${timeValue}`;
 }

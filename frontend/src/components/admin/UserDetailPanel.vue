@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import type { UserDetail, UserForm } from "../../types/admin";
-import { adminStatusLabel, formatAdminDate, formatAdminDateTime } from "../../utils/admin";
+import { adminStatusLabel, formatAdminDate, fmtAdminDt } from "../../utils/admin";
 import { weekSummary } from "../../utils/main";
-import { formatHmFromMinutes } from "../../utils/time";
+import { fmtMinutes } from "../../utils/time";
 
 const props = defineProps<{
   user: UserDetail | null;
@@ -157,7 +157,7 @@ function close() {
               </div>
               <div>
                 <dt>최근 접속</dt>
-                <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
+                <dd>{{ user.lastAccess ? fmtAdminDt(user.lastAccess) : "없음" }}</dd>
               </div>
               <div>
                 <dt>최근 근무 기록</dt>
@@ -169,7 +169,7 @@ function close() {
                   {{ user.weekDays }}일
                   <span v-if="weekStats.goalMet" class="admin-goal-met">달성</span>
                   <span v-else-if="weekStats.main > 0" class="admin-goal-pending">
-                    {{ formatHmFromMinutes(weekStats.main) }}
+                    {{ fmtMinutes(weekStats.main) }}
                   </span>
                 </dd>
               </div>
@@ -236,7 +236,7 @@ function close() {
           </div>
           <div>
             <dt>최근 접속</dt>
-            <dd>{{ user.lastAccess ? formatAdminDateTime(user.lastAccess) : "없음" }}</dd>
+            <dd>{{ user.lastAccess ? fmtAdminDt(user.lastAccess) : "없음" }}</dd>
           </div>
           <div>
             <dt>최근 근무 기록</dt>
@@ -248,7 +248,7 @@ function close() {
               {{ user.weekDays }}일
               <span v-if="weekStats.goalMet" class="admin-goal-met">달성</span>
               <span v-else-if="weekStats.main > 0" class="admin-goal-pending">
-                {{ formatHmFromMinutes(weekStats.main) }}
+                {{ fmtMinutes(weekStats.main) }}
               </span>
             </dd>
           </div>

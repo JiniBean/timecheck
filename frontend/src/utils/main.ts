@@ -1,10 +1,10 @@
-import type { WeeklyDayRow, WeeklyReport, WeeklyReportHeader, Work } from "../types/dashboard";
+import type { WeekDay, WeekReport, ReportHeader, Work } from "../types/dashboard";
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
 import { localDateKey } from "./localDate";
-import { sumWeekExtra1Minutes, sumWeekExtra2Minutes, type TodayExtraMinutes } from "./ot";
+import { sumExtra1, sumExtra2, type DayExtra } from "./ot";
 import { EMPTY_CELL } from "./reportClipboard";
-import { applyCalculatedFields } from "./timeCalculator";
-import { formatHm, formatHmFromMinutes } from "./time";
+import { withCalc } from "./timeCalculator";
+import { formatHm, fmtMinutes } from "./time";
 import { mondayOfDateKey, shiftDateKey, weekNumberInMonth } from "./weekNav";
 import { WorkPolicy } from "./workPolicy";
 
@@ -22,42 +22,42 @@ export interface WeekApiRsp {
   position: string | null;
 }
 
-export function buildMainReportData(
+export function buildWeekReport(
   payload: WeekApiRsp,
   referenceDate: string,
   userId: number,
   asOf: Date = new Date()
-): WeeklyReport {
+): WeekReport {
   const weekStart = payload.weekStart || mondayOfDateKey(referenceDate);
   const weekEnd = payload.weekEnd || shiftDateKey(weekStart, 4);
   const today = localDateKey(asOf);
   const recordMap = new Map(payload.records.map((record) => [record.workDate, record]));
 
-  const days: WeeklyDayRow[] = [];
+  const days: WeekDay[] = [];
   let workedMinutes = 0;
   let targetMinutes = 0;
 
   for (let offset = 0; offset < 5; offset++) {
     const workDate = shiftDateKey(weekStart, offset);
     const raw = recordMap.get(workDate) ?? emptyWork(userId, workDate);
-    const calculated = applyCalculatedFields(raw, workDate === today ? asOf : undefined);
+    const calculated = withCalc(raw, workDate === today ? asOf : undefined);
     days.push(toDayRow(workDate, calculated));
     workedMinutes += calculated.main;
     targetMinutes += calculated.base ?? WorkPolicy.STD_WORK;
   }
 
   const remainingMinutes = Math.max(targetMinutes - workedMinutes, 0);
-  const remainingWorkDays = countDaysAfterToday(referenceDate, weekEnd);
+  const remainingDays = daysAfter(referenceDate, weekEnd);
 
   return {
     weekStart,
     weekEnd,
     summary: {
       workedMinutes,
-      targetMinutes: targetMinutes || MAIN_WEEK_TARGET_MINUTES,
+      targetMinutes: targetMinutes || WEEK_TARGET_MIN,
       remainingMinutes,
-      avgRequiredPerDayMinutes: avgPerDay(remainingMinutes, remainingWorkDays),
-      remainingWorkDays
+      avgPerDayMin: avgPerDay(remainingMinutes, remainingDays),
+      daysAfter: remainingDays
     },
     days,
     header: buildHeader(payload, weekStart)
@@ -79,18 +79,18 @@ function emptyWork(userId: number, workDate: string): Work {
   };
 }
 
-function buildHeader(payload: WeekApiRsp, weekStart: string): WeeklyReportHeader {
+function buildHeader(payload: WeekApiRsp, weekStart: string): ReportHeader {
   return {
     department: payload.department ?? "",
     team: payload.team ?? "",
     name: payload.name ?? "",
     position: payload.position ?? null,
     reportMonth: Number(weekStart.split("-")[1]) || 1,
-    reportWeekNumber: weekNumberInMonth(weekStart)
+    weekNum: weekNumberInMonth(weekStart)
   };
 }
 
-function toDayRow(workDate: string, work: Work): WeeklyDayRow {
+function toDayRow(workDate: string, work: Work): WeekDay {
   const weekday = new Date(`${workDate}T12:00:00`).getDay();
   const dayOff = isDayOff(work.dayType);
 
@@ -113,7 +113,7 @@ function toDayRow(workDate: string, work: Work): WeeklyDayRow {
 
 // --- Summary ---
 
-export const MAIN_WEEK_TARGET_MINUTES = 40 * 60;
+export const WEEK_TARGET_MIN = 40 * 60;
 
 export interface WeekSummary {
   main: number;
@@ -128,7 +128,7 @@ export function weekSummary(
   userId: number,
   asOf: Date = new Date()
 ): WeekSummary {
-  const report = buildMainReportData(
+  const report = buildWeekReport(
     {
       weekStart,
       weekEnd,
@@ -153,43 +153,43 @@ export function weekSummary(
   };
 }
 
-export interface MainSummaryInput {
-  weeklyReport: WeeklyReport;
+export interface SummaryIn {
+  weeklyReport: WeekReport;
   todayWork: Work;
-  todayWorkedMinutes: number;
-  todayExtraMinutes?: TodayExtraMinutes;
+  todayMainMin: number;
+  todayExtra?: DayExtra;
   /** 오늘 일자(yyyy-MM-dd). 미지정 시 todayWork.workDate */
   todayDateKey?: string;
   /** false이면 서버 주간 데이터만 사용(과거/미래 주 조회) */
-  useLiveToday?: boolean;
+  isLiveToday?: boolean;
 }
 
-export interface MainSummaryResult {
-  todayWorkedMinutes: number;
-  weekWorkedMinutes: number;
-  weekTargetMinutes: number;
-  weekRemainingMinutes: number;
-  weekOverMinutes: number;
-  remainingWorkDays: number;
-  avgRequiredPerDayMinutes: number;
-  weekExtra1Minutes: number;
-  weekExtra2Minutes: number;
-  weekExtraTotalMinutes: number;
+export interface SummaryOut {
+  todayMainMin: number;
+  weekMainMin: number;
+  weekTargetMin: number;
+  weekRemMin: number;
+  weekOverMin: number;
+  daysAfter: number;
+  avgPerDayMin: number;
+  weekExtra1: number;
+  weekExtra2: number;
+  weekExtraTotal: number;
 }
 
 export function sumWeekMain(
-  days: WeeklyDayRow[],
+  days: WeekDay[],
   todayWorkDate: string,
-  todayWorkedMinutes: number
+  todayMainMin: number
 ): number {
   return days.reduce((sum, day) => {
-    const main = day.workDate === todayWorkDate ? todayWorkedMinutes : day.main;
+    const main = day.workDate === todayWorkDate ? todayMainMin : day.main;
     return sum + main;
   }, 0);
 }
 
 /** 오늘(포함) ~ 이번 주 금요일까지 남은 평일 수 */
-export function countDaysLeft(todayWorkDate: string, weekEnd: string): number {
+export function daysInclToday(todayWorkDate: string, weekEnd: string): number {
   const today = parseDateKey(todayWorkDate);
   const end = parseDateKey(weekEnd);
   if (today > end) {
@@ -210,53 +210,53 @@ export function countDaysLeft(todayWorkDate: string, weekEnd: string): number {
 }
 
 /** 내일 ~ 이번 주 금요일까지 남은 평일 수 (오늘 제외) */
-export function countDaysAfterToday(todayWorkDate: string, weekEnd: string): number {
+export function daysAfter(todayWorkDate: string, weekEnd: string): number {
   const end = parseDateKey(weekEnd);
   const tomorrow = parseDateKey(shiftDateKey(todayWorkDate, 1));
   if (tomorrow > end) {
     return 0;
   }
-  return countDaysLeft(shiftDateKey(todayWorkDate, 1), weekEnd);
+  return daysInclToday(shiftDateKey(todayWorkDate, 1), weekEnd);
 }
 
 /** 주간 남은 분을 남은 평일 수로 나눈 값(올림) */
-export function avgPerDay(weekRemainingMinutes: number, remainingWorkDays: number): number {
-  return Math.ceil(weekRemainingMinutes / Math.max(remainingWorkDays, 1));
+export function avgPerDay(weekRemMin: number, daysAfter: number): number {
+  return Math.ceil(weekRemMin / Math.max(daysAfter, 1));
 }
 
-export function computeMainSummary(input: MainSummaryInput): MainSummaryResult {
-  const { weeklyReport, todayWork, todayWorkedMinutes } = input;
-  const useLiveToday = input.useLiveToday ?? true;
+export function mainSummary(input: SummaryIn): SummaryOut {
+  const { weeklyReport, todayWork, todayMainMin } = input;
+  const isLiveToday = input.isLiveToday ?? true;
   const todayDate = input.todayDateKey ?? todayWork.workDate;
-  const weekTargetMinutes = weeklyReport.summary.targetMinutes || MAIN_WEEK_TARGET_MINUTES;
-  const weekWorkedMinutes = useLiveToday
-    ? sumWeekMain(weeklyReport.days, todayDate, todayWorkedMinutes)
+  const weekTargetMin = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
+  const weekMainMin = isLiveToday
+    ? sumWeekMain(weeklyReport.days, todayDate, todayMainMin)
     : weeklyReport.summary.workedMinutes;
-  const weekRemainingMinutes = Math.max(0, weekTargetMinutes - weekWorkedMinutes);
-  const weekOverMinutes = Math.max(0, weekWorkedMinutes - weekTargetMinutes);
+  const weekRemMin = Math.max(0, weekTargetMin - weekMainMin);
+  const weekOverMin = Math.max(0, weekMainMin - weekTargetMin);
 
-  const remainingWorkDays = useLiveToday
-    ? countDaysAfterToday(todayDate, weeklyReport.weekEnd)
-    : weeklyReport.summary.remainingWorkDays;
-  const avgRequiredPerDayMinutes = useLiveToday
-    ? avgPerDay(weekRemainingMinutes, remainingWorkDays)
-    : weeklyReport.summary.avgRequiredPerDayMinutes;
+  const remainingDays = isLiveToday
+    ? daysAfter(todayDate, weeklyReport.weekEnd)
+    : weeklyReport.summary.daysAfter;
+  const avgPerDayMin = isLiveToday
+    ? avgPerDay(weekRemMin, remainingDays)
+    : weeklyReport.summary.avgPerDayMin;
 
-  const todayExtraMinutes = useLiveToday ? input.todayExtraMinutes : undefined;
-  const weekExtra1Minutes = sumWeekExtra1Minutes(weeklyReport.days, todayDate, todayExtraMinutes);
-  const weekExtra2Minutes = sumWeekExtra2Minutes(weeklyReport.days, todayDate, todayExtraMinutes);
+  const todayExtra = isLiveToday ? input.todayExtra : undefined;
+  const weekExtra1 = sumExtra1(weeklyReport.days, todayDate, todayExtra);
+  const weekExtra2 = sumExtra2(weeklyReport.days, todayDate, todayExtra);
 
   return {
-    todayWorkedMinutes,
-    weekWorkedMinutes,
-    weekTargetMinutes,
-    weekRemainingMinutes,
-    weekOverMinutes,
-    remainingWorkDays,
-    avgRequiredPerDayMinutes,
-    weekExtra1Minutes,
-    weekExtra2Minutes,
-    weekExtraTotalMinutes: weekExtra1Minutes + weekExtra2Minutes
+    todayMainMin,
+    weekMainMin,
+    weekTargetMin,
+    weekRemMin,
+    weekOverMin,
+    daysAfter: remainingDays,
+    avgPerDayMin,
+    weekExtra1,
+    weekExtra2,
+    weekExtraTotal: weekExtra1 + weekExtra2
   };
 }
 
@@ -290,11 +290,11 @@ export interface WeekClip {
 const WEEKDAY_KO = ["일", "월", "화", "수", "목", "금", "토"];
 
 export function buildWeekClip(
-  report: WeeklyReport,
+  report: WeekReport,
   options: {
     todayWorkDate: string;
-    todayWorkedMinutes: number;
-    useLiveToday: boolean;
+    todayMainMin: number;
+    isLiveToday: boolean;
   }
 ): WeekClip {
   const header = report.header;
@@ -308,34 +308,34 @@ export function buildWeekClip(
     titleLine,
     workerLine,
     rows,
-    totalWorkLabel: formatHmFromMinutes(totalMinutes),
+    totalWorkLabel: fmtMinutes(totalMinutes),
     remarks,
     remarksFooter: formatRemarksFooter(remarks)
   };
 }
 
-function buildTitleLine(header: WeeklyReportHeader): string {
+function buildTitleLine(header: ReportHeader): string {
   const dept = header.department?.trim() ?? "";
   const team = header.team?.trim() ?? "";
   const name = header.name?.trim() ?? "";
   const rank = header.position?.trim() || "사원";
   const prefix = [dept, team, name].filter(Boolean).join(" ");
   const suffix = prefix ? `${prefix} ${rank}` : rank;
-  return `${suffix} ${header.reportMonth}월 ${header.reportWeekNumber}주차 근무 결과 보고서입니다.`;
+  return `${suffix} ${header.reportMonth}월 ${header.weekNum}주차 근무 결과 보고서입니다.`;
 }
 
 function toReportRow(
-  day: WeeklyDayRow,
-  options: { todayWorkDate: string; todayWorkedMinutes: number; useLiveToday: boolean }
+  day: WeekDay,
+  options: { todayWorkDate: string; todayMainMin: number; isLiveToday: boolean }
 ): ReportTableRow {
   const main =
-    options.useLiveToday && day.workDate === options.todayWorkDate
-      ? options.todayWorkedMinutes
+    options.isLiveToday && day.workDate === options.todayWorkDate
+      ? options.todayMainMin
       : day.main;
 
   if (isDayOff(day.dayType)) {
     return {
-      dateLabel: formatReportDateLabel(day.workDate),
+      dateLabel: fmtReportDate(day.workDate),
       checkIn: EMPTY_CELL,
       checkOut: EMPTY_CELL,
       workLabel: workCellLabel(day.dayType, main)
@@ -343,14 +343,14 @@ function toReportRow(
   }
 
   return {
-    dateLabel: formatReportDateLabel(day.workDate),
+    dateLabel: fmtReportDate(day.workDate),
     checkIn: formatHm(day.rawStart) === "-" ? EMPTY_CELL : formatHm(day.rawStart),
     checkOut: formatHm(day.rawEnd) === "-" ? EMPTY_CELL : formatHm(day.rawEnd),
     workLabel: workCellLabel(day.dayType, main)
   };
 }
 
-export function formatReportDateLabel(workDate: string): string {
+export function fmtReportDate(workDate: string): string {
   const date = new Date(`${workDate}T12:00:00`);
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -359,26 +359,26 @@ export function formatReportDateLabel(workDate: string): string {
 }
 
 function resolveReportMainMinutes(
-  day: WeeklyDayRow,
-  options: { todayWorkDate: string; todayWorkedMinutes: number; useLiveToday: boolean }
+  day: WeekDay,
+  options: { todayWorkDate: string; todayMainMin: number; isLiveToday: boolean }
 ): number {
   if (isDayOff(day.dayType)) {
     return WorkPolicy.STD_WORK;
   }
-  if (options.useLiveToday && day.workDate === options.todayWorkDate) {
-    return options.todayWorkedMinutes;
+  if (options.isLiveToday && day.workDate === options.todayWorkDate) {
+    return options.todayMainMin;
   }
   return day.main;
 }
 
 function sumReportWorkedMinutes(
-  days: WeeklyDayRow[],
-  options: { todayWorkDate: string; todayWorkedMinutes: number; useLiveToday: boolean }
+  days: WeekDay[],
+  options: { todayWorkDate: string; todayMainMin: number; isLiveToday: boolean }
 ): number {
   return days.reduce((sum, day) => sum + resolveReportMainMinutes(day, options), 0);
 }
 
-function buildRemarks(days: WeeklyDayRow[]): ReportRemarkLine[] {
+function buildRemarks(days: WeekDay[]): ReportRemarkLine[] {
   return days
     .filter((day) => day.dayType !== "NOM")
     .sort((a, b) => a.workDate.localeCompare(b.workDate))
@@ -388,7 +388,7 @@ function buildRemarks(days: WeeklyDayRow[]): ReportRemarkLine[] {
     }));
 }
 
-function formatRemarkBody(day: WeeklyDayRow): string {
+function formatRemarkBody(day: WeekDay): string {
   const typeLabel = dayTypeLabel(day.dayType);
   const remark = day.remark?.trim();
   if (remark) {

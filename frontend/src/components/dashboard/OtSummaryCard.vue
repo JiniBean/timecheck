@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { MainSummaryResult } from "../../utils/main";
-import { formatHmFromMinutes } from "../../utils/time";
+import type { SummaryOut } from "../../utils/main";
+import { fmtMinutes } from "../../utils/time";
 
 defineProps<{
-  summary: MainSummaryResult;
+  summary: SummaryOut;
 }>();
 </script>
 
@@ -12,15 +12,15 @@ defineProps<{
     <div class="stat-row stat-row--3 stat-row--ot">
       <div class="stat-item">
         <p class="stat-label">1형</p>
-        <p class="stat-value">{{ formatHmFromMinutes(summary.weekExtra1Minutes) }}</p>
+        <p class="stat-value">{{ fmtMinutes(summary.weekExtra1) }}</p>
       </div>
       <div class="stat-item stat-item--divider">
         <p class="stat-label">2형</p>
-        <p class="stat-value">{{ formatHmFromMinutes(summary.weekExtra2Minutes) }}</p>
+        <p class="stat-value">{{ fmtMinutes(summary.weekExtra2) }}</p>
       </div>
       <div class="stat-item stat-item--divider">
         <p class="stat-label">합계</p>
-        <p class="stat-value">{{ formatHmFromMinutes(summary.weekExtraTotalMinutes) }}</p>
+        <p class="stat-value">{{ fmtMinutes(summary.weekExtraTotal) }}</p>
       </div>
     </div>
   </section>

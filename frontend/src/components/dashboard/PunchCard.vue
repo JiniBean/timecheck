@@ -2,8 +2,9 @@
 import { computed, ref } from "vue";
 import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
+import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, TodayStatus } from "../../types/dashboard";
-import { DAY_TYPE_OPTIONS, isDayOff } from "../../utils/dayType";
+import { DAY_TYPE_OPTIONS } from "../../utils/dayType";
 import { formatHm } from "../../utils/time";
 
 const props = defineProps<{
@@ -17,29 +18,36 @@ const props = defineProps<{
   displayMainEnd: string | null;
   displayOtStart: string | null;
   hasCheckIn: boolean;
-  actionTimeDisplay: string;
-  isActionTimeEditable: boolean;
-  isActionTimeLocked: boolean;
+  actTime: string;
+  isActTimeEditable: boolean;
+  isActTimeLocked: boolean;
   errorMessage: string | null;
   toastMessage: string | null;
 }>();
 
 const emit = defineEmits<{
-  checkIn: [];
-  checkOut: [];
-  applySettings: [payload: { dayType: DayType; isOt: boolean; remark: string | null }];
-  updateMainEnd: [value: string];
-  updateOtStart: [value: string];
-  saveSettings: [];
-  applyPickedTime: [value: string];
+  "check-in": [];
+  "check-out": [];
+  "apply-settings": [payload: { dayType: DayType; isOt: boolean; remark: string | null }];
+  "update-main-end": [value: string];
+  "update-ot-start": [value: string];
+  "save-settings": [];
+  "apply-picked-time": [value: string];
 }>();
 
 const timePickerOpen = ref(false);
 const settingsOpen = ref(false);
-const dayTypeDraft = ref<DayType>("NOM");
-const otDraft = ref(false);
-const remarkDraft = ref("");
-const inlineOtPickerOpen = ref(false);
+const {
+  dayTypeDraft,
+  otDraft,
+  remarkDraft,
+  loadDraft,
+  setDayType,
+  onToggleOt,
+  setRemark,
+  buildPayload
+} = useDaySettingsDraft();
+const isOtPickerOpen = ref(false);
 const inlineOtField = ref<"mainEnd" | "otStart">("mainEnd");
 const inlineOtInitial = ref("18:00");
 
@@ -73,46 +81,24 @@ const checkOutButtonClass = computed(() =>
 );
 
 function onTimeRowClick() {
-  if (!props.isActionTimeEditable) {
+  if (!props.isActTimeEditable) {
     return;
   }
   timePickerOpen.value = true;
 }
 
 function openSettings() {
-  dayTypeDraft.value = props.dayType;
-  otDraft.value = props.isOt;
-  remarkDraft.value = props.remark ?? "";
+  loadDraft({
+    dayType: props.dayType,
+    isOt: props.isOt,
+    remark: props.remark
+  });
   settingsOpen.value = true;
 }
 
-function onUpdateDayType(dayType: DayType) {
-  dayTypeDraft.value = dayType;
-  if (isDayOff(dayType)) {
-    otDraft.value = false;
-  }
-}
-
-function onToggleOt() {
-  if (isDayOff(dayTypeDraft.value)) {
-    return;
-  }
-  otDraft.value = !otDraft.value;
-}
-
-function onUpdateRemark(value: string) {
-  remarkDraft.value = value;
-}
-
 function onSettingsSave() {
-  const showRemark =
-    dayTypeDraft.value === "HOL" || (otDraft.value && !isDayOff(dayTypeDraft.value));
-  emit("applySettings", {
-    dayType: dayTypeDraft.value,
-    isOt: isDayOff(dayTypeDraft.value) ? false : otDraft.value,
-    remark: showRemark ? remarkDraft.value.trim() || null : null
-  });
-  emit("saveSettings");
+  emit("apply-settings", buildPayload());
+  emit("save-settings");
 }
 
 function openInlineOtPicker(field: "mainEnd" | "otStart") {
@@ -123,17 +109,17 @@ function openInlineOtPicker(field: "mainEnd" | "otStart") {
   const current = field === "mainEnd" ? props.displayMainEnd : props.displayOtStart;
   const formatted = formatHm(current);
   inlineOtInitial.value = formatted === "-" ? "18:00" : formatted;
-  inlineOtPickerOpen.value = true;
+  isOtPickerOpen.value = true;
 }
 
 function onInlineOtConfirm(hhmm: string) {
   if (inlineOtField.value === "mainEnd") {
-    emit("updateMainEnd", hhmm);
+    emit("update-main-end", hhmm);
   } else {
-    emit("updateOtStart", hhmm);
+    emit("update-ot-start", hhmm);
   }
   if (props.status === "DONE") {
-    emit("saveSettings");
+    emit("save-settings");
   }
 }
 </script>
@@ -146,8 +132,8 @@ function onInlineOtConfirm(hhmm: string) {
 
     <div class="card-head card-head-tight">
       <span :class="statusClass">{{ statusText }}</span>
-      <button type="button" class="time-btn" :disabled="!isActionTimeEditable" @click="onTimeRowClick">
-        <span>{{ actionTimeDisplay }}</span>
+      <button type="button" class="time-btn" :disabled="!isActTimeEditable" @click="onTimeRowClick">
+        <span>{{ actTime }}</span>
         <span class="caret" aria-hidden="true">▾</span>
       </button>
     </div>
@@ -175,8 +161,8 @@ function onInlineOtConfirm(hhmm: string) {
 
     <div class="main-row">
       <div class="action-group action-horizontal">
-        <button :class="checkInButtonClass" :disabled="!canCheckIn" @click="emit('checkIn')">출근</button>
-        <button :class="checkOutButtonClass" :disabled="!canCheckOut" @click="emit('checkOut')">퇴근</button>
+        <button :class="checkInButtonClass" :disabled="!canCheckIn" @click="emit('check-in')">출근</button>
+        <button :class="checkOutButtonClass" :disabled="!canCheckOut" @click="emit('check-out')">퇴근</button>
       </div>
 
       <div
@@ -199,12 +185,12 @@ function onInlineOtConfirm(hhmm: string) {
 
     <TimePicker
       v-model:open="timePickerOpen"
-      :initial-time="actionTimeDisplay"
-      @confirm="emit('applyPickedTime', $event)"
+      :initial-time="actTime"
+      @confirm="emit('apply-picked-time', $event)"
     />
 
     <TimePicker
-      v-model:open="inlineOtPickerOpen"
+      v-model:open="isOtPickerOpen"
       :initial-time="inlineOtInitial"
       :title="inlineOtField === 'mainEnd' ? '일반 퇴근' : '야근 시작'"
       @confirm="onInlineOtConfirm"
@@ -216,9 +202,9 @@ function onInlineOtConfirm(hhmm: string) {
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
-      @update-day-type="onUpdateDayType"
+      @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
-      @update-remark="onUpdateRemark"
+      @update-remark="setRemark"
       @save="onSettingsSave"
     />
   </section>

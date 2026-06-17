@@ -96,7 +96,7 @@ function snapColumn(el: HTMLDivElement | null, min: number, max: number, smooth 
   el.scrollTo({ top: index * ITEM, behavior: smooth ? "smooth" : "auto" });
 }
 
-function syncInputWithScroll() {
+function syncScroll() {
   const { h, m } = readScroll();
   selectedHour.value = h;
   selectedMinute.value = m;
@@ -115,7 +115,7 @@ function stepColumn(el: HTMLDivElement | null, min: number, max: number, delta: 
   el.scrollTop = next * ITEM;
 }
 
-function normalizeAndClamp(value: string, max: number): string {
+function clampInput(value: string, max: number): string {
   const digits = value.replace(/\D/g, "");
   const num = digits === "" ? 0 : Number.parseInt(digits, 10);
   const clamped = Math.min(max, Math.max(0, Number.isNaN(num) ? 0 : num));
@@ -161,7 +161,7 @@ function commitInlineEdit() {
     return;
   }
   const isHour = editingUnit.value === "h";
-  const padded = normalizeAndClamp(inlineInput.value, isHour ? 23 : 59);
+  const padded = clampInput(inlineInput.value, isHour ? 23 : 59);
   const number = Number.parseInt(padded, 10);
   inlineInput.value = padded;
   if (isHour) {
@@ -207,7 +207,7 @@ function onInlineKeydown(event: KeyboardEvent) {
     event.preventDefault();
     const isHour = editingUnit.value === "h";
     const max = isHour ? 23 : 59;
-    const current = Number.parseInt(normalizeAndClamp(inlineInput.value, max), 10);
+    const current = Number.parseInt(clampInput(inlineInput.value, max), 10);
     const next = Math.min(max, Math.max(0, current + (event.key === "ArrowUp" ? -1 : 1)));
     inlineInput.value = String(next).padStart(2, "0");
     if (isHour && hCol.value) {
@@ -230,7 +230,7 @@ function onHourScroll() {
   }
   hSnapTimer = window.setTimeout(() => {
     snapColumn(hCol.value, 0, 23);
-    syncInputWithScroll();
+    syncScroll();
   }, 70);
 }
 
@@ -243,7 +243,7 @@ function onMinuteScroll() {
   }
   mSnapTimer = window.setTimeout(() => {
     snapColumn(mCol.value, 0, 59);
-    syncInputWithScroll();
+    syncScroll();
   }, 70);
 }
 
@@ -253,7 +253,7 @@ function onHourWheel(event: WheelEvent) {
     commitInlineEdit();
   }
   stepColumn(hCol.value, 0, 23, event.deltaY > 0 ? 1 : -1);
-  syncInputWithScroll();
+  syncScroll();
 }
 
 function onMinuteWheel(event: WheelEvent) {
@@ -262,7 +262,7 @@ function onMinuteWheel(event: WheelEvent) {
     commitInlineEdit();
   }
   stepColumn(mCol.value, 0, 59, event.deltaY > 0 ? 1 : -1);
-  syncInputWithScroll();
+  syncScroll();
 }
 
 function onHourKeydown(event: KeyboardEvent) {
@@ -274,7 +274,7 @@ function onHourKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     event.preventDefault();
     stepColumn(hCol.value, 0, 23, event.key === "ArrowUp" ? -1 : 1);
-    syncInputWithScroll();
+    syncScroll();
   }
 }
 
@@ -287,7 +287,7 @@ function onMinuteKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     event.preventDefault();
     stepColumn(mCol.value, 0, 59, event.key === "ArrowUp" ? -1 : 1);
-    syncInputWithScroll();
+    syncScroll();
   }
 }
 

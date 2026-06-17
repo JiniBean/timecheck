@@ -1,7 +1,7 @@
-import type { DayType, WeeklyReport, Work } from "../types/dashboard";
+import type { DayType, WeekReport, Work } from "../types/dashboard";
 import { localDateKey } from "../utils/localDate";
-import { applyCalculatedFields } from "../utils/timeCalculator";
-import { buildMainReportData, type WeekApiRsp } from "../utils/main";
+import { withCalc as applyCalc } from "../utils/timeCalculator";
+import { buildWeekReport, type WeekApiRsp } from "../utils/main";
 import http from "./http";
 
 interface WorkResponse {
@@ -30,7 +30,7 @@ function todayWorkKey(userId: number): string {
   return `timecheck-today-work-${userId}`;
 }
 
-export function loadCachedTodayWork(userId: number): Work | null {
+export function loadTodayCache(userId: number): Work | null {
   try {
     const raw = localStorage.getItem(todayWorkKey(userId));
     if (!raw) {
@@ -40,7 +40,7 @@ export function loadCachedTodayWork(userId: number): Work | null {
     if (parsed.workDate !== localDateKey()) {
       return null;
     }
-    return withCalc(parsed, userId, parsed.workDate);
+    return normalizeWork(parsed, userId, parsed.workDate);
   } catch {
     return null;
   }
@@ -49,7 +49,7 @@ export function loadCachedTodayWork(userId: number): Work | null {
 export async function checkIn(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/in", toPayload(workDate, options));
-  const normalized = withCalc(requireWork(data.work), userId, workDate);
+  const normalized = normalizeWork(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -57,7 +57,7 @@ export async function checkIn(userId: number, options: WorkPatch = {}): Promise<
 export async function checkOut(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/out", toPayload(workDate, options));
-  const normalized = withCalc(requireWork(data.work), userId, workDate);
+  const normalized = normalizeWork(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -68,11 +68,11 @@ export async function patchWork(userId: number, options: WorkPatch = {}): Promis
     params: { date: today }
   });
   if (!data.work) {
-    const empty = createEmptyWork(userId, today);
+    const empty = emptyWork(userId, today);
     saveTodayWork(userId, empty);
     return empty;
   }
-  const normalized = withCalc(data.work, userId, today);
+  const normalized = normalizeWork(data.work, userId, today);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -82,9 +82,9 @@ export async function fetchWork(userId: number, workDate: string): Promise<Work>
     params: { date: workDate }
   });
   if (!data.work) {
-    return createEmptyWork(userId, workDate);
+    return emptyWork(userId, workDate);
   }
-  const normalized = withCalc(data.work, userId, workDate);
+  const normalized = normalizeWork(data.work, userId, workDate);
   if (workDate === localDateKey()) {
     saveTodayWork(userId, normalized);
   }
@@ -104,16 +104,16 @@ export async function fetchWorks(
     params: { start: startDate, end: endDate }
   });
   return (data.records ?? []).map((record) =>
-    withCalc(record, userId, record.workDate)
+    normalizeWork(record, userId, record.workDate)
   );
 }
 
-export async function fetchWeek(userId: number, referenceDate?: string): Promise<WeeklyReport> {
+export async function fetchWeek(userId: number, referenceDate?: string): Promise<WeekReport> {
   const ref = referenceDate ?? localDateKey();
   const { data } = await http.get<WeekApiRsp>("/work/week", {
     params: { date: ref }
   });
-  return buildMainReportData(
+  return buildWeekReport(
     {
       weekStart: data.weekStart,
       weekEnd: data.weekEnd,
@@ -128,8 +128,8 @@ export async function fetchWeek(userId: number, referenceDate?: string): Promise
   );
 }
 
-export function createEmptyWork(userId: number, date: string): Work {
-  return applyCalculatedFields({
+export function emptyWork(userId: number, date: string): Work {
+  return applyCalc({
     userId,
     workDate: date,
     rawStart: null,
@@ -187,7 +187,7 @@ function toPayload(workDate: string, options: WorkPatch) {
   return payload;
 }
 
-function withCalc(source: Work, userId: number, date: string): Work {
+function normalizeWork(source: Work, userId: number, date: string): Work {
   const work: Work = {
     workId: source.workId,
     userId: source.userId ?? userId,
@@ -209,7 +209,7 @@ function withCalc(source: Work, userId: number, date: string): Work {
     remark: source.remark ?? null
   };
   const asOf = work.workDate === localDateKey() ? new Date() : undefined;
-  return applyCalculatedFields(work, asOf);
+  return applyCalc(work, asOf);
 }
 
 function requireWork(work: Work | null): Work {

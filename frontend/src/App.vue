@@ -3,11 +3,11 @@ import { computed } from "vue";
 import { useAuthStore } from "./stores/auth";
 
 const authStore = useAuthStore();
-const isBootstrapping = computed(() => !authStore.initialized);
+const isBooting = computed(() => !authStore.initialized);
 </script>
 
 <template>
-  <div v-if="isBootstrapping" class="app-splash" role="status" aria-live="polite" aria-label="앱을 불러오는 중">
+  <div v-if="isBooting" class="app-splash" role="status" aria-live="polite" aria-label="앱을 불러오는 중">
     <div class="app-splash__content">
       <img class="app-splash__icon" src="/pwa-192x192.png" alt="" width="96" height="96" />
       <p class="app-splash__title">TimeCheck</p>

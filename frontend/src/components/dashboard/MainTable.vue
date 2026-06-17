@@ -1,25 +1,26 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
-import type { DayType, WeeklyDayRow } from "../../types/dashboard";
+import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
+import type { DayType, WeekDay } from "../../types/dashboard";
 import { isDayOff, workCellLabel } from "../../utils/dayType";
 import { compareHm, formatHm } from "../../utils/time";
 import { WorkPolicy } from "../../utils/workPolicy";
 
 const props = defineProps<{
-  days: WeeklyDayRow[];
+  days: WeekDay[];
   todayWorkDate: string;
-  todayWorkedMinutes: number;
-  useLiveToday?: boolean;
+  todayMainMin: number;
+  isLiveToday?: boolean;
 }>();
 
 const emit = defineEmits<{
-  updateCheckIn: [workDate: string, hhmm: string];
-  updateCheckOut: [workDate: string, hhmm: string];
-  clearCheckIn: [workDate: string];
-  clearCheckOut: [workDate: string];
-  saveDaySettings: [
+  "update-check-in": [workDate: string, hhmm: string];
+  "update-check-out": [workDate: string, hhmm: string];
+  "clear-check-in": [workDate: string];
+  "clear-check-out": [workDate: string];
+  "save-day-settings": [
     payload: {
       workDate: string;
       dayType: DayType;
@@ -29,19 +30,30 @@ const emit = defineEmits<{
   ];
 }>();
 
+const TIME_PICKER_HINT_DEFAULT = "위·아래로 스크롤해 선택하세요";
+
 const timePickerOpen = ref(false);
 const timePickerInitial = ref("09:00");
+const timePickerHint = ref(TIME_PICKER_HINT_DEFAULT);
 const timeEditField = ref<"start" | "end">("start");
-const editingDay = ref<WeeklyDayRow | null>(null);
+const editingDay = ref<WeekDay | null>(null);
 const timePickerCanReset = ref(false);
 
 const dayTypeSheetOpen = ref(false);
-const dayTypeEditDay = ref<WeeklyDayRow | null>(null);
-const dayTypeDraft = ref<DayType>("NOM");
-const otDraft = ref(false);
-const remarkDraft = ref("");
+const dayTypeEditDay = ref<WeekDay | null>(null);
 
-function resolveCheckoutCell(day: WeeklyDayRow) {
+const {
+  dayTypeDraft,
+  otDraft,
+  remarkDraft,
+  loadDraft,
+  setDayType,
+  onToggleOt,
+  setRemark,
+  buildPayload
+} = useDaySettingsDraft();
+
+function resolveCheckoutCell(day: WeekDay) {
   if (isDayOff(day.dayType)) {
     return { label: "-", preview: false };
   }
@@ -60,11 +72,11 @@ const displayDays = computed(() =>
     const isToday = day.workDate === props.todayWorkDate;
     const dayOff = isDayOff(day.dayType);
     const workPreview =
-      Boolean(props.useLiveToday && isToday && !dayOff && day.rawStart && !day.rawEnd);
+      Boolean(props.isLiveToday && isToday && !dayOff && day.rawStart && !day.rawEnd);
 
     return {
       ...day,
-      displayMain: isToday ? props.todayWorkedMinutes : day.main,
+      displayMain: isToday ? props.todayMainMin : day.main,
       isToday,
       dayOff,
       checkoutLabel: checkout.label,
@@ -74,14 +86,14 @@ const displayDays = computed(() =>
   })
 );
 
-function hasTimeValue(day: WeeklyDayRow, field: "start" | "end"): boolean {
+function hasTimeValue(day: WeekDay, field: "start" | "end"): boolean {
   if (field === "start") {
     return formatHm(day.rawStart) !== "-";
   }
   return Boolean(day.rawEnd) || resolveCheckoutCell(day).preview;
 }
 
-function resolvePickerInitial(day: WeeklyDayRow, field: "start" | "end"): string {
+function resolvePickerInitial(day: WeekDay, field: "start" | "end"): string {
   const value = field === "start" ? day.rawStart : day.rawEnd;
   const formatted = formatHm(value);
   if (formatted !== "-") {
@@ -96,12 +108,13 @@ function resolvePickerInitial(day: WeeklyDayRow, field: "start" | "end"): string
   return field === "end" ? "16:00" : "09:00";
 }
 
-function openTimePicker(day: WeeklyDayRow, field: "start" | "end") {
+function openTimePicker(day: WeekDay, field: "start" | "end") {
   if (isDayOff(day.dayType)) {
     return;
   }
   editingDay.value = day;
   timeEditField.value = field;
+  timePickerHint.value = TIME_PICKER_HINT_DEFAULT;
   if (field === "end") {
     const checkout = resolveCheckoutCell(day);
     if (checkout.preview && day.mainEnd) {
@@ -123,9 +136,9 @@ function onTimeReset() {
   }
   const workDate = editingDay.value.workDate;
   if (timeEditField.value === "start") {
-    emit("clearCheckIn", workDate);
+    emit("clear-check-in", workDate);
   } else {
-    emit("clearCheckOut", workDate);
+    emit("clear-check-out", workDate);
   }
   editingDay.value = null;
 }
@@ -139,22 +152,28 @@ function onTimeConfirm(hhmm: string) {
     editingDay.value.dayType === "PM" &&
     compareHm(hhmm, WorkPolicy.HALF_DAY_HHMM) < 0
   ) {
+    timePickerHint.value = `오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`;
+    void nextTick(() => {
+      timePickerOpen.value = true;
+    });
     return;
   }
   const workDate = editingDay.value.workDate;
   if (timeEditField.value === "start") {
-    emit("updateCheckIn", workDate, hhmm);
+    emit("update-check-in", workDate, hhmm);
   } else {
-    emit("updateCheckOut", workDate, hhmm);
+    emit("update-check-out", workDate, hhmm);
   }
   editingDay.value = null;
 }
 
-function openDayTypeSheet(day: WeeklyDayRow) {
+function openDayTypeSheet(day: WeekDay) {
   dayTypeEditDay.value = day;
-  dayTypeDraft.value = day.dayType;
-  otDraft.value = day.isOt;
-  remarkDraft.value = day.remark ?? "";
+  loadDraft({
+    dayType: day.dayType,
+    isOt: day.isOt,
+    remark: day.remark
+  });
   dayTypeSheetOpen.value = true;
 }
 
@@ -163,36 +182,14 @@ function closeDayTypeSheet() {
   dayTypeEditDay.value = null;
 }
 
-function onUpdateDayType(dayType: DayType) {
-  dayTypeDraft.value = dayType;
-  if (isDayOff(dayType)) {
-    otDraft.value = false;
-  }
-}
-
-function onToggleOt() {
-  if (isDayOff(dayTypeDraft.value)) {
-    return;
-  }
-  otDraft.value = !otDraft.value;
-}
-
-function onUpdateRemark(value: string) {
-  remarkDraft.value = value;
-}
-
 function saveDaySettings() {
   if (!dayTypeEditDay.value) {
     return;
   }
-  const showRemark = dayTypeDraft.value === "HOL" || (otDraft.value && !isDayOff(dayTypeDraft.value));
-  const remark = showRemark ? remarkDraft.value.trim() || null : null;
-
-  emit("saveDaySettings", {
+  const payload = buildPayload();
+  emit("save-day-settings", {
     workDate: dayTypeEditDay.value.workDate,
-    dayType: dayTypeDraft.value,
-    isOt: isDayOff(dayTypeDraft.value) ? false : otDraft.value,
-    remark
+    ...payload
   });
   closeDayTypeSheet();
 }
@@ -254,6 +251,7 @@ const settingsTitle = computed(() =>
     <TimePicker
       v-model:open="timePickerOpen"
       :initial-time="timePickerInitial"
+      :hint="timePickerHint"
       :show-reset="timePickerCanReset"
       :title="timeEditField === 'start' ? '출근 시간' : '퇴근 시간'"
       @confirm="onTimeConfirm"
@@ -266,9 +264,9 @@ const settingsTitle = computed(() =>
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
-      @update-day-type="onUpdateDayType"
+      @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
-      @update-remark="onUpdateRemark"
+      @update-remark="setRemark"
       @save="saveDaySettings"
     />
   </section>
