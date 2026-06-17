@@ -1,0 +1,86 @@
+---
+description: Frontend TypeScript/Vue 변수·함수 네이밍 컨벤션 (TimeCheck)
+globs: frontend/**/*.{ts,vue}
+alwaysApply: false
+---
+# Frontend Naming Convention (TimeCheck)
+
+## 1. 적용 범위
+- 대상: `frontend/src` 내 `.ts`, `.vue`
+- 비대상: Java 백엔드, MyBatis 컬럼명, REST 경로, DB 스키마 필드
+- 원칙: 의미 유지 + 길이 축약. 도메인 용어(OT, MAIN, BASE)는 유지
+
+## 2. 접두어 규칙 (boolean / 판정)
+- `is*`: 상태/조건 (`isWorking`, `isActTimeEditable`, `isLiveToday`)
+- `can*`: 행동 가능 (`canCheckIn`, `canEditIn`)
+- `has*`: 존재 여부 (`hasOtRows`)
+- `should*`: 정책 판정 (`shouldCancelOt`)
+- computed/ref도 동일 규칙 적용 (`isCurrentWeek`, `isProfileOpen`)
+
+## 3. 접미어 규칙 (단위/시간)
+- `*Min`: 분 단위 숫자 (`mainMin`, `workMin`, `avgPerDayMin`, `liveMainMin`)
+- `*At`: 시각(Date) (`coreEndAt`, `otThresholdAt`)
+- `*Minutes`, `*Mins` 혼용 금지, `*Min`으로 통일
+- UI 표시용 `HH:mm` 문자열은 `fmt*`/`hhmm*` 계열 사용
+
+## 4. 타입/도메인 축약
+- 주간 리포트: `Week*` 접두 (`WeeklyReport` -> `WeekReport`, `WeeklyDay` -> `WeekDay`)
+- 주간 요약 필드: 짧은 명사 (`avgRequiredPerDayMinutes` -> `avgPerDayMin`, `remainingWorkDays` -> `daysAfter`)
+- 주간 미리보기: `Prv` 접두 (`buildWeekPreview` -> `buildPrv`, `PreviewRow` -> `PrvRow`)
+- 미리보기 포맷: `fmtIn`/`fmtOut` (`formatPreviewCheckIn` -> `fmtIn`)
+- 누락 기록: `Missing` 계열 (`missingGap`, `MissingDay`)
+- 오늘 병합: `mergeToday` (`resolveEffectiveTodayWork` -> `mergeToday`)
+- 앵커 후처리: `clearAnchors`/`recalcAnchors`로 통합
+
+### 유지(리네이밍 금지)
+- `DashboardState.weeklyReport` 필드명 (외부 계약/기존 관성)
+- API/DB 필드: `rawStart`, `rawEnd`, `mainStart`, `mainEnd`, `extra1`, `extra2`, `dayType`
+- API 함수: `checkIn()`, `checkOut()`
+
+## 5. 레이어별 in/out 분리
+- UI/주간 편집: `in`/`out` (`setWeekIn`, `setWeekOut`, `clearWeekIn`)
+- API 호출: `checkIn`/`checkOut`
+- DB/Work 모델: `rawStart`/`rawEnd`
+- 레이어별 이름을 혼용하지 않음
+
+## 6. 함수 네이밍 패턴
+### 선호
+- 팩토리: `emptyWork`, `emptyWeekReport`, `loadTodayCache` (`createEmpty*` 지양)
+- 동기화: `syncActTime`, `syncFromMainEnd`, `withCalc`, `withOtRecalc`
+- 요약/빌드: `mainSummary`, `buildWeekReport`, `buildPrv`, `weekSummary`
+- 에러: `apiErrMsg`
+
+### 지양
+- `createEmpty*`, `compute*`, `resolve*`, `format*`, `refresh*With*`, `normalize*After*`
+- 동일 파일 내 `get*`/`fetch*` 혼용 (API는 `fetch*`, 순수 유틸은 동사형)
+
+## 7. composable return API
+- 외부 노출 이름도 동일 규칙 적용 (`actTime`, `isActTimeEditable`, `canCheckIn`, `setWeekIn`)
+- 새 composable의 return 키도 동일 규칙 적용
+- 내부 전용 함수는 export/return 노출을 지양
+
+## 8. Vue props / emits
+- props: 도메인 축약 허용 (`weekStart`, `weekEnd`, `mergedToday`, `prvTime`)
+- boolean props: `is*`/`can*`
+- emit: 동사 원형(`save`, `close`) 또는 `set*` 기준 유지
+
+## 9. admin 영역
+- admin 전용 유틸은 `admin` 접두 또는 `fmtAdmin*`/`adminStatusLabel` 유지
+- 백엔드 DTO 필드(`userId`, `weekDays`, `lastAccess`)는 API 응답 명세를 그대로 사용
+
+## 10. 새 코드 작성 체크리스트
+1. boolean이 `is`/`can`/`has`/`should` 중 하나를 따르는가?
+2. 분 단위 변수에 `*Min` 접미를 사용했는가?
+3. UI `in/out` vs API `checkIn/checkOut` vs DB `rawStart/rawEnd`를 구분했는가?
+4. `Weekly*` 대신 `Week*`를 사용했는가?
+5. export 추가 시 `frontend/scripts/verify-naming.mjs`의 `REQUIRED_EXPORTS` 갱신이 필요한가?
+
+## 11. 회귀 검증
+```bash
+cd frontend
+node scripts/verify-naming.mjs
+npx tsx scripts/verify-runtime.mjs
+npm run build
+```
+
+- 구 심볼 재도입 시 CI/로컬에서 즉시 실패하도록 `OLD_PATTERNS`를 유지/확장

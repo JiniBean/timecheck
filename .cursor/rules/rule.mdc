@@ -71,6 +71,11 @@ alwaysApply: true
 - **Comments**: Javadoc for public methods. Inline comments for complex logic.
 - **Logging**: Use SLF4J/Log4j. No `System.out.println`.
 
+## 3.2 Coding Style (Frontend TypeScript/Vue)
+- 프론트 네이밍 상세 규칙은 `.cursor/rules/frontend-naming.mdc`를 따름.
+- 새 심볼 추가/리네이밍 시 `frontend/scripts/verify-naming.mjs` 실행으로 회귀 확인.
+- API/DB 필드명(`rawStart`, `rawEnd`, `checkIn`, `checkOut`)은 백엔드 계약이므로 임의 축약 금지.
+
 ## 4. Response Format
 - **Keywords**:
     - "자세히 설명해줘": Background -> Core Content (Def + Code) -> Practical Analysis -> Market Reception.
