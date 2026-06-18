@@ -6,7 +6,7 @@ import { fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
 import { localDateKey } from "../../utils/localDate";
 import type { WeekReport, Work } from "../../types/dashboard";
 import { typicalCheckIn, checkInRange } from "../../utils/checkInAverage";
-import { isDayOff } from "../../utils/dayType";
+import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
 import { formatHm, fmtMinutes, hhmmToDateTime } from "../../utils/time";
 import { currentDateKey } from "../../utils/weekNav";
 import { WorkPolicy } from "../../utils/workPolicy";
@@ -445,6 +445,7 @@ function rowToneClass(row: PrvRow): string {
                   <th scope="col">출근</th>
                   <th scope="col">퇴근</th>
                   <th scope="col">근무</th>
+                  <th scope="col">유형</th>
                 </tr>
               </thead>
               <tbody>
@@ -453,7 +454,9 @@ function rowToneClass(row: PrvRow): string {
                   :key="row.workDate"
                   :class="[rowToneClass(row), { 'row-today': row.isToday }]"
                 >
-                  <th scope="row" :class="weekdayToneClass(row)">{{ row.weekdayLabel }}</th>
+                  <th scope="row" :class="weekdayToneClass(row)">
+                    {{ row.weekdayLabel }}
+                  </th>
                   <td
                     :class="[cellToneClass(row, 'start'), { 'cell-editable': row.canEditIn }]"
                     @click="openTimePicker(row, 'start')"
@@ -474,6 +477,11 @@ function rowToneClass(row: PrvRow): string {
                   <td>
                     <span :class="cellToneClass(row, 'work')">
                       {{ fmtWork(row) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span :class="{ 'cell-day-type': row.dayType !== 'NOM' }">
+                      {{ dayTypeCellLabel(row.dayType) }}
                     </span>
                   </td>
                 </tr>
@@ -787,6 +795,12 @@ function rowToneClass(row: PrvRow): string {
   color: var(--color-text-placeholder);
   font-size: var(--font-sm);
   line-height: 1.4;
+}
+
+.cell-day-type {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
+  font-weight: var(--weight-medium);
 }
 
 @media (max-width: 767px) {

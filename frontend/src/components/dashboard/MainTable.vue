@@ -4,7 +4,7 @@ import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
 import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, WeekDay } from "../../types/dashboard";
-import { isDayOff, workCellLabel } from "../../utils/dayType";
+import { dayTypeCellLabel, isDayOff, mainMinutesLabel } from "../../utils/dayType";
 import { compareHm, formatHm } from "../../utils/time";
 import { WorkPolicy } from "../../utils/workPolicy";
 
@@ -209,6 +209,7 @@ const settingsTitle = computed(() =>
             <th scope="col">출근</th>
             <th scope="col">퇴근</th>
             <th scope="col">근무</th>
+            <th scope="col">유형</th>
           </tr>
         </thead>
         <tbody>
@@ -236,11 +237,15 @@ const settingsTitle = computed(() =>
             <td>
               <span
                 :class="{
-                  'cell-dayoff': day.dayOff,
                   'cell-preview': day.workPreview
                 }"
               >
-                {{ workCellLabel(day.dayType, day.displayMain) }}
+                {{ mainMinutesLabel(day.displayMain) }}
+              </span>
+            </td>
+            <td>
+              <span :class="{ 'cell-day-type': day.dayType !== 'NOM' }">
+                {{ dayTypeCellLabel(day.dayType) }}
               </span>
             </td>
           </tr>
@@ -342,8 +347,9 @@ const settingsTitle = computed(() =>
   color: var(--color-text-placeholder);
 }
 
-.cell-dayoff {
-  color: var(--color-text-tertiary);
+.cell-day-type {
+  color: var(--color-text-muted);
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium);
 }
 </style>

@@ -1,6 +1,6 @@
 import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
 import { readUserJson, writeUserJson } from "./clientStorage";
-import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
+import { isDayOff, mainMinutesLabel } from "./dayType";
 import { WEEK_TARGET_MIN, avgPerDay } from "./main";
 import { mainMin } from "./ot";
 import { formatDateTime, formatHm, fmtMinutes, hhmmToDateTime, parseDateTime } from "./time";
@@ -575,11 +575,8 @@ export function fmtOut(row: PrvRow): string {
 }
 
 export function fmtWork(row: PrvRow): string {
-  if (isDayOff(row.dayType)) {
-    return dayTypeLabel(row.dayType);
-  }
   if (row.missingGap !== "none") {
     return fmtMinutes(0);
   }
-  return workCellLabel(row.dayType, row.mainMinutes);
+  return mainMinutesLabel(row.mainMinutes);
 }

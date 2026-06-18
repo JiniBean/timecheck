@@ -19,14 +19,25 @@ export function dayTypeLabel(dayType: DayType): string {
   return DAY_TYPE_OPTIONS.find((option) => option.value === dayType)?.label ?? "일반근무";
 }
 
-export function workCellLabel(dayType: DayType, mainMinutes: number): string {
-  if (isDayOff(dayType)) {
-    return dayTypeLabel(dayType);
+export function dayTypeCellLabel(dayType: DayType): string {
+  if (dayType === "NOM") {
+    return "-";
   }
+  return dayTypeLabel(dayType);
+}
+
+export function mainMinutesLabel(mainMinutes: number): string {
   if (mainMinutes <= 0) {
     return "-";
   }
   const hour = Math.floor(mainMinutes / 60);
   const minute = mainMinutes % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function workCellLabel(dayType: DayType, mainMinutes: number): string {
+  if (isDayOff(dayType)) {
+    return dayTypeLabel(dayType);
+  }
+  return mainMinutesLabel(mainMinutes);
 }
