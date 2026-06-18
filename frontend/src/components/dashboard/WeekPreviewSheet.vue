@@ -16,12 +16,17 @@ import {
   fmtOut,
   fmtWork,
   isNextDay,
+  loadPref,
+  PRV_START_MODE,
+  PRV_START_PRESET,
+  prvStartFromPref,
+  savePref,
   type PrvOvrs,
-  type PrvRow
+  type PrvRow,
+  type PrvStartMode,
+  type PrvStartPreset
 } from "../../utils/weekPreview";
 
-type ProjectedStartMode = "on-time" | "average" | "custom";
-type PresetMode = "on-time" | "average";
 type TimePickerContext = "row" | "summary";
 
 const ON_TIME_HHMM = `${String(WorkPolicy.STD_START.hour).padStart(2, "0")}:${String(WorkPolicy.STD_START.minute).padStart(2, "0")}`;
@@ -41,10 +46,10 @@ const weeklyReport = ref<WeekReport | null>(null);
 const todayWork = ref<Work | null>(null);
 const overrides = ref<PrvOvrs>({});
 
-const projectedStartMode = ref<ProjectedStartMode>("on-time");
-const projectedStartHhmm = ref(ON_TIME_HHMM);
-const avgCheckInHhmm = ref<string | null>(null);
-const lastPresetMode = ref<PresetMode>("on-time");
+const prvStartMode = ref<PrvStartMode>(PRV_START_MODE.ON_TIME);
+const prvStartHhmm = ref(ON_TIME_HHMM);
+const typicalInHhmm = ref<string | null>(null);
+const prvStartPreset = ref<PrvStartPreset>(PRV_START_PRESET.ON_TIME);
 
 const timePickerOpen = ref(false);
 const timePickerInitial = ref(ON_TIME_HHMM);
@@ -63,7 +68,7 @@ const preview = computed(() => {
     todayWork: todayWork.value,
     todayDateKey: todayDateKey.value,
     overrides: overrides.value,
-    projectedStartHhmm: projectedStartHhmm.value,
+    prvStartHhmm: prvStartHhmm.value,
     asOf: props.asOf
   });
 });
@@ -75,17 +80,17 @@ const timePickerTitle = computed(() => {
   return timeEditField.value === "start" ? "출근 시간" : "퇴근 시간";
 });
 
-const presetToggleMuted = computed(() => projectedStartMode.value === "custom");
-const canSelectAverage = computed(() => avgCheckInHhmm.value !== null);
+const presetToggleMuted = computed(() => prvStartMode.value === PRV_START_MODE.CUSTOM);
+const canSelectAverage = computed(() => typicalInHhmm.value !== null);
 
 const presetToggleAverage = computed(() => {
-  if (projectedStartMode.value === "average") {
+  if (prvStartMode.value === PRV_START_MODE.AVERAGE) {
     return true;
   }
-  if (projectedStartMode.value === "on-time") {
+  if (prvStartMode.value === PRV_START_MODE.ON_TIME) {
     return false;
   }
-  return lastPresetMode.value === "average";
+  return prvStartPreset.value === PRV_START_PRESET.AVERAGE;
 });
 
 const balanceLabel = computed(() =>
@@ -100,13 +105,6 @@ const balanceValue = computed(() => {
     ? fmtMinutes(preview.value.weekOverMin)
     : fmtMinutes(preview.value.weekRemMin);
 });
-
-function resetProjectedStartState() {
-  projectedStartMode.value = "on-time";
-  projectedStartHhmm.value = ON_TIME_HHMM;
-  avgCheckInHhmm.value = null;
-  lastPresetMode.value = "on-time";
-}
 
 function clearStartOverrides() {
   if (!preview.value) {
@@ -139,7 +137,7 @@ watch(
       overrides.value = {};
       weeklyReport.value = null;
       todayWork.value = null;
-      resetProjectedStartState();
+      typicalInHhmm.value = null;
       return;
     }
 
@@ -154,8 +152,11 @@ watch(
       weeklyReport.value = weekly;
       todayWork.value = today;
       overrides.value = {};
-      resetProjectedStartState();
-      avgCheckInHhmm.value = typicalCheckIn(rangeRecords);
+      typicalInHhmm.value = typicalCheckIn(rangeRecords);
+      const next = prvStartFromPref(loadPref(props.userId), typicalInHhmm.value, ON_TIME_HHMM);
+      prvStartMode.value = next.mode;
+      prvStartHhmm.value = next.hhmm;
+      prvStartPreset.value = next.preset;
     } finally {
       loading.value = false;
     }
@@ -183,41 +184,45 @@ function resolvePickerInitial(row: PrvRow, field: "start" | "end"): string {
 function openSummaryTimePicker() {
   timePickerContext.value = "summary";
   editingRow.value = null;
-  timePickerInitial.value = projectedStartHhmm.value;
+  timePickerInitial.value = prvStartHhmm.value;
   timePickerOpen.value = true;
 }
 
 function selectOnTime() {
-  lastPresetMode.value = "on-time";
-  projectedStartMode.value = "on-time";
-  projectedStartHhmm.value = ON_TIME_HHMM;
+  prvStartPreset.value = PRV_START_PRESET.ON_TIME;
+  prvStartMode.value = PRV_START_MODE.ON_TIME;
+  prvStartHhmm.value = ON_TIME_HHMM;
   clearStartOverrides();
+  savePref(props.userId, {
+    mode: PRV_START_MODE.ON_TIME,
+    lastPresetMode: PRV_START_PRESET.ON_TIME
+  });
 }
 
 function selectAverage() {
-  if (!avgCheckInHhmm.value) {
+  if (!typicalInHhmm.value) {
     return;
   }
-  lastPresetMode.value = "average";
-  projectedStartMode.value = "average";
-  projectedStartHhmm.value = avgCheckInHhmm.value;
+  prvStartPreset.value = PRV_START_PRESET.AVERAGE;
+  prvStartMode.value = PRV_START_MODE.AVERAGE;
+  prvStartHhmm.value = typicalInHhmm.value;
   clearStartOverrides();
+  savePref(props.userId, {
+    mode: PRV_START_MODE.AVERAGE,
+    lastPresetMode: PRV_START_PRESET.AVERAGE
+  });
 }
 
-function restoreLastPreset() {
-  if (lastPresetMode.value === "average") {
-    selectAverage();
+function handlePresetSelect(target: PrvStartPreset) {
+  if (prvStartMode.value === PRV_START_MODE.CUSTOM) {
+    if (prvStartPreset.value === PRV_START_PRESET.AVERAGE) {
+      selectAverage();
+    } else {
+      selectOnTime();
+    }
     return;
   }
-  selectOnTime();
-}
-
-function handlePresetSelect(target: PresetMode) {
-  if (projectedStartMode.value === "custom") {
-    restoreLastPreset();
-    return;
-  }
-  if (target === "on-time") {
+  if (target === PRV_START_PRESET.ON_TIME) {
     selectOnTime();
     return;
   }
@@ -243,9 +248,14 @@ function openTimePicker(row: PrvRow, field: "start" | "end") {
 
 function onTimeConfirm(hhmm: string) {
   if (timePickerContext.value === "summary") {
-    projectedStartMode.value = "custom";
-    projectedStartHhmm.value = hhmm;
+    prvStartMode.value = PRV_START_MODE.CUSTOM;
+    prvStartHhmm.value = hhmm;
     clearStartOverrides();
+    savePref(props.userId, {
+      mode: PRV_START_MODE.CUSTOM,
+      hhmm,
+      lastPresetMode: prvStartPreset.value
+    });
     return;
   }
 
@@ -389,7 +399,7 @@ function rowToneClass(row: PrvRow): string {
                   aria-label="예정 출근시간 변경"
                   @click="openSummaryTimePicker"
                 >
-                  {{ projectedStartHhmm }}
+                  {{ prvStartHhmm }}
                 </button>
                 <div
                   class="start-preset-switch"
@@ -407,7 +417,7 @@ function rowToneClass(row: PrvRow): string {
                     class="start-preset-switch__option"
                     :class="{ 'start-preset-switch__option--active': !presetToggleAverage }"
                     :aria-pressed="!presetToggleAverage"
-                    @click="handlePresetSelect('on-time')"
+                    @click="handlePresetSelect(PRV_START_PRESET.ON_TIME)"
                   >
                     정시
                   </button>
@@ -418,7 +428,7 @@ function rowToneClass(row: PrvRow): string {
                     :aria-pressed="presetToggleAverage"
                     :disabled="!canSelectAverage"
                     :title="canSelectAverage ? undefined : '최근 출근 기록 없음'"
-                    @click="handlePresetSelect('average')"
+                    @click="handlePresetSelect(PRV_START_PRESET.AVERAGE)"
                   >
                     평균
                   </button>

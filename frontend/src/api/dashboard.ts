@@ -1,8 +1,11 @@
 import type { DayType, WeekReport, Work } from "../types/dashboard";
+import { readUserJson, userStorageKey, writeUserJson } from "../utils/clientStorage";
 import { localDateKey } from "../utils/localDate";
 import { withCalc as applyCalc } from "../utils/timeCalculator";
 import { buildWeekReport, type WeekApiRsp } from "../utils/main";
 import http from "./http";
+
+const TODAY_WORK_SCOPE = "today-work";
 
 interface WorkResponse {
   work: Work | null;
@@ -27,23 +30,18 @@ export interface WorkPatch {
 }
 
 function todayWorkKey(userId: number): string {
-  return `timecheck-today-work-${userId}`;
+  return userStorageKey(TODAY_WORK_SCOPE, userId);
 }
 
 export function loadTodayCache(userId: number): Work | null {
-  try {
-    const raw = localStorage.getItem(todayWorkKey(userId));
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Work;
-    if (parsed.workDate !== localDateKey()) {
-      return null;
-    }
-    return normalizeWork(parsed, userId, parsed.workDate);
-  } catch {
+  const parsed = readUserJson<Work>(TODAY_WORK_SCOPE, userId);
+  if (!parsed) {
     return null;
   }
+  if (parsed.workDate !== localDateKey()) {
+    return null;
+  }
+  return normalizeWork(parsed, userId, parsed.workDate);
 }
 
 export async function checkIn(userId: number, options: WorkPatch = {}): Promise<Work> {
@@ -220,7 +218,7 @@ function requireWork(work: Work | null): Work {
 }
 
 function saveTodayWork(userId: number, work: Work): void {
-  localStorage.setItem(todayWorkKey(userId), JSON.stringify(work));
+  writeUserJson(TODAY_WORK_SCOPE, userId, work);
 }
 
 export { todayWorkKey as getTodayWorkKey };

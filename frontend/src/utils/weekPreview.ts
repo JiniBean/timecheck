@@ -1,4 +1,5 @@
 import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
+import { readUserJson, writeUserJson } from "./clientStorage";
 import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
 import { WEEK_TARGET_MIN, avgPerDay } from "./main";
 import { mainMin } from "./ot";
@@ -53,6 +54,106 @@ export interface PrvResult {
   incompletePastDays: MissingDay[];
 }
 
+export const PRV_START_MODE = {
+  ON_TIME: "on-time",
+  AVERAGE: "average",
+  CUSTOM: "custom"
+} as const;
+
+export type PrvStartMode = (typeof PRV_START_MODE)[keyof typeof PRV_START_MODE];
+
+export const PRV_START_PRESET = {
+  ON_TIME: PRV_START_MODE.ON_TIME,
+  AVERAGE: PRV_START_MODE.AVERAGE
+} as const;
+
+export type PrvStartPreset = (typeof PRV_START_PRESET)[keyof typeof PRV_START_PRESET];
+
+export interface PrvPref {
+  mode: PrvStartMode;
+  hhmm?: string;
+  lastPresetMode?: PrvStartPreset;
+}
+
+const PREF_SCOPE = "week-preview-start";
+const HHMM_RE = /^\d{2}:\d{2}$/;
+const PRV_START_MODES = Object.values(PRV_START_MODE);
+const PRV_START_PRESETS = Object.values(PRV_START_PRESET);
+
+function isPrvStartMode(value: unknown): value is PrvStartMode {
+  return typeof value === "string" && (PRV_START_MODES as readonly string[]).includes(value);
+}
+
+function isPrvStartPreset(value: unknown): value is PrvStartPreset {
+  return typeof value === "string" && (PRV_START_PRESETS as readonly string[]).includes(value);
+}
+
+function parsePref(raw: unknown): PrvPref | null {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+  const source = raw as Record<string, unknown>;
+  if (!isPrvStartMode(source.mode)) {
+    return null;
+  }
+  if (source.hhmm !== undefined && (typeof source.hhmm !== "string" || !HHMM_RE.test(source.hhmm))) {
+    return null;
+  }
+  if (source.lastPresetMode !== undefined && !isPrvStartPreset(source.lastPresetMode)) {
+    return null;
+  }
+  if (source.mode === PRV_START_MODE.CUSTOM && typeof source.hhmm !== "string") {
+    return null;
+  }
+  return {
+    mode: source.mode,
+    hhmm: typeof source.hhmm === "string" ? source.hhmm : undefined,
+    lastPresetMode: isPrvStartPreset(source.lastPresetMode) ? source.lastPresetMode : undefined
+  };
+}
+
+export function loadPref(userId: number): PrvPref | null {
+  return parsePref(readUserJson<unknown>(PREF_SCOPE, userId));
+}
+
+export function savePref(userId: number, pref: PrvPref): void {
+  writeUserJson(PREF_SCOPE, userId, pref);
+}
+
+export function prvStartFromPref(
+  pref: PrvPref | null,
+  typicalInHhmm: string | null,
+  onTimeHhmm: string
+): { mode: PrvStartMode; hhmm: string; preset: PrvStartPreset } {
+  const fallback = {
+    mode: PRV_START_MODE.ON_TIME,
+    hhmm: onTimeHhmm,
+    preset: PRV_START_PRESET.ON_TIME
+  };
+  if (!pref) {
+    return fallback;
+  }
+
+  const preset = pref.lastPresetMode ?? PRV_START_PRESET.ON_TIME;
+
+  if (pref.mode === PRV_START_MODE.ON_TIME) {
+    return { mode: PRV_START_MODE.ON_TIME, hhmm: onTimeHhmm, preset };
+  }
+
+  if (pref.mode === PRV_START_MODE.AVERAGE) {
+    if (typicalInHhmm) {
+      return { mode: PRV_START_MODE.AVERAGE, hhmm: typicalInHhmm, preset };
+    }
+    return fallback;
+  }
+
+  if (pref.hhmm) {
+    return { mode: PRV_START_MODE.CUSTOM, hhmm: pref.hhmm, preset };
+  }
+
+  return fallback;
+}
+
 interface DayEditability {
   canEditIn: boolean;
   canEditOut: boolean;
@@ -71,17 +172,17 @@ function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000);
 }
 
-const DEFAULT_PROJECTED_START_HHMM = "09:00";
+const DEFAULT_PRV_START_HHMM = "09:00";
 
 function halfDayBoundary(workDate: string): string {
   return hhmmToDateTime(workDate, WorkPolicy.HALF_DAY_HHMM);
 }
 
-function defaultStart(workDate: string, dayType: DayType, projectedStartHhmm: string): string {
+function defaultStart(workDate: string, dayType: DayType, prvStartHhmm: string): string {
   if (dayType === "AM") {
     return halfDayBoundary(workDate);
   }
-  return hhmmToDateTime(workDate, projectedStartHhmm || DEFAULT_PROJECTED_START_HHMM);
+  return hhmmToDateTime(workDate, prvStartHhmm || DEFAULT_PRV_START_HHMM);
 }
 
 function endAtMainMin(
@@ -220,12 +321,12 @@ export function buildPrv(input: {
   todayWork: Work;
   todayDateKey: string;
   overrides?: PrvOvrs;
-  projectedStartHhmm?: string;
+  prvStartHhmm?: string;
   asOf?: Date;
 }): PrvResult {
   const { weeklyReport, todayWork, todayDateKey } = input;
   const overrides = input.overrides ?? {};
-  const projectedStartHhmm = input.projectedStartHhmm ?? DEFAULT_PROJECTED_START_HHMM;
+  const prvStartHhmm = input.prvStartHhmm ?? DEFAULT_PRV_START_HHMM;
   const asOf = input.asOf ?? new Date();
   const effectiveToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
   const targetMinutes = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
@@ -265,7 +366,7 @@ export function buildPrv(input: {
 
     const fallbackStart = dayType === "AM"
       ? halfDayBoundary(day.workDate)
-      : (baseStart ?? defaultStart(day.workDate, dayType, projectedStartHhmm));
+      : (baseStart ?? defaultStart(day.workDate, dayType, prvStartHhmm));
     const start = override?.rawStart ?? fallbackStart;
     const lockedEnd = override?.rawEnd ?? (dayType === "PM" ? halfDayBoundary(day.workDate) : null);
 
