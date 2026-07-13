@@ -5,7 +5,7 @@ import { sumExtra1, sumExtra2, type DayExtra } from "./ot";
 import { EMPTY_CELL } from "./reportClipboard";
 import { withCalc } from "./timeCalculator";
 import { formatHm, fmtMinutes } from "./time";
-import { mondayOfDateKey, shiftDateKey, weekNumberInMonth } from "./weekNav";
+import { mondayOfDateKey, reportMonthOfWeek, shiftDateKey, weekNumberInMonth } from "./weekNav";
 import { WorkPolicy } from "./workPolicy";
 
 // --- Builder ---
@@ -85,7 +85,7 @@ function buildHeader(payload: WeekApiRsp, weekStart: string): ReportHeader {
     team: payload.team ?? "",
     name: payload.name ?? "",
     position: payload.position ?? null,
-    reportMonth: Number(weekStart.split("-")[1]) || 1,
+    reportMonth: reportMonthOfWeek(weekStart),
     weekNum: weekNumberInMonth(weekStart)
   };
 }
