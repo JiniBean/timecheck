@@ -2,16 +2,18 @@ import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
 import { readUserJson, writeUserJson } from "./clientStorage";
 import { isDayOff, mainMinutesLabel } from "./dayType";
 import { WEEK_TARGET_MIN, avgPerDay } from "./main";
-import { mainMin } from "./ot";
+import { mainMin, truncateToMinute } from "./ot";
 import { formatDateTime, formatHm, fmtMinutes, hhmmToDateTime, parseDateTime } from "./time";
 import {
   workMin,
   mergeToday,
-  type CalcInput
+  weekDayCtx,
+  type CalcInput,
+  type WeekDayCtx
 } from "./timeCalculator";
 import { WorkPolicy } from "./workPolicy";
 
-export type PreviewRowKind = "actual" | "projected";
+export type PrvRowKind = "fix" | "prv";
 
 /** 과거 근무일 기록 누락 유형 */
 export type MissingGap = "none" | "missing-checkout" | "missing-both";
@@ -35,23 +37,22 @@ export interface PrvRow {
   dayType: DayType;
   rawStart: string | null;
   rawEnd: string | null;
-  mainMinutes: number;
-  kind: PreviewRowKind;
+  workMin: number;
+  kind: PrvRowKind;
   isToday: boolean;
   canEditIn: boolean;
   canEditOut: boolean;
-  isProjected: boolean;
   missingGap: MissingGap;
 }
 
 export interface PrvResult {
   rows: PrvRow[];
-  weekMainMin: number;
+  weekWorkedMin: number;
   weekTargetMin: number;
   weekRemMin: number;
   weekOverMin: number;
   avgPerDayMin: number;
-  incompletePastDays: MissingDay[];
+  missingDays: MissingDay[];
 }
 
 export const PRV_START_MODE = {
@@ -160,12 +161,17 @@ interface DayEditability {
   isFixed: boolean;
 }
 
-interface ResolvedDayTimes {
+interface FixSlot {
   rawStart: string | null;
   rawEnd: string | null;
-  mainMinutes: number;
-  isProjected: boolean;
-  kind: PreviewRowKind;
+  workMin: number;
+  kind: PrvRowKind;
+}
+
+interface PrvSlot {
+  day: WeekDay;
+  ctx: WeekDayCtx;
+  rawStart: string;
 }
 
 function addMinutes(date: Date, minutes: number): Date {
@@ -185,13 +191,13 @@ function defaultStart(workDate: string, dayType: DayType, prvStartHhmm: string):
   return hhmmToDateTime(workDate, prvStartHhmm || DEFAULT_PRV_START_HHMM);
 }
 
-function endAtMainMin(
+function endForWorkMin(
   workDate: string,
   rawStart: Date,
   dayType: DayType,
-  targetMainMinutes: number
+  targetWorkMin: number
 ): Date {
-  const target = Math.max(0, targetMainMinutes);
+  const target = Math.max(0, targetWorkMin);
   let cursor = addMinutes(rawStart, 30);
   const maxEnd = addMinutes(rawStart, 16 * 60);
 
@@ -220,7 +226,7 @@ function calcInput(
   };
 }
 
-function resolveMainMinutes(
+function workMinFromStartEnd(
   workDate: string,
   dayType: DayType,
   rawStart: string | null,
@@ -249,71 +255,219 @@ function missingGap(day: WeekDay, todayDate: string): MissingGap {
   return "missing-checkout";
 }
 
-function editPerms(
-  day: WeekDay,
-  todayDate: string,
-  effectiveToday: Work
-): DayEditability {
-  if (isDayOff(day.dayType)) {
+function editPerms(day: WeekDay, todayDateKey: string, ctx: WeekDayCtx): DayEditability {
+  if (ctx.isOff) {
     return { canEditIn: false, canEditOut: false, isFixed: true };
   }
 
-  const workDate = day.workDate;
-  if (workDate < todayDate) {
+  if (day.workDate < todayDateKey) {
     return { canEditIn: false, canEditOut: false, isFixed: true };
   }
 
-  const rawStart = workDate === todayDate ? effectiveToday.rawStart : day.rawStart;
-  const rawEnd = workDate === todayDate ? effectiveToday.rawEnd : day.rawEnd;
-
-  if (rawEnd) {
+  if (ctx.rawEnd) {
     return { canEditIn: false, canEditOut: false, isFixed: true };
   }
-  if (rawStart) {
+  if (ctx.rawStart) {
     return { canEditIn: false, canEditOut: true, isFixed: false };
   }
   return { canEditIn: true, canEditOut: true, isFixed: false };
 }
 
-function actualTimes(
-  day: WeekDay,
-  todayDate: string,
-  effectiveToday: Work
-): ResolvedDayTimes {
-  const isToday = day.workDate === todayDate;
-  const rawStart = isToday ? effectiveToday.rawStart : day.rawStart;
-  const rawEnd = isToday ? effectiveToday.rawEnd : day.rawEnd;
-  const dayType = isToday ? effectiveToday.dayType : day.dayType;
-
-  if (isDayOff(dayType)) {
+function fixTimes(day: WeekDay, ctx: WeekDayCtx): FixSlot {
+  if (ctx.isOff) {
     return {
       rawStart: null,
       rawEnd: null,
-      mainMinutes: WorkPolicy.STD_WORK,
-      isProjected: false,
-      kind: "actual"
+      workMin: WorkPolicy.STD_WORK,
+      kind: "fix"
     };
   }
 
-  const mainMinutes = resolveMainMinutes(day.workDate, dayType, rawStart, rawEnd, day.main);
+  const workMinValue = workMinFromStartEnd(
+    day.workDate,
+    ctx.dayType,
+    ctx.rawStart,
+    ctx.rawEnd,
+    day.main
+  );
 
   return {
-    rawStart,
-    rawEnd,
-    mainMinutes,
-    isProjected: false,
-    kind: "actual"
+    rawStart: ctx.rawStart,
+    rawEnd: ctx.rawEnd,
+    workMin: workMinValue,
+    kind: "fix"
   };
 }
 
-interface AutoDaySlot {
-  day: WeekDay;
-  edit: DayEditability;
-  start: string;
-  dayType: DayType;
-  isToday: boolean;
-  hasRecordedStart: boolean;
-  lockedEnd: string | null;
+function bumpStartIfLate(
+  workDate: string,
+  start: string,
+  ctx: WeekDayCtx,
+  asOf: Date,
+  hasOverride: boolean
+): string {
+  if (!ctx.isToday || ctx.rawStart || hasOverride) {
+    return start;
+  }
+  const planned = parseDateTime(start);
+  const now = truncateToMinute(asOf);
+  if (planned && now.getTime() > planned.getTime()) {
+    return formatDateTime(workDate, now);
+  }
+  return start;
+}
+
+function collectPrv(input: {
+  days: WeekDay[];
+  mergedToday: Work;
+  todayDateKey: string;
+  overrides: PrvOvrs;
+  prvStartHhmm: string;
+  asOf: Date;
+}): {
+  workedMin: number;
+  fixSlots: Map<string, FixSlot>;
+  prvSlots: PrvSlot[];
+} {
+  const { days, mergedToday, todayDateKey, overrides, prvStartHhmm, asOf } = input;
+  let workedMin = 0;
+  const prvSlots: PrvSlot[] = [];
+  const fixSlots = new Map<string, FixSlot>();
+
+  for (const day of days) {
+    const ctx = weekDayCtx(day, todayDateKey, mergedToday);
+    const edit = editPerms(day, todayDateKey, ctx);
+    const override = overrides[day.workDate];
+
+    if (edit.isFixed) {
+      const actual = fixTimes(day, ctx);
+      const gap = missingGap(day, todayDateKey);
+      const workMinValue = gap !== "none" ? 0 : actual.workMin;
+      fixSlots.set(day.workDate, {
+        ...actual,
+        workMin: workMinValue
+      });
+      workedMin += workMinValue;
+      continue;
+    }
+
+    if (ctx.isOff) {
+      const actual = fixTimes(day, ctx);
+      fixSlots.set(day.workDate, actual);
+      workedMin += WorkPolicy.STD_WORK;
+      continue;
+    }
+
+    const fallbackStart = ctx.dayType === "AM"
+      ? halfDayBoundary(day.workDate)
+      : (ctx.rawStart ?? defaultStart(day.workDate, ctx.dayType, prvStartHhmm));
+    let rawStart = override?.rawStart ?? fallbackStart;
+    rawStart = bumpStartIfLate(day.workDate, rawStart, ctx, asOf, Boolean(override?.rawStart));
+
+    const lockedEnd = override?.rawEnd ?? (ctx.dayType === "PM" ? halfDayBoundary(day.workDate) : null);
+
+    if (lockedEnd) {
+      const workMinValue = workMinFromStartEnd(day.workDate, ctx.dayType, rawStart, lockedEnd);
+      workedMin += workMinValue;
+      fixSlots.set(day.workDate, {
+        rawStart,
+        rawEnd: lockedEnd,
+        workMin: workMinValue,
+        kind: "prv"
+      });
+      continue;
+    }
+
+    if (ctx.isOt && !override?.rawEnd) {
+      const startDt = parseDateTime(rawStart);
+      const endDt = startDt ? endForWorkMin(day.workDate, startDt, ctx.dayType, WorkPolicy.STD_WORK) : null;
+      const rawEnd = endDt ? formatDateTime(day.workDate, endDt) : null;
+      workedMin += WorkPolicy.STD_WORK;
+      fixSlots.set(day.workDate, {
+        rawStart,
+        rawEnd,
+        workMin: WorkPolicy.STD_WORK,
+        kind: "prv"
+      });
+      continue;
+    }
+
+    prvSlots.push({ day, ctx, rawStart });
+  }
+
+  return { workedMin, fixSlots, prvSlots };
+}
+
+function fillPrvSlots(input: {
+  prvSlots: PrvSlot[];
+  leftMin: number;
+  perDayMin: number;
+  asOf: Date;
+  fixSlots: Map<string, FixSlot>;
+}): number {
+  const { prvSlots, leftMin, perDayMin, asOf, fixSlots } = input;
+  const todayIdx = prvSlots.findIndex((slot) => slot.ctx.isWorking);
+
+  let todayMin: number | null = null;
+  let todayLiveEnd: Date | null = null;
+
+  if (todayIdx >= 0) {
+    const todaySlot = prvSlots[todayIdx];
+    const startDt = parseDateTime(todaySlot.rawStart);
+    if (startDt) {
+      const end = endForWorkMin(
+        todaySlot.day.workDate,
+        startDt,
+        todaySlot.ctx.dayType,
+        perDayMin
+      );
+      const splitWorkMin = mainMin(todaySlot.day.workDate, startDt, end, todaySlot.ctx.dayType);
+      if (asOf.getTime() > end.getTime()) {
+        const liveWorkMin = mainMin(todaySlot.day.workDate, startDt, asOf, todaySlot.ctx.dayType);
+        todayMin = Math.max(splitWorkMin, liveWorkMin);
+        todayLiveEnd = asOf;
+      } else {
+        todayMin = splitWorkMin;
+      }
+    }
+  }
+
+  const restSlotCount = Math.max(0, prvSlots.length - (todayMin !== null ? 1 : 0));
+  const restLeftMin = Math.max(0, leftMin - Math.max(0, todayMin ?? 0));
+  const restPerDayMin = restSlotCount > 0 ? avgPerDay(restLeftMin, restSlotCount) : 0;
+
+  for (const slot of prvSlots) {
+    const startDt = parseDateTime(slot.rawStart);
+    if (!startDt) {
+      fixSlots.set(slot.day.workDate, {
+        rawStart: slot.rawStart,
+        rawEnd: null,
+        workMin: 0,
+        kind: "prv"
+      });
+      continue;
+    }
+
+    const targetWorkMin =
+      slot.ctx.isToday && todayMin !== null
+        ? todayMin
+        : restPerDayMin;
+    const endDt =
+      slot.ctx.isToday && todayLiveEnd
+        ? todayLiveEnd
+        : endForWorkMin(slot.day.workDate, startDt, slot.ctx.dayType, targetWorkMin);
+    const rawEnd = formatDateTime(slot.day.workDate, endDt);
+    const workMinValue = mainMin(slot.day.workDate, startDt, endDt, slot.ctx.dayType);
+
+    fixSlots.set(slot.day.workDate, {
+      rawStart: slot.rawStart,
+      rawEnd,
+      workMin: workMinValue,
+      kind: "prv"
+    });
+  }
+
+  return restPerDayMin;
 }
 
 export function buildPrv(input: {
@@ -328,164 +482,38 @@ export function buildPrv(input: {
   const overrides = input.overrides ?? {};
   const prvStartHhmm = input.prvStartHhmm ?? DEFAULT_PRV_START_HHMM;
   const asOf = input.asOf ?? new Date();
-  const effectiveToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
-  const targetMinutes = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
+  const mergedToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
+  const weekTargetMin = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
 
-  let fixedMinutes = 0;
-  const autoSlots: AutoDaySlot[] = [];
-  const resolved = new Map<string, ResolvedDayTimes>();
+  const { workedMin, fixSlots, prvSlots } = collectPrv({
+    days: weeklyReport.days,
+    mergedToday,
+    todayDateKey,
+    overrides,
+    prvStartHhmm,
+    asOf
+  });
 
-  for (const day of weeklyReport.days) {
-    const edit = editPerms(day, todayDateKey, effectiveToday);
-    const override = overrides[day.workDate];
+  const leftMin = Math.max(0, weekTargetMin - workedMin);
+  const perDayMin = prvSlots.length > 0 ? avgPerDay(leftMin, prvSlots.length) : 0;
+  const restPerDayMin = fillPrvSlots({
+    prvSlots,
+    leftMin,
+    perDayMin,
+    asOf,
+    fixSlots
+  });
 
-    if (edit.isFixed) {
-      const actual = actualTimes(day, todayDateKey, effectiveToday);
-      const gap = missingGap(day, todayDateKey);
-      const mainMinutes = gap !== "none" ? 0 : actual.mainMinutes;
-      resolved.set(day.workDate, {
-        ...actual,
-        mainMinutes
-      });
-      fixedMinutes += mainMinutes;
-      continue;
-    }
-
-    if (isDayOff(day.dayType)) {
-      const actual = actualTimes(day, todayDateKey, effectiveToday);
-      resolved.set(day.workDate, actual);
-      fixedMinutes += WorkPolicy.STD_WORK;
-      continue;
-    }
-
-    const isToday = day.workDate === todayDateKey;
-    const baseStart = isToday ? effectiveToday.rawStart : day.rawStart;
-    const dayType = isToday ? effectiveToday.dayType : day.dayType;
-    const isOt = isToday ? effectiveToday.isOt : day.isOt;
-    const hasRecordedStart = Boolean(baseStart);
-
-    const fallbackStart = dayType === "AM"
-      ? halfDayBoundary(day.workDate)
-      : (baseStart ?? defaultStart(day.workDate, dayType, prvStartHhmm));
-    const start = override?.rawStart ?? fallbackStart;
-    const lockedEnd = override?.rawEnd ?? (dayType === "PM" ? halfDayBoundary(day.workDate) : null);
-
-    if (lockedEnd) {
-      const mainMinutes = resolveMainMinutes(day.workDate, dayType, start, lockedEnd);
-      fixedMinutes += mainMinutes;
-      resolved.set(day.workDate, {
-        rawStart: start,
-        rawEnd: lockedEnd,
-        mainMinutes,
-        isProjected: true,
-        kind: "projected"
-      });
-      continue;
-    }
-
-    if (isOt && !override?.rawEnd) {
-      const startDt = parseDateTime(start);
-      const endDt = startDt ? endAtMainMin(day.workDate, startDt, dayType, WorkPolicy.STD_WORK) : null;
-      const rawEnd = endDt ? formatDateTime(day.workDate, endDt) : null;
-      fixedMinutes += WorkPolicy.STD_WORK;
-      resolved.set(day.workDate, {
-        rawStart: start,
-        rawEnd,
-        mainMinutes: WorkPolicy.STD_WORK,
-        isProjected: true,
-        kind: "projected"
-      });
-      continue;
-    }
-
-    autoSlots.push({
-      day,
-      edit,
-      start,
-      dayType,
-      isToday,
-      hasRecordedStart,
-      lockedEnd: null
-    });
-  }
-
-  // 어제까지 확정 실적 + 오늘 퇴근 저장분만 반영하고, 오늘 진행 중 분은 제외한 뒤 남은 일에 분배
-  const weekRemaining = Math.max(0, targetMinutes - fixedMinutes);
-  const initialPerDayMinutes = autoSlots.length > 0 ? avgPerDay(weekRemaining, autoSlots.length) : 0;
-  const todayIdx = autoSlots.findIndex((slot) => slot.isToday && slot.hasRecordedStart);
-
-  let todayAssignedMinutes: number | null = null;
-  let todayForcedEnd: Date | null = null;
-
-  if (todayIdx >= 0) {
-    const todaySlot = autoSlots[todayIdx];
-    const startDt = parseDateTime(todaySlot.start);
-    if (startDt) {
-      const scheduledEnd = endAtMainMin(
-        todaySlot.day.workDate,
-        startDt,
-        todaySlot.dayType,
-        initialPerDayMinutes
-      );
-      const scheduledMinutes = mainMin(todaySlot.day.workDate, startDt, scheduledEnd, todaySlot.dayType);
-      if (asOf.getTime() > scheduledEnd.getTime()) {
-        const liveMinutes = mainMin(todaySlot.day.workDate, startDt, asOf, todaySlot.dayType);
-        todayAssignedMinutes = Math.max(scheduledMinutes, liveMinutes);
-        todayForcedEnd = asOf;
-      } else {
-        todayAssignedMinutes = scheduledMinutes;
-      }
-    }
-  }
-
-  const futureSlotCount = Math.max(0, autoSlots.length - (todayAssignedMinutes !== null ? 1 : 0));
-  const futureRemainingMinutes = Math.max(0, weekRemaining - Math.max(0, todayAssignedMinutes ?? 0));
-  const futurePerDayMinutes = futureSlotCount > 0 ? avgPerDay(futureRemainingMinutes, futureSlotCount) : 0;
-
-  for (const slot of autoSlots) {
-    const startDt = parseDateTime(slot.start);
-    if (!startDt) {
-      resolved.set(slot.day.workDate, {
-        rawStart: slot.start,
-        rawEnd: null,
-        mainMinutes: 0,
-        isProjected: true,
-        kind: "projected"
-      });
-      continue;
-    }
-
-    const targetMainMinutes =
-      slot.isToday && todayAssignedMinutes !== null
-        ? todayAssignedMinutes
-        : futurePerDayMinutes;
-    const endDt =
-      slot.isToday && todayForcedEnd
-        ? todayForcedEnd
-        : endAtMainMin(slot.day.workDate, startDt, slot.dayType, targetMainMinutes);
-    const rawEnd = formatDateTime(slot.day.workDate, endDt);
-    const mainMinutes = mainMin(slot.day.workDate, startDt, endDt, slot.dayType);
-
-    resolved.set(slot.day.workDate, {
-      rawStart: slot.start,
-      rawEnd,
-      mainMinutes,
-      isProjected: true,
-      kind: "projected"
-    });
-  }
-
-  const incompletePastDays: MissingDay[] = [];
+  const missingDays: MissingDay[] = [];
 
   const rows: PrvRow[] = weeklyReport.days.map((day) => {
-    const edit = editPerms(day, todayDateKey, effectiveToday);
-    const times = resolved.get(day.workDate)!;
-    const isToday = day.workDate === todayDateKey;
-    const dayType = isToday ? effectiveToday.dayType : day.dayType;
+    const ctx = weekDayCtx(day, todayDateKey, mergedToday);
+    const edit = editPerms(day, todayDateKey, ctx);
+    const times = fixSlots.get(day.workDate)!;
     const gap = missingGap(day, todayDateKey);
 
     if (gap !== "none") {
-      incompletePastDays.push({
+      missingDays.push({
         workDate: day.workDate,
         weekdayLabel: day.weekdayLabel,
         gap
@@ -495,32 +523,30 @@ export function buildPrv(input: {
     return {
       workDate: day.workDate,
       weekdayLabel: day.weekdayLabel,
-      dayType,
+      dayType: ctx.dayType,
       rawStart: times.rawStart,
       rawEnd: times.rawEnd,
-      mainMinutes: times.mainMinutes,
+      workMin: times.workMin,
       kind: times.kind,
-      isToday,
+      isToday: ctx.isToday,
       canEditIn: edit.canEditIn,
       canEditOut: edit.canEditOut,
-      isProjected: times.isProjected,
       missingGap: gap
     };
   });
 
-  const weekMainMin = rows.reduce((sum, row) => sum + row.mainMinutes, 0);
-  const weekRemMin = Math.max(0, targetMinutes - weekMainMin);
-  const weekOverMin = Math.max(0, weekMainMin - targetMinutes);
-  const avgPerDayMin = futurePerDayMinutes;
+  const weekWorkedMin = rows.reduce((sum, row) => sum + row.workMin, 0);
+  const weekRemMin = Math.max(0, weekTargetMin - weekWorkedMin);
+  const weekOverMin = Math.max(0, weekWorkedMin - weekTargetMin);
 
   return {
     rows,
-    weekMainMin,
-    weekTargetMin: targetMinutes,
+    weekWorkedMin,
+    weekTargetMin,
     weekRemMin,
     weekOverMin,
-    avgPerDayMin,
-    incompletePastDays
+    avgPerDayMin: restPerDayMin,
+    missingDays
   };
 }
 
@@ -578,5 +604,5 @@ export function fmtWork(row: PrvRow): string {
   if (row.missingGap !== "none") {
     return fmtMinutes(0);
   }
-  return mainMinutesLabel(row.mainMinutes);
+  return mainMinutesLabel(row.workMin);
 }

@@ -33,7 +33,7 @@ const {
   isActTimeEditable,
   isActTimeLocked,
   applyPickedTime,
-  syncActTime,
+  onClockTick,
   canCheckIn,
   canCheckOut,
   handleCheckIn,
@@ -195,7 +195,7 @@ async function copyOtReport() {
 onMounted(() => {
   clockTimerId = window.setInterval(() => {
     now.value = new Date();
-    syncActTime(now.value);
+    onClockTick(now.value);
   }, 1000);
 });
 
