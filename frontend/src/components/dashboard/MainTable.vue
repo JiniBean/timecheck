@@ -243,7 +243,7 @@ const settingsTitle = computed(() =>
                 {{ mainMinutesLabel(day.displayMain) }}
               </span>
             </td>
-            <td>
+            <td class="cell-editable" @click="openDayTypeSheet(day)">
               <span :class="{ 'cell-day-type': day.dayType !== 'NOM' }">
                 {{ dayTypeCellLabel(day.dayType) }}
               </span>
