@@ -62,43 +62,9 @@ export function isWorking(work: Pick<Work, "rawStart" | "rawEnd" | "dayType">): 
   return Boolean(work.rawStart && !work.rawEnd && !isDayOff(work.dayType));
 }
 
-export interface WeekDayCtx {
-  isToday: boolean;
-  rawStart: string | null;
-  rawEnd: string | null;
-  dayType: DayType;
-  isOt: boolean;
-  isOff: boolean;
-  isWorking: boolean;
-}
-
-/** 주간 행 + 오늘 병합본 기준 당일 근무 컨텍스트 */
-export function weekDayCtx(
-  day: WeekDay,
-  todayDateKey: string,
-  mergedToday: Work
-): WeekDayCtx {
-  const isToday = day.workDate === todayDateKey;
-  const rawStart = isToday ? mergedToday.rawStart : day.rawStart;
-  const rawEnd = isToday ? mergedToday.rawEnd : day.rawEnd;
-  const dayType = isToday ? mergedToday.dayType : day.dayType;
-  const isOt = isToday ? mergedToday.isOt : day.isOt;
-  const slice = { rawStart, rawEnd, dayType };
-  return {
-    isToday,
-    rawStart,
-    rawEnd,
-    dayType,
-    isOt,
-    isOff: isDayOff(dayType),
-    isWorking: isWorking(slice)
-  };
-}
-
 /**
  * 실시간 계산에 쓸 오늘 Work.
- * todayWork(출근 버튼·API)를 우선하고, 주간 테이블 row는 빈 값 보조로 병합합니다.
- * 전제: todayWork.workDate === todayDate (불일치 시 호출 전 ensureTodayWork로 갱신).
+ * todayWork(출근 버튼·API)를 우선하고, 주간 테이블 row는 보조로 병합합니다.
  */
 export function mergeToday(
   todayWork: Work,
@@ -106,18 +72,26 @@ export function mergeToday(
   todayDate: string = localDateKey()
 ): Work {
   const row = weeklyDays.find((day) => day.workDate === todayDate);
+  const todayAuthoritative = todayWork.workDate === todayDate;
+
+  const rawStart = todayAuthoritative
+    ? pickTimeValue(todayWork.rawStart, row?.rawStart)
+    : pickTimeValue(row?.rawStart, todayWork.rawStart);
+  const rawEnd = todayAuthoritative
+    ? pickTimeValue(todayWork.rawEnd, row?.rawEnd)
+    : pickTimeValue(row?.rawEnd, todayWork.rawEnd);
 
   return {
     ...todayWork,
     workDate: todayDate,
-    rawStart: pickTimeValue(todayWork.rawStart, row?.rawStart),
-    rawEnd: pickTimeValue(todayWork.rawEnd, row?.rawEnd),
-    dayType: todayWork.dayType,
-    isOt: todayWork.isOt,
-    remark: todayWork.remark,
-    mainEnd: todayWork.mainEnd ?? row?.mainEnd ?? null,
-    otStart: todayWork.otStart ?? row?.otStart ?? null,
-    otEnd: todayWork.otEnd ?? row?.otEnd ?? null
+    rawStart,
+    rawEnd,
+    dayType: todayAuthoritative ? todayWork.dayType : (row?.dayType ?? todayWork.dayType),
+    isOt: todayAuthoritative ? todayWork.isOt : (row?.isOt ?? todayWork.isOt),
+    remark: todayAuthoritative ? todayWork.remark : (row?.remark ?? todayWork.remark),
+    mainEnd: todayAuthoritative ? todayWork.mainEnd : (row?.mainEnd ?? todayWork.mainEnd),
+    otStart: todayAuthoritative ? todayWork.otStart : (row?.otStart ?? todayWork.otStart),
+    otEnd: todayAuthoritative ? todayWork.otEnd : (row?.otEnd ?? todayWork.otEnd)
   };
 }
 

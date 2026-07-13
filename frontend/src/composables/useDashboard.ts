@@ -82,35 +82,6 @@ export function useDashboard(userId: number) {
   });
 
   let toastTimerId: number | null = null;
-  let refreshingToday = false;
-
-  async function ensureTodayWork(): Promise<void> {
-    const today = localDateKey();
-    if (state.value.todayWork.workDate === today || refreshingToday) {
-      return;
-    }
-    refreshingToday = true;
-    try {
-      const todayWork = await fetchWork(userId, today);
-      state.value.todayWork = todayWork;
-      state.value.todayStatus = resolveStatus(todayWork);
-      isActTimeManual.value = false;
-      isActTimeLocked.value = false;
-      syncActTime(new Date());
-      if (isCurrentWeek.value) {
-        await loadWeekReport();
-      }
-    } catch {
-      // 자정 rollover 갱신 실패 시 기존 todayWork 유지
-    } finally {
-      refreshingToday = false;
-    }
-  }
-
-  function onClockTick(date: Date) {
-    void ensureTodayWork();
-    syncActTime(date);
-  }
 
   const canCheckIn = computed(
     () =>
@@ -625,7 +596,6 @@ export function useDashboard(userId: number) {
     isActTimeLocked,
     applyPickedTime,
     syncActTime,
-    onClockTick,
     canCheckIn,
     canCheckOut,
     loadDashboard,
@@ -764,7 +734,8 @@ function resolveStatus(work: Work): TodayStatus {
 
 function mergeWeekToday(weekly: WeekReport, today: Work, asOf = new Date()): WeekReport {
   const todayDate = localDateKey(asOf);
-  const calculatedToday = withCalc(today, asOf);
+  const normalizedToday = { ...today, workDate: todayDate };
+  const calculatedToday = withCalc(normalizedToday, asOf);
   const days = weekly.days.map((day) => mergeDayToday(day, calculatedToday, todayDate));
   const workedMinutes = days.reduce((sum, day) => sum + day.main, 0);
   const targetMinutes = weekly.summary.targetMinutes;

@@ -47,10 +47,10 @@
 
   /* Preview table tones */
   --color-preview-fixed: var(--color-text-placeholder);
-  --color-preview-prv: var(--color-text-muted);
+  --color-preview-projected: var(--color-text-muted);
   --color-preview-edited: var(--color-text-secondary);
   --color-preview-today-fixed: #8a95a3;
-  --color-preview-today-prv: #54606e;
+  --color-preview-today-projected: #54606e;
   --color-row-today: var(--color-primary-soft);
 
   /* Font weight */
