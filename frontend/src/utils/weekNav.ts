@@ -23,33 +23,21 @@ export function isSameWeek(dateKeyA: string, dateKeyB: string): boolean {
   return mondayOfDateKey(dateKeyA) === mondayOfDateKey(dateKeyB);
 }
 
-/** weekStart(월요일) 기준 해당 주 수요일 */
-export function wednesdayOfWeekStart(weekStart: string): string {
-  return shiftDateKey(weekStart, 2);
-}
-
-/** 보고서 M월: 해당 주 수요일이 속한 달 */
-export function reportMonthOfWeek(weekStart: string): number {
-  const wednesday = wednesdayOfWeekStart(weekStart);
-  return Number(wednesday.slice(5, 7)) || 1;
-}
-
 export function formatWeekLabel(weekStart: string): string {
-  const month = reportMonthOfWeek(weekStart);
+  const month = Number(weekStart.slice(5, 7));
   const weekNumber = weekNumberInMonth(weekStart);
   return `${month}월 ${weekNumber}주`;
 }
 
-/** 수요일이 속한 달의 N주차(그 달에 속한 수요일 순번, 1부터) */
-export function weekNumberInMonth(weekStart: string): number {
-  const wednesday = wednesdayOfWeekStart(weekStart);
-  const monthStart = `${wednesday.slice(0, 8)}01`;
+/** 해당 월에 속한 월요일 순번(1부터) */
+export function weekNumberInMonth(weekMonday: string): number {
+  const monthStart = `${weekMonday.slice(0, 8)}01`;
   let count = 0;
   let cursor = monthStart;
 
-  while (cursor <= wednesday) {
+  while (cursor <= weekMonday) {
     const weekday = new Date(`${cursor}T12:00:00`).getDay();
-    if (weekday === 3) {
+    if (weekday === 1) {
       count++;
     }
     cursor = shiftDateKey(cursor, 1);
