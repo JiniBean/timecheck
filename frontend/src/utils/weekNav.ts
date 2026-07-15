@@ -1,5 +1,11 @@
 import { localDateKey } from "./localDate";
 
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidDateKey(dateKey: string): boolean {
+  return DATE_KEY_RE.test(dateKey);
+}
+
 export function currentDateKey(): string {
   return localDateKey();
 }
@@ -35,6 +41,9 @@ export function reportMonthOfWeek(weekStart: string): number {
 }
 
 export function formatWeekLabel(weekStart: string): string {
+  if (!isValidDateKey(weekStart)) {
+    return "로딩 중";
+  }
   const month = reportMonthOfWeek(weekStart);
   const weekNumber = weekNumberInMonth(weekStart);
   return `${month}월 ${weekNumber}주`;

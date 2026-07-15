@@ -22,7 +22,9 @@ import {
   avgPerDay,
   daysAfter
 } from "../utils/main";
+import { useBootStore } from "../stores/boot";
 import { apiErrMsg } from "../utils/apiError";
+import { bootError, bootLog } from "../utils/bootLog";
 import { copyText } from "../utils/reportClipboard";
 import { currentDateKey, isSameWeek, shiftDateKey } from "../utils/weekNav";
 import { isDayOff } from "../utils/dayType";
@@ -70,6 +72,9 @@ export interface DaySettings {
 }
 
 export function useDashboard(userId: number) {
+  const bootStore = useBootStore();
+  bootStore.resetShellReady();
+
   const state = ref<DashboardState>({
     todayStatus: "BEFORE_CHECK_IN",
     todayWork: initTodayWork(userId),
@@ -165,6 +170,7 @@ export function useDashboard(userId: number) {
     const generation = ++loadGen;
     state.value.loading = true;
     state.value.errorMessage = null;
+    bootLog("dashboard.load.start", { userId, referenceDate: referenceDate.value });
     try {
       const [todayWork, weeklyReport] = await Promise.all([
         fetchWork(userId, localDateKey()),
@@ -172,6 +178,7 @@ export function useDashboard(userId: number) {
       ]);
 
       if (generation !== loadGen) {
+        bootLog("dashboard.load.stale", { generation, loadGen });
         return;
       }
 
@@ -182,13 +189,20 @@ export function useDashboard(userId: number) {
       isActTimeManual.value = false;
       syncActTime(new Date());
       state.value.lastSyncedAt = new Date().toISOString();
+      bootLog("dashboard.load.done", {
+        weekStart: weeklyReport.weekStart,
+        dayCount: weeklyReport.days.length
+      });
     } catch (error) {
+      bootError("dashboard.load.error", error);
       if (generation === loadGen) {
         state.value.errorMessage = apiErrMsg(error);
       }
     } finally {
       if (generation === loadGen) {
         state.value.loading = false;
+        bootStore.markShellReady();
+        bootLog("dashboard.load.finally", { loading: false, shellReady: true });
       }
     }
   }

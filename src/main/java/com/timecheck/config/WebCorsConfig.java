@@ -14,7 +14,8 @@ public class WebCorsConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:5173",
+                "http://localhost:*",
+                "http://127.0.0.1:*",
                 "https://*.ngrok-free.app",
                 "https://*.ngrok.io",
                 "https://*.ngrok.app"));

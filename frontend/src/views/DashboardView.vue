@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import PunchCard from "../components/dashboard/PunchCard.vue";
 import OtSummaryCard from "../components/dashboard/OtSummaryCard.vue";
@@ -11,18 +11,24 @@ import OtReportPreview from "../components/dashboard/OtReportPreview.vue";
 import MainReport from "../components/dashboard/MainReport.vue";
 import MainTable from "../components/dashboard/MainTable.vue";
 import DashboardMobileTabs, { type WorkTab } from "../components/dashboard/DashboardMobileTabs.vue";
-import WeekPreviewSheet from "../components/dashboard/WeekPreviewSheet.vue";
 import ProfileEditDialog from "../components/auth/ProfileEditDialog.vue";
 import logoutIcon from "../assets/icons/logout.svg";
 import { useDashboard } from "../composables/useDashboard";
 import { useAuthStore } from "../stores/auth";
+import { useBootStore } from "../stores/boot";
+import { bootLog } from "../utils/bootLog";
 import { buildOtReport } from "../utils/ot";
 import { isWorking, mergeToday, calcResult } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import { mainSummary } from "../utils/main";
 import { hhmmToDateTime, parseDateTime } from "../utils/time";
 
+const WeekPreviewSheet = defineAsyncComponent(
+  () => import("../components/dashboard/WeekPreviewSheet.vue")
+);
+
 const authStore = useAuthStore();
+const bootStore = useBootStore();
 const router = useRouter();
 const userId = authStore.user!.userId;
 
@@ -71,8 +77,12 @@ watch(
 );
 
 async function handleLogout() {
-  await authStore.logout();
-  await router.replace("/login");
+  try {
+    await authStore.logout();
+  } finally {
+    bootStore.resetShellReady();
+    await router.replace("/login");
+  }
 }
 
 function openProfile() {
@@ -193,6 +203,7 @@ async function copyOtReport() {
 }
 
 onMounted(() => {
+  bootLog("dashboard.view.mounted", { userId });
   clockTimerId = window.setInterval(() => {
     now.value = new Date();
     syncActTime(now.value);
@@ -207,7 +218,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="dashboard-page">
+  <!-- shellReady 전: emptyWeekReport 껍데기(빈 이름/1월 1주)를 DOM에 올리지 않음 -->
+  <main v-if="bootStore.shellReady" class="dashboard-page">
     <header class="dashboard-header">
       <div class="dashboard-header-main">
         <h1 class="dashboard-title">근무시간 계산기</h1>
@@ -231,7 +243,12 @@ onBeforeUnmount(() => {
       @saved="handleProfileSaved"
     />
 
-    <WeekPreviewSheet v-model:open="weekPreviewOpen" :user-id="userId" :as-of="now" />
+    <WeekPreviewSheet
+      v-if="weekPreviewOpen"
+      v-model:open="weekPreviewOpen"
+      :user-id="userId"
+      :as-of="now"
+    />
 
     <section class="dashboard-body">
         <WeekNavigator

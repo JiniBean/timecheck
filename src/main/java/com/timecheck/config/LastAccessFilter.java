@@ -30,6 +30,7 @@ public class LastAccessFilter extends OncePerRequestFilter {
         }
         return path.equals("/api/auth/login")
                 || path.equals("/api/auth/signup")
+                || path.equals("/api/auth/logout")
                 || path.equals("/api/auth/check");
     }
 

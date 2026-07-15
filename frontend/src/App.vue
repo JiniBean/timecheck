@@ -1,12 +1,69 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, watch } from "vue";
+import { useRoute } from "vue-router";
 import { useAuthStore } from "./stores/auth";
+import { useBootStore } from "./stores/boot";
+import { bootLog } from "./utils/bootLog";
 
 const authStore = useAuthStore();
-const isBooting = computed(() => !authStore.initialized);
+const bootStore = useBootStore();
+const route = useRoute();
+
+/** 인증 게이트: 보호 라우트는 user 있을 때만 router-view 마운트 */
+const canShowRoute = computed(() => {
+  if (!authStore.initialized) {
+    return false;
+  }
+  if (route.meta.requiresAuth && !authStore.user) {
+    return false;
+  }
+  return true;
+});
+
+/**
+ * 스플래시: 부트 중, 보호 라우트 리다이렉트 대기, 또는
+ * 대시보드 데이터(loadDashboard) 완료 전
+ */
+const isBooting = computed(() => {
+  if (!authStore.initialized) {
+    return true;
+  }
+  if (route.meta.requiresAuth && !authStore.user) {
+    return true;
+  }
+  if (route.name === "dashboard" && authStore.user && !bootStore.shellReady) {
+    return true;
+  }
+  return false;
+});
+
+watch(
+  () => ({
+    initialized: authStore.initialized,
+    name: route.name,
+    hasUser: Boolean(authStore.user)
+  }),
+  ({ initialized, name, hasUser }) => {
+    if (!initialized) {
+      return;
+    }
+    if (name === "dashboard" && hasUser) {
+      return;
+    }
+    if (name === "login" || name === "signup" || !hasUser) {
+      bootStore.markShellReady();
+    }
+  }
+);
+
+onMounted(() => {
+  bootLog("app.mounted", { initialized: authStore.initialized });
+  void authStore.bootstrap();
+});
 </script>
 
 <template>
+  <router-view v-if="canShowRoute" />
   <div v-if="isBooting" class="app-splash" role="status" aria-live="polite" aria-label="앱을 불러오는 중">
     <div class="app-splash__content">
       <img class="app-splash__icon" src="/pwa-192x192.png" alt="" width="96" height="96" />
@@ -15,11 +72,13 @@ const isBooting = computed(() => !authStore.initialized);
       <div class="app-splash__spinner" aria-hidden="true" />
     </div>
   </div>
-  <router-view v-else />
 </template>
 
 <style scoped>
 .app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;

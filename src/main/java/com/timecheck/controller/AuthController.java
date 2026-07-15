@@ -7,8 +7,12 @@ import com.timecheck.dto.UserRsp;
 import com.timecheck.service.AuthService;
 import com.timecheck.security.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,9 +27,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final boolean sessionCookieSecure;
 
-    public AuthController(AuthService authService) {
+    public AuthController(
+            AuthService authService,
+            @Value("${timecheck.session.cookie-secure}") boolean sessionCookieSecure) {
         this.authService = authService;
+        this.sessionCookieSecure = sessionCookieSecure;
     }
 
     @PostMapping("/signup")
@@ -43,9 +51,26 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest httpRequest) {
+    public ResponseEntity<Void> logout(
+            HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         authService.logout(httpRequest);
+        expireSessionCookie(httpResponse);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * SESSION 쿠키 삭제. login 시 Set-Cookie와 동일하게 Secure/SameSite를 맞춰야
+     * 브라우저가 Secure 쿠키를 실제로 제거한다.
+     */
+    private void expireSessionCookie(HttpServletResponse response) {
+        ResponseCookie cookie = ResponseCookie.from("SESSION", "")
+                .path("/")
+                .maxAge(0)
+                .httpOnly(true)
+                .secure(sessionCookieSecure)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     @GetMapping("/me")

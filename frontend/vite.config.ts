@@ -81,10 +81,16 @@ export default defineConfig({
         skipWaiting: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api/]
+        navigateFallbackDenylist: [/^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
+            handler: "NetworkOnly"
+          }
+        ]
       },
       devOptions: {
-        enabled: true
+        enabled: false
       }
     })
   ],
