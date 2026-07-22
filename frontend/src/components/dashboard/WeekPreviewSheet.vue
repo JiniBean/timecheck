@@ -10,6 +10,7 @@ import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
 import { formatHm, fmtMinutes, hhmmToDateTime } from "../../utils/time";
 import { currentDateKey } from "../../utils/weekNav";
 import { WorkPolicy } from "../../utils/workPolicy";
+import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
 import {
   buildPrv,
   fmtIn,
@@ -142,8 +143,15 @@ watch(
     }
 
     loading.value = true;
+    const range = checkInRange(todayDateKey.value);
+    bootLog("weekPreview:fetch:start", {
+      userId: props.userId,
+      weekRef: todayDateKey.value,
+      workDate: localDateKey(),
+      rangeStart: range.start,
+      rangeEnd: range.end
+    });
     try {
-      const range = checkInRange(todayDateKey.value);
       const [weekly, today, rangeRecords] = await Promise.all([
         fetchWeek(props.userId, todayDateKey.value),
         fetchWork(props.userId, localDateKey()),
@@ -157,11 +165,39 @@ watch(
       prvStartMode.value = next.mode;
       prvStartHhmm.value = next.hhmm;
       prvStartPreset.value = next.preset;
+      bootLog("weekPreview:fetch:done", {
+        hasWeekly: weekly != null,
+        weeklyDays: weekly?.days?.length ?? null,
+        weekStart: weekly?.weekStart ?? null,
+        todayWorkDate: today?.workDate ?? null,
+        rangeCount: rangeRecords?.length ?? 0,
+        typicalIn: typicalInHhmm.value
+      });
+    } catch (error) {
+      bootError("weekPreview:fetch:fail", error, {
+        weekRef: todayDateKey.value,
+        workDate: localDateKey()
+      });
     } finally {
       loading.value = false;
     }
-  }
+  },
+  { immediate: true }
 );
+
+watch(preview, (value) => {
+  if (!props.open || loading.value) {
+    return;
+  }
+  if (value === null) {
+    bootWarn("weekPreview:empty", {
+      hasWeekly: weeklyReport.value !== null,
+      hasToday: todayWork.value !== null
+    });
+    return;
+  }
+  bootLog("weekPreview:rendered", { rows: value.rows.length });
+});
 
 function closeSheet() {
   emit("update:open", false);
@@ -304,8 +340,8 @@ function cellToneClass(row: PrvRow, field: "start" | "end" | "work"): string {
     if (hasOverride(row.workDate, "start")) {
       return "cell-tone-edited";
     }
-    if (row.isProjected) {
-      return "cell-tone-projected";
+    if (row.kind === "prv") {
+      return "cell-tone-prv";
     }
     return "cell-tone-edited";
   }
@@ -317,20 +353,20 @@ function cellToneClass(row: PrvRow, field: "start" | "end" | "work"): string {
     if (hasOverride(row.workDate, "end")) {
       return "cell-tone-edited";
     }
-    if (row.isProjected) {
-      return "cell-tone-projected";
+    if (row.kind === "prv") {
+      return "cell-tone-prv";
     }
     return "cell-tone-edited";
   }
 
-  if (!row.isProjected && row.kind === "actual") {
+  if (row.kind === "fix") {
     return "cell-tone-fixed";
   }
   if (hasOverride(row.workDate, "start") || hasOverride(row.workDate, "end")) {
     return "cell-tone-edited";
   }
-  if (row.isProjected) {
-    return "cell-tone-projected";
+  if (row.kind === "prv") {
+    return "cell-tone-prv";
   }
   return "cell-tone-fixed";
 }
@@ -385,13 +421,13 @@ function rowToneClass(row: PrvRow): string {
             <div class="stat-row stat-row--3">
               <div class="stat-item">
                 <p class="stat-label">총 근무</p>
-                <p class="stat-value">{{ fmtMinutes(preview.weekMainMin) }}</p>
+                <p class="stat-value">{{ fmtMinutes(preview.weekWorkedMin) }}</p>
               </div>
               <div class="stat-item stat-item--divider">
                 <p class="stat-label">{{ balanceLabel }}</p>
                 <p class="stat-value">{{ balanceValue }}</p>
               </div>
-              <div class="stat-item stat-item--divider stat-item--projected-start">
+              <div class="stat-item stat-item--divider stat-item--prv-start">
                 <p class="stat-label">예정 출근시간</p>
                 <button
                   type="button"
@@ -580,7 +616,7 @@ function rowToneClass(row: PrvRow): string {
   font-size: 0.92em;
 }
 
-.stat-item--projected-start {
+.stat-item--prv-start {
   gap: 4px;
 }
 
@@ -739,7 +775,7 @@ function rowToneClass(row: PrvRow): string {
 
 @media (hover: hover) and (pointer: fine) {
   .week-preview-table tbody .cell-editable:hover,
-  .row-today .cell-editable.cell-tone-projected:hover,
+  .row-today .cell-editable.cell-tone-prv:hover,
   .row-today .cell-editable.cell-tone-edited:hover {
     color: var(--color-text);
   }
@@ -758,8 +794,8 @@ function rowToneClass(row: PrvRow): string {
   font-weight: var(--weight-medium);
 }
 
-.cell-tone-projected {
-  color: var(--color-preview-projected);
+.cell-tone-prv {
+  color: var(--color-preview-prv);
   font-weight: var(--weight-medium);
 }
 
@@ -782,8 +818,8 @@ function rowToneClass(row: PrvRow): string {
   color: var(--color-preview-today-fixed);
 }
 
-.row-today .cell-tone-projected {
-  color: var(--color-preview-today-projected);
+.row-today .cell-tone-prv {
+  color: var(--color-preview-today-prv);
 }
 
 .row-today .cell-tone-edited {
