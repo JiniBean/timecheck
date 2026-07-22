@@ -34,30 +34,31 @@ export function buildWeekReport(
   const recordMap = new Map(payload.records.map((record) => [record.workDate, record]));
 
   const days: WeekDay[] = [];
-  let workedMinutes = 0;
-  let targetMinutes = 0;
+  let mainMin = 0;
+  let baseMin = 0;
 
   for (let offset = 0; offset < 5; offset++) {
     const workDate = shiftDateKey(weekStart, offset);
     const raw = recordMap.get(workDate) ?? emptyWork(userId, workDate);
     const calculated = withCalc(raw, workDate === today ? asOf : undefined);
     days.push(toDayRow(workDate, calculated));
-    workedMinutes += calculated.main;
-    targetMinutes += calculated.base ?? WorkPolicy.STD_WORK;
+    mainMin += calculated.main;
+    baseMin += calculated.base ?? WorkPolicy.STD_WORK;
   }
 
-  const remainingMinutes = Math.max(targetMinutes - workedMinutes, 0);
-  const remainingDays = daysAfter(referenceDate, weekEnd);
+  const remMin = Math.max(baseMin - mainMin, 0);
+  const refRecord = recordMap.get(referenceDate) ?? emptyWork(userId, referenceDate);
+  const daysAfterCount = remainDays(referenceDate, weekEnd, refRecord.rawEnd);
 
   return {
     weekStart,
     weekEnd,
     summary: {
-      workedMinutes,
-      targetMinutes: targetMinutes || WEEK_TARGET_MIN,
-      remainingMinutes,
-      avgPerDayMin: avgPerDay(remainingMinutes, remainingDays),
-      daysAfter: remainingDays
+      mainMin,
+      baseMin: baseMin || WEEK_TARGET_MIN,
+      remMin,
+      avgPerDayMin: avgPerDay(remMin, daysAfterCount),
+      daysAfter: daysAfterCount
     },
     days,
     header: buildHeader(payload, weekStart)
@@ -143,8 +144,8 @@ export function weekSummary(
     asOf
   );
 
-  const main = report.summary.workedMinutes;
-  const base = report.summary.targetMinutes;
+  const main = report.summary.mainMin;
+  const base = report.summary.baseMin;
 
   return {
     main,
@@ -219,6 +220,18 @@ export function daysAfter(todayWorkDate: string, weekEnd: string): number {
   return daysInclToday(shiftDateKey(todayWorkDate, 1), weekEnd);
 }
 
+/** rawEnd 없으면 오늘 포함, 있으면 내일부터 남은 평일 수 */
+export function remainDays(
+  date: string,
+  weekEnd: string,
+  rawEnd?: string | null
+): number {
+  if (!rawEnd) {
+    return daysInclToday(date, weekEnd);
+  }
+  return daysAfter(date, weekEnd);
+}
+
 /** 주간 남은 분을 남은 평일 수로 나눈 값(올림) */
 export function avgPerDay(weekRemMin: number, daysAfter: number): number {
   return Math.ceil(weekRemMin / Math.max(daysAfter, 1));
@@ -228,18 +241,18 @@ export function mainSummary(input: SummaryIn): SummaryOut {
   const { weeklyReport, todayWork, todayMainMin } = input;
   const isLiveToday = input.isLiveToday ?? true;
   const todayDate = input.todayDateKey ?? todayWork.workDate;
-  const weekTargetMin = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
+  const weekTargetMin = weeklyReport.summary.baseMin || WEEK_TARGET_MIN;
   const weekMainMin = isLiveToday
     ? sumWeekMain(weeklyReport.days, todayDate, todayMainMin)
-    : weeklyReport.summary.workedMinutes;
+    : weeklyReport.summary.mainMin;
   const weekRemMin = Math.max(0, weekTargetMin - weekMainMin);
   const weekOverMin = Math.max(0, weekMainMin - weekTargetMin);
 
-  const remainingDays = isLiveToday
-    ? daysAfter(todayDate, weeklyReport.weekEnd)
+  const daysAfterCount = isLiveToday
+    ? remainDays(todayDate, weeklyReport.weekEnd, todayWork.rawEnd)
     : weeklyReport.summary.daysAfter;
   const avgPerDayMin = isLiveToday
-    ? avgPerDay(weekRemMin, remainingDays)
+    ? avgPerDay(weekRemMin, daysAfterCount)
     : weeklyReport.summary.avgPerDayMin;
 
   const todayExtra = isLiveToday ? input.todayExtra : undefined;
@@ -252,7 +265,7 @@ export function mainSummary(input: SummaryIn): SummaryOut {
     weekTargetMin,
     weekRemMin,
     weekOverMin,
-    daysAfter: remainingDays,
+    daysAfter: daysAfterCount,
     avgPerDayMin,
     weekExtra1,
     weekExtra2,

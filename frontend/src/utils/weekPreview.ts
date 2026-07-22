@@ -483,7 +483,7 @@ export function buildPrv(input: {
   const prvStartHhmm = input.prvStartHhmm ?? DEFAULT_PRV_START_HHMM;
   const asOf = input.asOf ?? new Date();
   const mergedToday = mergeToday(todayWork, weeklyReport.days, todayDateKey);
-  const weekTargetMin = weeklyReport.summary.targetMinutes || WEEK_TARGET_MIN;
+  const weekTargetMin = weeklyReport.summary.baseMin || WEEK_TARGET_MIN;
 
   const { workedMin, fixSlots, prvSlots } = collectPrv({
     days: weeklyReport.days,

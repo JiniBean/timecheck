@@ -20,7 +20,7 @@ import { withCalc, withOtRecalc } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import {
   avgPerDay,
-  daysAfter
+  remainDays
 } from "../utils/main";
 import { useBootStore } from "../stores/boot";
 import { apiErrMsg } from "../utils/apiError";
@@ -46,9 +46,9 @@ function emptyWeekReport(): WeekReport {
     weekStart: "",
     weekEnd: "",
     summary: {
-      workedMinutes: 0,
-      targetMinutes: 40 * 60,
-      remainingMinutes: 40 * 60,
+      mainMin: 0,
+      baseMin: 40 * 60,
+      remMin: 40 * 60,
       avgPerDayMin: 8 * 60,
       daysAfter: 5
     },
@@ -797,23 +797,23 @@ function mergeWeekToday(weekly: WeekReport, today: Work, asOf = new Date()): Wee
   const todayDate = localDateKey(asOf);
   const calculatedToday = withCalc(today, asOf);
   const days = weekly.days.map((day) => mergeDayToday(day, calculatedToday, todayDate));
-  const workedMinutes = days.reduce((sum, day) => sum + day.main, 0);
-  const targetMinutes = weekly.summary.targetMinutes;
-  const remainingMinutes = Math.max(targetMinutes - workedMinutes, 0);
-  const remainingDays = daysAfter(todayDate, weekly.weekEnd);
+  const mainMin = days.reduce((sum, day) => sum + day.main, 0);
+  const baseMin = weekly.summary.baseMin;
+  const remMin = Math.max(baseMin - mainMin, 0);
+  const daysAfterCount = remainDays(todayDate, weekly.weekEnd, today.rawEnd);
   const avgPerDayMin = avgPerDay(
-    remainingMinutes,
-    remainingDays
+    remMin,
+    daysAfterCount
   );
 
   return {
     ...weekly,
     summary: {
-      workedMinutes,
-      targetMinutes,
-      remainingMinutes,
+      mainMin,
+      baseMin,
+      remMin,
       avgPerDayMin,
-      daysAfter: remainingDays
+      daysAfter: daysAfterCount
     },
     days
   };

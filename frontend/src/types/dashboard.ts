@@ -23,9 +23,9 @@ export interface Work {
 }
 
 export interface WeekSummary {
-  workedMinutes: number;
-  targetMinutes: number;
-  remainingMinutes: number;
+  mainMin: number;
+  baseMin: number;
+  remMin: number;
   avgPerDayMin: number;
   daysAfter: number;
 }
