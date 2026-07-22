@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { WeekReport } from "../../types/dashboard";
+import type { WeekReport, Work } from "../../types/dashboard";
 import { showApiError } from "../../utils/apiError";
 import { copyReport } from "../../utils/reportClipboard";
 import { buildWeekClip } from "../../utils/main";
@@ -8,6 +8,7 @@ import { buildWeekClip } from "../../utils/main";
 const props = defineProps<{
   weeklyReport: WeekReport;
   todayWorkDate: string;
+  todayWork: Work;
   todayMainMin: number;
   isLiveToday: boolean;
   hidden?: boolean;
@@ -20,6 +21,7 @@ let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
 const built = computed(() =>
   buildWeekClip(props.weeklyReport, {
     todayWorkDate: props.todayWorkDate,
+    todayWork: props.todayWork,
     todayMainMin: props.todayMainMin,
     isLiveToday: props.isLiveToday
   })

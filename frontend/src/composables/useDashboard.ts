@@ -800,7 +800,7 @@ function mergeWeekToday(weekly: WeekReport, today: Work, asOf = new Date()): Wee
   const mainMin = days.reduce((sum, day) => sum + day.main, 0);
   const baseMin = weekly.summary.baseMin;
   const remMin = Math.max(baseMin - mainMin, 0);
-  const daysAfterCount = remainDays(todayDate, weekly.weekEnd, today.rawEnd);
+  const daysAfterCount = remainDays(todayDate, weekly.weekEnd, today.rawEnd, today.dayType);
   const avgPerDayMin = avgPerDay(
     remMin,
     daysAfterCount

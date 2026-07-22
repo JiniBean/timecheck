@@ -326,6 +326,7 @@ onBeforeUnmount(() => {
           hidden
           :weekly-report="state.weeklyReport"
           :today-work-date="todayDateKey"
+          :today-work="mergedToday"
           :today-main-min="todayMainMin"
           :is-live-today="isCurrentWeek"
         />
