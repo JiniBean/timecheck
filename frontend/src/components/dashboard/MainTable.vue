@@ -12,12 +12,14 @@ const props = defineProps<{
   days: WeekDay[];
   todayWorkDate: string;
   todayMainMin: number;
+  todayMainEnd?: string | null;
   isLiveToday?: boolean;
 }>();
 
 const emit = defineEmits<{
   "update-check-in": [workDate: string, hhmm: string];
   "update-check-out": [workDate: string, hhmm: string];
+  "update-main-end": [workDate: string, hhmm: string];
   "clear-check-in": [workDate: string];
   "clear-check-out": [workDate: string];
   "save-day-settings": [
@@ -58,9 +60,9 @@ function resolveCheckoutCell(day: WeekDay) {
     return { label: "-", preview: false };
   }
   if (day.rawEnd) {
-    return { label: formatHm(day.rawEnd), preview: false };
+    return { label: formatHm(day.mainEnd ?? day.rawEnd), preview: false };
   }
-  if (day.isOt && day.rawStart && day.mainEnd) {
+  if (day.rawStart && day.mainEnd) {
     return { label: formatHm(day.mainEnd), preview: true };
   }
   return { label: "-", preview: false };
@@ -68,14 +70,18 @@ function resolveCheckoutCell(day: WeekDay) {
 
 const displayDays = computed(() =>
   props.days.map((day) => {
-    const checkout = resolveCheckoutCell(day);
     const isToday = day.workDate === props.todayWorkDate;
+    const liveToday = Boolean(props.isLiveToday && isToday);
+    const effectiveDay =
+      liveToday && !day.rawEnd
+        ? { ...day, mainEnd: props.todayMainEnd ?? day.mainEnd }
+        : day;
+    const checkout = resolveCheckoutCell(effectiveDay);
     const dayOff = isDayOff(day.dayType);
-    const workPreview =
-      Boolean(props.isLiveToday && isToday && !dayOff && day.rawStart && !day.rawEnd);
+    const workPreview = Boolean(liveToday && !dayOff && day.rawStart && !day.rawEnd);
 
     return {
-      ...day,
+      ...effectiveDay,
       displayMain: isToday ? props.todayMainMin : day.main,
       isToday,
       dayOff,
@@ -116,13 +122,8 @@ function openTimePicker(day: WeekDay, field: "start" | "end") {
   timeEditField.value = field;
   timePickerHint.value = TIME_PICKER_HINT_DEFAULT;
   if (field === "end") {
-    const checkout = resolveCheckoutCell(day);
-    if (checkout.preview && day.mainEnd) {
-      const mainEnd = formatHm(day.mainEnd);
-      timePickerInitial.value = mainEnd !== "-" ? mainEnd : resolvePickerInitial(day, field);
-    } else {
-      timePickerInitial.value = resolvePickerInitial(day, field);
-    }
+    const mainEnd = formatHm(day.mainEnd);
+    timePickerInitial.value = mainEnd !== "-" ? mainEnd : resolvePickerInitial(day, field);
   } else {
     timePickerInitial.value = resolvePickerInitial(day, field);
   }
@@ -161,6 +162,8 @@ function onTimeConfirm(hhmm: string) {
   const workDate = editingDay.value.workDate;
   if (timeEditField.value === "start") {
     emit("update-check-in", workDate, hhmm);
+  } else if (editingDay.value.isOt) {
+    emit("update-main-end", workDate, hhmm);
   } else {
     emit("update-check-out", workDate, hhmm);
   }

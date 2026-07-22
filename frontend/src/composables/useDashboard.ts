@@ -87,6 +87,35 @@ export function useDashboard(userId: number) {
   });
 
   let toastTimerId: number | null = null;
+  let refreshingToday = false;
+
+  async function ensureTodayWork(): Promise<void> {
+    const today = localDateKey();
+    if (state.value.todayWork.workDate === today || refreshingToday) {
+      return;
+    }
+    refreshingToday = true;
+    try {
+      const todayWork = await fetchWork(userId, today);
+      state.value.todayWork = todayWork;
+      state.value.todayStatus = resolveStatus(todayWork);
+      isActTimeManual.value = false;
+      isActTimeLocked.value = false;
+      syncActTime(new Date());
+      if (isCurrentWeek.value) {
+        await loadWeekReport();
+      }
+    } catch {
+      // 자정 rollover 갱신 실패 시 기존 todayWork 유지
+    } finally {
+      refreshingToday = false;
+    }
+  }
+
+  function onClockTick(date: Date) {
+    void ensureTodayWork();
+    syncActTime(date);
+  }
 
   const canCheckIn = computed(
     () =>
@@ -405,6 +434,22 @@ export function useDashboard(userId: number) {
     });
   }
 
+  async function setWeekMainEnd(workDate: string, hhmm: string) {
+    await runAction(async () => {
+      const existing = await fetchWork(userId, workDate);
+      const mainEnd = hhmmToDateTime(workDate, hhmm);
+      let work: Work;
+      if (existing.rawEnd) {
+        work = withOtRecalc({ ...existing, mainEnd }, "main_end", { mainEnd });
+      } else {
+        const anchors = syncFromMainEnd(workDate, mainEnd);
+        work = { ...existing, ...anchors };
+      }
+      const updated = await patchWork(userId, toWorkPatch(work, { workDate }));
+      await afterWeekEdit(updated);
+    });
+  }
+
   async function setWeekOtStart(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
@@ -610,6 +655,7 @@ export function useDashboard(userId: number) {
     isActTimeLocked,
     applyPickedTime,
     syncActTime,
+    onClockTick,
     canCheckIn,
     canCheckOut,
     loadDashboard,
@@ -627,6 +673,7 @@ export function useDashboard(userId: number) {
     saveWorkSettings,
     setWeekIn,
     setWeekOut,
+    setWeekMainEnd,
     setWeekOtStart,
     setWeekOtEnd,
     clearWeekIn,
@@ -722,7 +769,7 @@ function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
     mainStart,
     otStart: calc.otStart,
     otEnd: calc.otEnd,
-    clearMainEnd: !merged.isOt,
+    clearMainEnd: calc.mainEnd == null,
     clearOtStart: !merged.isOt || !calc.otStart,
     clearOtEnd: !merged.isOt,
     ...override
@@ -748,8 +795,7 @@ function resolveStatus(work: Work): TodayStatus {
 
 function mergeWeekToday(weekly: WeekReport, today: Work, asOf = new Date()): WeekReport {
   const todayDate = localDateKey(asOf);
-  const normalizedToday = { ...today, workDate: todayDate };
-  const calculatedToday = withCalc(normalizedToday, asOf);
+  const calculatedToday = withCalc(today, asOf);
   const days = weekly.days.map((day) => mergeDayToday(day, calculatedToday, todayDate));
   const workedMinutes = days.reduce((sum, day) => sum + day.main, 0);
   const targetMinutes = weekly.summary.targetMinutes;

@@ -39,7 +39,7 @@ const {
   isActTimeEditable,
   isActTimeLocked,
   applyPickedTime,
-  syncActTime,
+  onClockTick,
   canCheckIn,
   canCheckOut,
   handleCheckIn,
@@ -50,6 +50,7 @@ const {
   saveWorkSettings,
   setWeekIn,
   setWeekOut,
+  setWeekMainEnd,
   setWeekOtStart,
   setWeekOtEnd,
   clearWeekIn,
@@ -206,7 +207,7 @@ onMounted(() => {
   bootLog("dashboard.view.mounted", { userId });
   clockTimerId = window.setInterval(() => {
     now.value = new Date();
-    syncActTime(now.value);
+    onClockTick(now.value);
   }, 1000);
 });
 
@@ -283,9 +284,11 @@ onBeforeUnmount(() => {
             :days="state.weeklyReport.days"
             :today-work-date="todayHighlight"
             :today-main-min="todayMainMin"
+            :today-main-end="todayLiveWork.mainEnd ?? null"
             :is-live-today="isCurrentWeek"
             @update-check-in="setWeekIn"
             @update-check-out="setWeekOut"
+            @update-main-end="setWeekMainEnd"
             @clear-check-in="clearWeekIn"
             @clear-check-out="clearWeekOut"
             @save-day-settings="saveWeekSettings"

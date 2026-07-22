@@ -345,7 +345,7 @@ function toReportRow(
   return {
     dateLabel: fmtReportDate(day.workDate),
     checkIn: formatHm(day.rawStart) === "-" ? EMPTY_CELL : formatHm(day.rawStart),
-    checkOut: formatHm(day.rawEnd) === "-" ? EMPTY_CELL : formatHm(day.rawEnd),
+    checkOut: formatHm(day.mainEnd) === "-" ? EMPTY_CELL : formatHm(day.mainEnd),
     workLabel: workCellLabel(day.dayType, main)
   };
 }
