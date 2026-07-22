@@ -171,7 +171,7 @@ async function handleSubmit() {
 
           <label class="field">
             <span class="field-label">팀</span>
-            <input v-model="form.team" class="text-input" type="text" placeholder="예: FM팀" />
+            <input v-model="form.team" class="text-input" type="text" placeholder="예: FM개발팀" />
           </label>
 
           <p v-if="errorMessage" class="profile-modal-error">{{ errorMessage }}</p>
