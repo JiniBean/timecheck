@@ -105,10 +105,10 @@ export function autoOtAnchors(
   }
 
   const workDate = work.workDate;
-  const actual = computeActualOtMinutes(workDate, rawStart, rawEnd, work.dayType);
-  const extraRaw = Math.max(0, actual - WorkPolicy.STD_WORK);
-  const extraTotal = Math.floor(extraRaw / 10) * 10;
   const otEnd = truncateToTenMinutes(rawEnd);
+  const mainEndStd = mainEndAtStd(workDate, rawStart, work.dayType);
+  const otStartRaw = addMinutes(mainEndStd, WorkPolicy.BREAK_OVER);
+  const extraTotal = Math.floor(Math.max(0, minutesBetween(otStartRaw, otEnd)) / 10) * 10;
 
   if (extraTotal === 0) {
     const mainEnd = enforceMainEnd(workDate, otEnd);
@@ -196,28 +196,6 @@ export function setAnchorPatch(work: Work, patch: OtAnchorPatch): Work {
     next.otEnd = patch.otEnd;
   }
   return next;
-}
-
-function computeActualOtMinutes(
-  workDate: string,
-  rawStart: Date,
-  rawEnd: Date,
-  dayType: DayType
-): number {
-  const start = amStart(workDate, rawStart, dayType);
-  let total = minutesBetween(start, rawEnd);
-
-  const skipBreak =
-    dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
-  if (!skipBreak) {
-    total -= resolveBreakMinutes(workDate, rawStart, rawEnd);
-  }
-
-  if (dayType === "AM" || dayType === "PM") {
-    total += WorkPolicy.STD_HALF;
-  }
-
-  return total - WorkPolicy.BREAK_OVER;
 }
 
 export interface OtPreviewDisplay {
@@ -336,44 +314,25 @@ export function otPreview(
     return { mainEnd: null, otStart: null, otCoreEligible: true };
   }
 
-  const now = truncateToMinute(asOf);
   const workDate = work.workDate;
   const rawStart = parseDateTime(work.rawStart);
   if (!rawStart) {
     return { mainEnd: null, otStart: null, otCoreEligible: true };
   }
 
-  // 1. 코어 미준수: 퇴근=현재, 야근=-
-  if (now.getTime() <= otThresholdAt(workDate).getTime()) {
-    return {
-      mainEnd: formatDateTime(workDate, now),
-      otStart: null,
-      otCoreEligible: false
-    };
+  // 야근 on + 근무중: 출근+8h 기준 mainEnd/otStart를 즉시 투영 (방식 B, 현재시각 무관)
+  const mainEndStd = mainEndAtStd(workDate, rawStart, work.dayType);
+  const otStartRaw = addMinutes(mainEndStd, WorkPolicy.BREAK_OVER);
+  let otStartDt = truncateToTenMinutes(otStartRaw);
+  if (otStartDt.getTime() < otStartRaw.getTime()) {
+    otStartDt = addMinutes(otStartDt, 10);
   }
-
-  const elapsedMain = elapsedMainMin(workDate, rawStart, now, work.dayType);
-
-  // 3. main 8시간 충족: 퇴근=출근+8h(휴게반영), 야근=퇴근+휴게
-  if (elapsedMain >= WorkPolicy.STD_WORK) {
-    const mainEndDt = mainEndAtStd(workDate, rawStart, work.dayType);
-    const otStartDt = addMinutes(mainEndDt, WorkPolicy.BREAK_OVER);
-    return {
-      mainEnd: formatDateTime(workDate, mainEndDt),
-      otStart: formatDateTime(workDate, otStartDt),
-      otCoreEligible: true
-    };
-  }
-
-  // 2. 코어 준수·main 8h 미만: 퇴근=야근 역산, 야근=현재
-  const otStartDt = now;
-  const mainEndDt = addMinutes(otStartDt, -WorkPolicy.BREAK_OVER);
-  const coreOk = !isBeforeCore(mainEndDt, workDate);
+  const mainEndDt = enforceMainEnd(workDate, addMinutes(otStartDt, -WorkPolicy.BREAK_OVER));
 
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
-    otStart: coreOk ? formatDateTime(workDate, otStartDt) : null,
-    otCoreEligible: coreOk
+    otStart: formatDateTime(workDate, otStartDt),
+    otCoreEligible: true
   };
 }
 

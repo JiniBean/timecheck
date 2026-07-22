@@ -90,7 +90,7 @@ const displayDays = computed(() =>
       durationPreview,
       startLabel: dayOff || !hasOt ? "-" : formatHm(otStart),
       endLabel: dayOff || !hasOt ? "-" : formatHm(otEnd),
-      durationLabel: dayOff || !hasOt ? "-" : fmtMinutes(totalExtra)
+      durationLabel: dayOff || !hasOt || totalExtra <= 0 ? "-" : fmtMinutes(totalExtra)
     };
   })
 );
