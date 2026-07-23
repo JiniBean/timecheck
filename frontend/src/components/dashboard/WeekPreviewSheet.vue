@@ -2,14 +2,25 @@
 import { computed, ref, toRef, watch } from "vue";
 import TimePicker from "./TimePicker.vue";
 import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
-import { fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
+import {
+  applyPrv as applyPrvRequest,
+  fetchWork,
+  fetchWeek,
+  fetchWorks
+} from "../../api/dashboard";
 import { localDateKey } from "../../utils/localDate";
 import type { WeekReport, Work } from "../../types/dashboard";
 import { typicalCheckIn, checkInRange } from "../../utils/checkInAverage";
 import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
 import { formatHm, fmtMinutes, hhmmToDateTime } from "../../utils/time";
-import { currentDateKey } from "../../utils/weekNav";
+import {
+  currentDateKey,
+  formatWeekLabel,
+  mondayOfDateKey,
+  shiftDateKey
+} from "../../utils/weekNav";
 import { WorkPolicy } from "../../utils/workPolicy";
+import { apiErrMsg } from "../../utils/apiError";
 import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
 import {
   buildPrv,
@@ -22,6 +33,7 @@ import {
   PRV_START_PRESET,
   prvStartFromPref,
   savePref,
+  toPrvRecords,
   type PrvOvrs,
   type PrvRow,
   type PrvStartMode,
@@ -35,14 +47,18 @@ const ON_TIME_HHMM = `${String(WorkPolicy.STD_START.hour).padStart(2, "0")}:${St
 const props = defineProps<{
   open: boolean;
   userId: number;
+  referenceDate: string;
   asOf?: Date;
 }>();
 
 const emit = defineEmits<{
   "update:open": [value: boolean];
+  apply: [weekStart: string];
 }>();
 
 const loading = ref(false);
+const isApplying = ref(false);
+const applyError = ref<string | null>(null);
 const weeklyReport = ref<WeekReport | null>(null);
 const todayWork = ref<Work | null>(null);
 const overrides = ref<PrvOvrs>({});
@@ -59,6 +75,23 @@ const timeEditField = ref<"start" | "end">("start");
 const editingRow = ref<PrvRow | null>(null);
 
 const todayDateKey = computed(() => currentDateKey());
+const currentWeekStart = computed(() => mondayOfDateKey(todayDateKey.value));
+const selectedWeekStart = computed(() => mondayOfDateKey(props.referenceDate));
+const prvDateKey = computed(() =>
+  selectedWeekStart.value > currentWeekStart.value
+    ? selectedWeekStart.value
+    : todayDateKey.value
+);
+const prvWeekStart = computed(() => mondayOfDateKey(prvDateKey.value));
+const prvTitle = computed(() => {
+  if (prvWeekStart.value === currentWeekStart.value) {
+    return "이번 주 미리보기";
+  }
+  if (prvWeekStart.value === shiftDateKey(currentWeekStart.value, 7)) {
+    return "다음 주 미리보기";
+  }
+  return `${formatWeekLabel(prvWeekStart.value)} 미리보기`;
+});
 
 const preview = computed(() => {
   if (!weeklyReport.value || !todayWork.value) {
@@ -73,6 +106,9 @@ const preview = computed(() => {
     asOf: props.asOf
   });
 });
+
+const prvRecords = computed(() => toPrvRecords(preview.value?.rows ?? []));
+const canApply = computed(() => prvRecords.value.length > 0 && !isApplying.value);
 
 const timePickerTitle = computed(() => {
   if (timePickerContext.value === "summary") {
@@ -139,21 +175,23 @@ watch(
       weeklyReport.value = null;
       todayWork.value = null;
       typicalInHhmm.value = null;
+      applyError.value = null;
       return;
     }
 
     loading.value = true;
+    applyError.value = null;
     const range = checkInRange(todayDateKey.value);
     bootLog("weekPreview:fetch:start", {
       userId: props.userId,
-      weekRef: todayDateKey.value,
+      weekRef: prvDateKey.value,
       workDate: localDateKey(),
       rangeStart: range.start,
       rangeEnd: range.end
     });
     try {
       const [weekly, today, rangeRecords] = await Promise.all([
-        fetchWeek(props.userId, todayDateKey.value),
+        fetchWeek(props.userId, prvDateKey.value),
         fetchWork(props.userId, localDateKey()),
         fetchWorks(props.userId, range.start, range.end)
       ]);
@@ -175,7 +213,7 @@ watch(
       });
     } catch (error) {
       bootError("weekPreview:fetch:fail", error, {
-        weekRef: todayDateKey.value,
+        weekRef: prvDateKey.value,
         workDate: localDateKey()
       });
     } finally {
@@ -200,7 +238,29 @@ watch(preview, (value) => {
 });
 
 function closeSheet() {
+  if (isApplying.value) {
+    return;
+  }
   emit("update:open", false);
+}
+
+async function applyPrv() {
+  if (!canApply.value) {
+    return;
+  }
+
+  const records = prvRecords.value.map((record) => ({ ...record }));
+  isApplying.value = true;
+  applyError.value = null;
+  try {
+    const applied = await applyPrvRequest(props.userId, records);
+    emit("apply", applied.weekStart);
+    emit("update:open", false);
+  } catch (error) {
+    applyError.value = apiErrMsg(error, "미리보기 적용에 실패했습니다.");
+  } finally {
+    isApplying.value = false;
+  }
 }
 
 const dialogKeyboardDisabled = computed(() => timePickerOpen.value);
@@ -218,6 +278,9 @@ function resolvePickerInitial(row: PrvRow, field: "start" | "end"): string {
 }
 
 function openSummaryTimePicker() {
+  if (isApplying.value) {
+    return;
+  }
   timePickerContext.value = "summary";
   editingRow.value = null;
   timePickerInitial.value = prvStartHhmm.value;
@@ -225,6 +288,9 @@ function openSummaryTimePicker() {
 }
 
 function selectOnTime() {
+  if (isApplying.value) {
+    return;
+  }
   prvStartPreset.value = PRV_START_PRESET.ON_TIME;
   prvStartMode.value = PRV_START_MODE.ON_TIME;
   prvStartHhmm.value = ON_TIME_HHMM;
@@ -236,7 +302,7 @@ function selectOnTime() {
 }
 
 function selectAverage() {
-  if (!typicalInHhmm.value) {
+  if (isApplying.value || !typicalInHhmm.value) {
     return;
   }
   prvStartPreset.value = PRV_START_PRESET.AVERAGE;
@@ -266,6 +332,9 @@ function handlePresetSelect(target: PrvStartPreset) {
 }
 
 function openTimePicker(row: PrvRow, field: "start" | "end") {
+  if (isApplying.value) {
+    return;
+  }
   if (field === "start" && !row.canEditIn) {
     return;
   }
@@ -403,15 +472,31 @@ function rowToneClass(row: PrvRow): string {
       <div class="week-preview-panel" @click.stop>
         <header class="week-preview-header">
           <div>
-            <h2 id="week-preview-title" class="week-preview-title">이번 주 미리보기</h2>
+            <h2 id="week-preview-title" class="week-preview-title">{{ prvTitle }}</h2>
             <p v-if="weeklyReport" class="week-preview-subtitle">
               {{ weeklyReport.weekStart.slice(5).replace("-", "/") }} ~
               {{ weeklyReport.weekEnd.slice(5).replace("-", "/") }}
             </p>
           </div>
-          <button type="button" class="week-preview-close" aria-label="닫기" @click="closeSheet">
-            닫기
-          </button>
+          <div class="week-preview-header-actions">
+            <button
+              type="button"
+              class="button button-outline button-sm week-preview-apply"
+              :disabled="!canApply"
+              @click="applyPrv"
+            >
+              {{ isApplying ? "적용 중..." : "적용" }}
+            </button>
+            <button
+              type="button"
+              class="week-preview-close"
+              aria-label="닫기"
+              :disabled="isApplying"
+              @click="closeSheet"
+            >
+              닫기
+            </button>
+          </div>
         </header>
 
         <div v-if="loading" class="week-preview-loading">불러오는 중...</div>
@@ -433,6 +518,7 @@ function rowToneClass(row: PrvRow): string {
                   type="button"
                   class="stat-value stat-value--time"
                   aria-label="예정 출근시간 변경"
+                  :disabled="isApplying"
                   @click="openSummaryTimePicker"
                 >
                   {{ prvStartHhmm }}
@@ -453,6 +539,7 @@ function rowToneClass(row: PrvRow): string {
                     class="start-preset-switch__option"
                     :class="{ 'start-preset-switch__option--active': !presetToggleAverage }"
                     :aria-pressed="!presetToggleAverage"
+                    :disabled="isApplying"
                     @click="handlePresetSelect(PRV_START_PRESET.ON_TIME)"
                   >
                     정시
@@ -462,7 +549,7 @@ function rowToneClass(row: PrvRow): string {
                     class="start-preset-switch__option"
                     :class="{ 'start-preset-switch__option--active': presetToggleAverage }"
                     :aria-pressed="presetToggleAverage"
-                    :disabled="!canSelectAverage"
+                    :disabled="isApplying || !canSelectAverage"
                     :title="canSelectAverage ? undefined : '최근 출근 기록 없음'"
                     @click="handlePresetSelect(PRV_START_PRESET.AVERAGE)"
                   >
@@ -525,7 +612,12 @@ function rowToneClass(row: PrvRow): string {
             </table>
           </div>
 
-          <p class="week-preview-hint">시트를 닫으면 초기화됩니다.</p>
+          <div class="week-preview-actions">
+            <p class="week-preview-hint">
+              적용하면 오늘과 미래 출퇴근 시간이 완료 기록으로 저장됩니다.
+            </p>
+            <p v-if="applyError" class="week-preview-error" role="alert">{{ applyError }}</p>
+          </div>
         </template>
       </div>
     </div>
@@ -584,6 +676,13 @@ function rowToneClass(row: PrvRow): string {
   margin: 4px 0 0;
   color: var(--color-text-muted);
   font-size: var(--font-sm);
+}
+
+.week-preview-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .week-preview-close {
@@ -827,10 +926,31 @@ function rowToneClass(row: PrvRow): string {
 }
 
 .week-preview-hint {
-  margin: 12px 0 0;
+  margin: 0;
   color: var(--color-text-placeholder);
   font-size: var(--font-sm);
   line-height: 1.4;
+}
+
+.week-preview-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.week-preview-error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.week-preview-apply {
+  min-width: 52px;
+  padding-inline: 10px;
 }
 
 .cell-day-type {

@@ -1,6 +1,7 @@
 import type { DayType, WeekDay, WeekReport, Work } from "../types/dashboard";
 import { readUserJson, writeUserJson } from "./clientStorage";
 import { isDayOff, mainMinutesLabel } from "./dayType";
+import { localDateKey } from "./localDate";
 import { WEEK_TARGET_MIN, avgPerDay } from "./main";
 import { mainMin, truncateToMinute } from "./ot";
 import { formatDateTime, formatHm, fmtMinutes, hhmmToDateTime, parseDateTime } from "./time";
@@ -381,7 +382,7 @@ function collectPrv(input: {
     if (ctx.isOt && !override?.rawEnd) {
       const startDt = parseDateTime(rawStart);
       const endDt = startDt ? endForWorkMin(day.workDate, startDt, ctx.dayType, WorkPolicy.STD_WORK) : null;
-      const rawEnd = endDt ? formatDateTime(day.workDate, endDt) : null;
+      const rawEnd = endDt ? formatDateTime(localDateKey(endDt), endDt) : null;
       workedMin += WorkPolicy.STD_WORK;
       fixSlots.set(day.workDate, {
         rawStart,
@@ -456,7 +457,7 @@ function fillPrvSlots(input: {
       slot.ctx.isToday && todayLiveEnd
         ? todayLiveEnd
         : endForWorkMin(slot.day.workDate, startDt, slot.ctx.dayType, targetWorkMin);
-    const rawEnd = formatDateTime(slot.day.workDate, endDt);
+    const rawEnd = formatDateTime(localDateKey(endDt), endDt);
     const workMinValue = mainMin(slot.day.workDate, startDt, endDt, slot.ctx.dayType);
 
     fixSlots.set(slot.day.workDate, {
@@ -548,6 +549,38 @@ export function buildPrv(input: {
     avgPerDayMin: restPerDayMin,
     missingDays
   };
+}
+
+export function toPrvRecords(
+  rows: PrvRow[]
+): Array<Pick<Work, "workDate" | "rawStart" | "rawEnd">> {
+  const records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd">> = [];
+  for (const row of rows) {
+    if (
+      row.missingGap !== "none" ||
+      isDayOff(row.dayType) ||
+      (!row.canEditIn && !row.canEditOut) ||
+      !row.rawStart ||
+      !row.rawEnd
+    ) {
+      continue;
+    }
+
+    let rawEnd = row.rawEnd;
+    if (rawEnd.slice(0, 10) === row.workDate && isNextDay(row)) {
+      const end = parseDateTime(rawEnd);
+      if (end) {
+        end.setDate(end.getDate() + 1);
+        rawEnd = formatDateTime(localDateKey(end), end);
+      }
+    }
+    records.push({
+      workDate: row.workDate,
+      rawStart: row.rawStart,
+      rawEnd
+    });
+  }
+  return records;
 }
 
 export function missingSummary(days: MissingDay[]): string {

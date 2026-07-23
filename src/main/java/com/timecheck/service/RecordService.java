@@ -6,13 +6,18 @@ import com.timecheck.model.DayType;
 import com.timecheck.model.User;
 import com.timecheck.model.WeeklyData;
 import com.timecheck.model.Work;
+import com.timecheck.util.DateRangeUtil;
+import com.timecheck.util.DateRangeUtil.PeriodRange;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RecordService {
@@ -35,6 +40,52 @@ public class RecordService {
 
     public Map<String, Object> patchWork(Work req) {
         return saveRecord(req, RecordAction.SETTINGS);
+    }
+
+    /** 이번 주 또는 미래 주의 미확정 미리보기 기록을 실제 Work로 일괄 저장합니다. */
+    @Transactional
+    public WeeklyData applyPrv(Long userId, List<Work> records) {
+        if (userId == null) {
+            throw new IllegalArgumentException("사용자 ID가 필요합니다.");
+        }
+        if (records == null
+                || records.isEmpty()
+                || records.get(0) == null
+                || records.get(0).getWorkDate() == null) {
+            throw new IllegalArgumentException("적용할 미리보기 기록이 없습니다.");
+        }
+
+        LocalDate today = LocalDate.now();
+        PeriodRange currentWeek = DateRangeUtil.weekRange(today);
+        PeriodRange targetWeek = DateRangeUtil.weekRange(records.get(0).getWorkDate());
+        validatePrv(records, currentWeek, targetWeek, today);
+
+        for (Work record : records) {
+            Work existing = recordMapper.selectWork(userId, record.getWorkDate());
+            if (existing != null
+                    && (existing.getRawEnd() != null
+                            || (existing.getDayType() != null && existing.getDayType().isDayOff()))) {
+                continue;
+            }
+
+            Work target = existing == null ? Work.builder().build() : existing.toBuilder().build();
+            target.setUserId(userId);
+            target.setWorkDate(record.getWorkDate());
+            target.setRawStart(
+                    existing != null && existing.getRawStart() != null
+                            ? existing.getRawStart()
+                            : record.getRawStart());
+            target.setRawEnd(record.getRawEnd());
+            if (target.getRawStart() == null
+                    || target.getRawEnd() == null
+                    || !target.getRawEnd().isAfter(target.getRawStart())) {
+                throw new IllegalArgumentException("최신 출근 기록보다 늦은 퇴근 시간이 필요합니다.");
+            }
+            target.setMainStart(target.getRawStart());
+            saveRecord(target, RecordAction.SETTINGS);
+        }
+
+        return findWeek(userId, targetWeek.start());
     }
 
     public Work findWork(Long userId, LocalDate workDate) {
@@ -126,6 +177,42 @@ public class RecordService {
         Map<String, Object> response = new HashMap<>();
         response.put("work", work);
         return response;
+    }
+
+    private void validatePrv(
+            List<Work> records, PeriodRange currentWeek, PeriodRange targetWeek, LocalDate today) {
+        if (targetWeek.start().isBefore(currentWeek.start())) {
+            throw new IllegalArgumentException("과거 주의 미리보기는 적용할 수 없습니다.");
+        }
+
+        Set<LocalDate> dates = new HashSet<>();
+        for (Work record : records) {
+            if (record == null
+                    || record.getWorkDate() == null
+                    || record.getRawStart() == null
+                    || record.getRawEnd() == null) {
+                throw new IllegalArgumentException("미리보기 출퇴근 시간이 필요합니다.");
+            }
+
+            LocalDate workDate = record.getWorkDate();
+            if (workDate.isBefore(targetWeek.start()) || workDate.isAfter(targetWeek.end())) {
+                throw new IllegalArgumentException("같은 주의 월요일부터 금요일 기록만 적용할 수 있습니다.");
+            }
+            if (targetWeek.start().equals(currentWeek.start()) && workDate.isBefore(today)) {
+                throw new IllegalArgumentException("이번 주의 오늘 이후 기록만 적용할 수 있습니다.");
+            }
+            if (!dates.add(workDate)) {
+                throw new IllegalArgumentException("같은 날짜의 미리보기 기록이 중복되었습니다.");
+            }
+            if (!record.getRawStart().toLocalDate().equals(workDate)
+                    || (!record.getRawEnd().toLocalDate().equals(workDate)
+                            && !record.getRawEnd().toLocalDate().equals(workDate.plusDays(1)))) {
+                throw new IllegalArgumentException("출퇴근 날짜가 근무일 또는 익일과 일치하지 않습니다.");
+            }
+            if (!record.getRawEnd().isAfter(record.getRawStart())) {
+                throw new IllegalArgumentException("퇴근 시간은 출근 시간보다 늦어야 합니다.");
+            }
+        }
     }
 
     private Work initRequest(Work request) {

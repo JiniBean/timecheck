@@ -73,6 +73,13 @@ public class WorkController {
         return ResponseEntity.ok(recordService.checkOut(request));
     }
 
+    /** 이번 주 미리보기 출퇴근 시간을 실제 근무 기록으로 일괄 적용합니다. */
+    @PostMapping("/apply-prv")
+    public ResponseEntity<WeeklyData> applyPrv(@RequestBody List<Work> records) {
+        Long userId = SecurityUtils.requireCurrentUserId();
+        return ResponseEntity.ok(recordService.applyPrv(userId, records));
+    }
+
     /** 근무유형·야근·비고·수동 시간을 저장합니다. */
     @PatchMapping
     public ResponseEntity<Map<String, Object>> patchWork(

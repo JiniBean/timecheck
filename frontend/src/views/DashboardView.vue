@@ -98,6 +98,13 @@ function openWeekPreview() {
   weekPreviewOpen.value = true;
 }
 
+async function handlePrvApply(weekStart: string) {
+  if (weekStart !== state.value.weeklyReport.weekStart) {
+    await goToThisWeek();
+  }
+  await loadDashboard();
+}
+
 async function handleProfileSaved() {
   await loadDashboard();
 }
@@ -248,7 +255,9 @@ onBeforeUnmount(() => {
       v-if="weekPreviewOpen"
       v-model:open="weekPreviewOpen"
       :user-id="userId"
+      :reference-date="state.weeklyReport.weekStart"
       :as-of="now"
+      @apply="handlePrvApply"
     />
 
     <section class="dashboard-body">

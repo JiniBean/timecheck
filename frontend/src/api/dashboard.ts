@@ -111,6 +111,19 @@ export async function fetchWeek(userId: number, referenceDate?: string): Promise
   const { data } = await http.get<WeekApiRsp>("/work/week", {
     params: { date: ref }
   });
+  return toWeekReport(data, ref, userId);
+}
+
+export async function applyPrv(
+  userId: number,
+  records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd">>
+): Promise<WeekReport> {
+  const ref = records[0]?.workDate ?? localDateKey();
+  const { data } = await http.post<WeekApiRsp>("/work/apply-prv", records);
+  return toWeekReport(data, ref, userId);
+}
+
+function toWeekReport(data: WeekApiRsp, ref: string, userId: number): WeekReport {
   return buildWeekReport(
     {
       weekStart: data.weekStart,
