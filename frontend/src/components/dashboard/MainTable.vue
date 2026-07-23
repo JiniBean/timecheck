@@ -111,7 +111,7 @@ function resolvePickerInitial(day: WeekDay, field: "start" | "end"): string {
   if (field === "end" && day.dayType === "PM") {
     return WorkPolicy.HALF_DAY_HHMM;
   }
-  return field === "end" ? "16:00" : "09:00";
+  return field === "end" ? "18:00" : "09:00";
 }
 
 function openTimePicker(day: WeekDay, field: "start" | "end") {
