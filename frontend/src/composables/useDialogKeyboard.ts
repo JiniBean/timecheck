@@ -47,8 +47,4 @@ export function useDialogKeyboard(options: DialogKeyboardOptions) {
   onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleKeydown);
   });
-
-  return {
-    handleKeydown
-  };
 }

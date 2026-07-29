@@ -14,7 +14,7 @@ const form = ref<LoginForm>({
   password: ""
 });
 const errorMessage = ref<string | null>(null);
-const loading = ref(false);
+const isLoading = ref(false);
 
 onMounted(() => {
   if (route.query.reason === "session_expired") {
@@ -24,7 +24,7 @@ onMounted(() => {
 
 async function handleSubmit() {
   errorMessage.value = null;
-  loading.value = true;
+  isLoading.value = true;
   try {
     await authStore.login(form.value);
     const redirect = typeof route.query.redirect === "string" ? route.query.redirect : "/";
@@ -32,7 +32,7 @@ async function handleSubmit() {
   } catch (error) {
     errorMessage.value = apiErrMsg(error, "로그인에 실패했습니다.");
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 </script>
@@ -67,8 +67,8 @@ async function handleSubmit() {
 
         <p v-if="errorMessage" class="auth-error">{{ errorMessage }}</p>
 
-        <button class="button button-primary auth-submit" type="submit" :disabled="loading">
-          {{ loading ? "로그인 중..." : "로그인" }}
+        <button class="button button-primary auth-submit" type="submit" :disabled="isLoading">
+          {{ isLoading ? "로그인 중..." : "로그인" }}
         </button>
       </form>
 

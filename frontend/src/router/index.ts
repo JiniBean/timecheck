@@ -38,14 +38,14 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore();
   bootLog("router.beforeEach", {
     to: to.fullPath,
-    initialized: auth.initialized,
+    isSessionChecked: auth.isSessionChecked,
     hasUser: Boolean(auth.user)
   });
 
-  if (!auth.initialized) {
+  if (!auth.isSessionChecked) {
     await auth.bootstrap();
     bootLog("router.bootstrap.awaited", {
-      initialized: auth.initialized,
+      isSessionChecked: auth.isSessionChecked,
       hasUser: Boolean(auth.user)
     });
   }

@@ -7,13 +7,13 @@ import { useBootStore } from "./boot";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = ref<AuthUser | null>(null);
-  const initialized = ref(false);
+  const isSessionChecked = ref(false);
   const isAdmin = computed(() => user.value?.role === "ADMIN");
 
   let bootstrapTask: Promise<void> | null = null;
 
   async function bootstrap() {
-    if (initialized.value) {
+    if (isSessionChecked.value) {
       bootLog("bootstrap.skip", { reason: "already_initialized" });
       return;
     }
@@ -32,8 +32,8 @@ export const useAuthStore = defineStore("auth", () => {
       user.value = null;
       bootError("bootstrap.error", error);
     } finally {
-      initialized.value = true;
-      bootLog("bootstrap.initialized", { initialized: initialized.value });
+      isSessionChecked.value = true;
+      bootLog("bootstrap.initialized", { isSessionChecked: isSessionChecked.value });
     }
   }
 
@@ -61,7 +61,7 @@ export const useAuthStore = defineStore("auth", () => {
       bootError("logout.error", error, { status, code });
     } finally {
       user.value = null;
-      useBootStore().resetShellReady();
+      useBootStore().resetReady();
     }
   }
 
@@ -75,7 +75,7 @@ export const useAuthStore = defineStore("auth", () => {
 
   return {
     user,
-    initialized,
+    isSessionChecked,
     isAdmin,
     bootstrap,
     login,

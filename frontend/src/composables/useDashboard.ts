@@ -73,17 +73,16 @@ export interface DaySettings {
 
 export function useDashboard(userId: number) {
   const bootStore = useBootStore();
-  bootStore.resetShellReady();
+  bootStore.resetReady();
 
   const state = ref<DashboardState>({
     todayStatus: "BEFORE_CHECK_IN",
     todayWork: initTodayWork(userId),
     weeklyReport: emptyWeekReport(),
-    loading: false,
-    actionLoading: false,
+    isLoading: false,
+    isActionLoading: false,
     errorMessage: null,
-    toastMessage: null,
-    lastSyncedAt: null
+    toastMessage: null
   });
 
   let toastTimerId: number | null = null;
@@ -98,7 +97,7 @@ export function useDashboard(userId: number) {
     try {
       const todayWork = await fetchWork(userId, today);
       state.value.todayWork = todayWork;
-      state.value.todayStatus = resolveStatus(todayWork);
+      state.value.todayStatus = statusOf(todayWork);
       isActTimeManual.value = false;
       isActTimeLocked.value = false;
       syncActTime(new Date());
@@ -120,16 +119,16 @@ export function useDashboard(userId: number) {
   const canCheckIn = computed(
     () =>
       state.value.todayStatus === "BEFORE_CHECK_IN" &&
-      !state.value.actionLoading &&
+      !state.value.isActionLoading &&
       !isDayOff(state.value.todayWork.dayType)
   );
 
   const canCheckOut = computed(
     () =>
       state.value.todayStatus === "WORKING" &&
-      !state.value.actionLoading &&
+      !state.value.isActionLoading &&
       !isDayOff(state.value.todayWork.dayType) &&
-      canCheckoutHalfDay(state.value.todayWork.dayType, resolveApiTime())
+      canCheckOutHalfDay(state.value.todayWork.dayType, toApiHm())
   );
 
   const referenceDate = ref(currentDateKey());
@@ -184,11 +183,11 @@ export function useDashboard(userId: number) {
     }
   }
 
-  function resolveApiTime(): string {
+  function toApiHm(): string {
     return actTime.value.slice(0, 5);
   }
 
-  function canCheckoutHalfDay(dayType: DayType, hhmm: string): boolean {
+  function canCheckOutHalfDay(dayType: DayType, hhmm: string): boolean {
     if (dayType !== "PM") {
       return true;
     }
@@ -197,7 +196,7 @@ export function useDashboard(userId: number) {
 
   async function loadDashboard() {
     const generation = ++loadGen;
-    state.value.loading = true;
+    state.value.isLoading = true;
     state.value.errorMessage = null;
     bootLog("dashboard.load.start", { userId, referenceDate: referenceDate.value });
     try {
@@ -213,11 +212,10 @@ export function useDashboard(userId: number) {
 
       state.value.todayWork = todayWork;
       setWeekReport(weeklyReport);
-      state.value.todayStatus = resolveStatus(todayWork);
+      state.value.todayStatus = statusOf(todayWork);
       isActTimeLocked.value = false;
       isActTimeManual.value = false;
       syncActTime(new Date());
-      state.value.lastSyncedAt = new Date().toISOString();
       bootLog("dashboard.load.done", {
         weekStart: weeklyReport.weekStart,
         dayCount: weeklyReport.days.length
@@ -229,9 +227,9 @@ export function useDashboard(userId: number) {
       }
     } finally {
       if (generation === loadGen) {
-        state.value.loading = false;
-        bootStore.markShellReady();
-        bootLog("dashboard.load.finally", { loading: false, shellReady: true });
+        state.value.isLoading = false;
+        bootStore.markReady();
+        bootLog("dashboard.load.finally", { isLoading: false, isReady: true });
       }
     }
   }
@@ -240,7 +238,7 @@ export function useDashboard(userId: number) {
     const weeklyReport = await fetchWeek(userId, referenceDate.value);
     if (updated.workDate === localDateKey()) {
       state.value.todayWork = updated;
-      state.value.todayStatus = resolveStatus(updated);
+      state.value.todayStatus = statusOf(updated);
       isActTimeManual.value = false;
       isActTimeLocked.value = false;
       syncActTime(new Date());
@@ -252,10 +250,10 @@ export function useDashboard(userId: number) {
     if (!canCheckIn.value) {
       return;
     }
-    void copyText(`출근보고 ${resolveApiTime()}`);
+    void copyText(`출근보고 ${toApiHm()}`);
     await runAction(async () => {
       const today = localDateKey();
-      const rawStart = hhmmToDateTime(today, resolveApiTime());
+      const rawStart = hhmmToDateTime(today, toApiHm());
       let work: Work = {
         ...state.value.todayWork,
         rawStart
@@ -268,7 +266,7 @@ export function useDashboard(userId: number) {
         await refreshWeek(updated);
       } else {
         state.value.todayWork = updated;
-        state.value.todayStatus = resolveStatus(updated);
+        state.value.todayStatus = statusOf(updated);
       }
       isActTimeManual.value = false;
       isActTimeLocked.value = false;
@@ -292,16 +290,16 @@ export function useDashboard(userId: number) {
       if (
         state.value.todayStatus === "WORKING" &&
         state.value.todayWork.dayType === "PM" &&
-        !state.value.actionLoading
+        !state.value.isActionLoading
       ) {
         state.value.errorMessage = `오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`;
       }
       return;
     }
-    void copyText(`퇴근보고 ${resolveApiTime()}`);
+    void copyText(`퇴근보고 ${toApiHm()}`);
     await runAction(async () => {
       const today = localDateKey();
-      const rawEnd = hhmmToDateTime(today, resolveApiTime());
+      const rawEnd = hhmmToDateTime(today, toApiHm());
       const { work, cancelled: otCancelled } = otOnCheckout(
         { ...state.value.todayWork, rawEnd },
         rawEnd!
@@ -315,7 +313,7 @@ export function useDashboard(userId: number) {
         await refreshWeek(updated);
       } else {
         state.value.todayWork = updated;
-        state.value.todayStatus = resolveStatus(updated);
+        state.value.todayStatus = statusOf(updated);
       }
       isActTimeManual.value = false;
       isActTimeLocked.value = false;
@@ -424,7 +422,7 @@ export function useDashboard(userId: number) {
   async function setWeekOut(workDate: string, hhmm: string) {
     await runAction(async () => {
       const existing = await fetchWork(userId, workDate);
-      if (!canCheckoutHalfDay(existing.dayType, hhmm)) {
+      if (!canCheckOutHalfDay(existing.dayType, hhmm)) {
         throw new Error(`오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`);
       }
       const rawEnd = hhmmToDateTime(workDate, hhmm);
@@ -585,36 +583,34 @@ export function useDashboard(userId: number) {
   }
 
   async function shiftWeek(delta: number) {
-    if (state.value.loading || state.value.actionLoading) {
+    if (state.value.isLoading || state.value.isActionLoading) {
       return;
     }
-    state.value.loading = true;
+    state.value.isLoading = true;
     state.value.errorMessage = null;
     try {
       referenceDate.value = shiftDateKey(referenceDate.value, delta * 7);
       await loadWeekReport();
-      state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
       state.value.errorMessage = apiErrMsg(error);
     } finally {
-      state.value.loading = false;
+      state.value.isLoading = false;
     }
   }
 
   async function goToThisWeek() {
-    if (isCurrentWeek.value || state.value.loading || state.value.actionLoading) {
+    if (isCurrentWeek.value || state.value.isLoading || state.value.isActionLoading) {
       return;
     }
     referenceDate.value = currentDateKey();
-    state.value.loading = true;
+    state.value.isLoading = true;
     state.value.errorMessage = null;
     try {
       await loadWeekReport();
-      state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
       state.value.errorMessage = apiErrMsg(error);
     } finally {
-      state.value.loading = false;
+      state.value.isLoading = false;
     }
   }
 
@@ -624,15 +620,14 @@ export function useDashboard(userId: number) {
 
   async function runAction(callback: () => Promise<void>) {
     loadGen += 1;
-    state.value.actionLoading = true;
+    state.value.isActionLoading = true;
     state.value.errorMessage = null;
     try {
       await callback();
-      state.value.lastSyncedAt = new Date().toISOString();
     } catch (error) {
       state.value.errorMessage = apiErrMsg(error);
     } finally {
-      state.value.actionLoading = false;
+      state.value.isActionLoading = false;
     }
   }
 
@@ -783,7 +778,7 @@ function remarkForApi(work: Work): string | null {
   return null;
 }
 
-function resolveStatus(work: Work): TodayStatus {
+function statusOf(work: Work): TodayStatus {
   if (work.rawEnd) {
     return "DONE";
   }

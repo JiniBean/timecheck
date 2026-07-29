@@ -67,9 +67,8 @@ export interface DashboardState {
   todayStatus: TodayStatus;
   todayWork: Work;
   weeklyReport: WeekReport;
-  loading: boolean;
-  actionLoading: boolean;
+  isLoading: boolean;
+  isActionLoading: boolean;
   errorMessage: string | null;
   toastMessage: string | null;
-  lastSyncedAt: string | null;
 }

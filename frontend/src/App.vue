@@ -11,7 +11,7 @@ const route = useRoute();
 
 /** 인증 게이트: 보호 라우트는 user 있을 때만 router-view 마운트 */
 const canShowRoute = computed(() => {
-  if (!authStore.initialized) {
+  if (!authStore.isSessionChecked) {
     return false;
   }
   if (route.meta.requiresAuth && !authStore.user) {
@@ -25,13 +25,13 @@ const canShowRoute = computed(() => {
  * 대시보드 데이터(loadDashboard) 완료 전
  */
 const isBooting = computed(() => {
-  if (!authStore.initialized) {
+  if (!authStore.isSessionChecked) {
     return true;
   }
   if (route.meta.requiresAuth && !authStore.user) {
     return true;
   }
-  if (route.name === "dashboard" && authStore.user && !bootStore.shellReady) {
+  if (route.name === "dashboard" && authStore.user && !bootStore.isReady) {
     return true;
   }
   return false;
@@ -39,25 +39,25 @@ const isBooting = computed(() => {
 
 watch(
   () => ({
-    initialized: authStore.initialized,
+    isSessionChecked: authStore.isSessionChecked,
     name: route.name,
     hasUser: Boolean(authStore.user)
   }),
-  ({ initialized, name, hasUser }) => {
-    if (!initialized) {
+  ({ isSessionChecked, name, hasUser }) => {
+    if (!isSessionChecked) {
       return;
     }
     if (name === "dashboard" && hasUser) {
       return;
     }
     if (name === "login" || name === "signup" || !hasUser) {
-      bootStore.markShellReady();
+      bootStore.markReady();
     }
   }
 );
 
 onMounted(() => {
-  bootLog("app.mounted", { initialized: authStore.initialized });
+  bootLog("app.mounted", { isSessionChecked: authStore.isSessionChecked });
   void authStore.bootstrap();
 });
 </script>

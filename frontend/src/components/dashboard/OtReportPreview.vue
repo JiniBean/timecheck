@@ -22,7 +22,7 @@ const props = defineProps<{
 }>();
 
 const copyRootRef = ref<HTMLElement | null>(null);
-const showCopyToast = ref(false);
+const isCopyToastVisible = ref(false);
 let copyToastTimer: ReturnType<typeof setTimeout> | null = null;
 
 const built = computed(() =>
@@ -42,12 +42,12 @@ async function handleCopy() {
   try {
     await copyReport(copyRootRef.value);
     if (!props.hidden) {
-      showCopyToast.value = true;
+      isCopyToastVisible.value = true;
       if (copyToastTimer) {
         clearTimeout(copyToastTimer);
       }
       copyToastTimer = setTimeout(() => {
-        showCopyToast.value = false;
+        isCopyToastVisible.value = false;
       }, 2000);
     }
   } catch (error) {
@@ -113,7 +113,7 @@ defineExpose({ copy: handleCopy, hasRows });
       <h2 class="card-title">시간외근무 보고서</h2>
       <div class="copy-actions">
         <Transition name="toast-fade">
-          <span v-if="showCopyToast" class="toast" role="status">복사되었습니다</span>
+          <span v-if="isCopyToastVisible" class="toast" role="status">복사되었습니다</span>
         </Transition>
         <button type="button" class="button button-outline copy-btn" :disabled="!hasRows" @click="handleCopy">
           복사

@@ -21,7 +21,7 @@ const authStore = useAuthStore();
 
 const form = ref<ProfileForm>(createFormFromUser(props.user));
 const errorMessage = ref<string | null>(null);
-const loading = ref(false);
+const isLoading = ref(false);
 const firstInputRef = ref<HTMLInputElement | null>(null);
 const visibleRef = computed(() => props.visible);
 
@@ -29,7 +29,7 @@ useDialogKeyboard({
   open: visibleRef,
   onClose: close,
   onSubmit: handleSubmit,
-  disabled: loading
+  disabled: isLoading
 });
 
 const username = computed({
@@ -81,7 +81,7 @@ function createFormFromUser(user: AuthUser): ProfileForm {
 }
 
 function close() {
-  if (!loading.value) {
+  if (!isLoading.value) {
     emit("close");
   }
 }
@@ -93,7 +93,7 @@ async function handleSubmit() {
   }
 
   errorMessage.value = null;
-  loading.value = true;
+  isLoading.value = true;
   try {
     await authStore.updateMe(form.value);
     emit("saved");
@@ -101,7 +101,7 @@ async function handleSubmit() {
   } catch (error) {
     errorMessage.value = apiErrMsg(error, "회원정보를 저장하지 못했습니다.");
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 </script>
@@ -177,11 +177,11 @@ async function handleSubmit() {
           <p v-if="errorMessage" class="profile-modal-error">{{ errorMessage }}</p>
 
           <div class="profile-modal-actions">
-            <button type="button" class="button button-soft button-sm" :disabled="loading" @click="close">
+            <button type="button" class="button button-soft button-sm" :disabled="isLoading" @click="close">
               취소
             </button>
-            <button type="submit" class="button button-primary button-sm" :disabled="loading || !!usernameError || busy">
-              {{ loading ? "저장 중..." : "저장" }}
+            <button type="submit" class="button button-primary button-sm" :disabled="isLoading || !!usernameError || busy">
+              {{ isLoading ? "저장 중..." : "저장" }}
             </button>
           </div>
         </form>

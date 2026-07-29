@@ -34,14 +34,14 @@ export function formatHm(value: string | null | undefined): string {
 }
 
 /** 분 → HH:mm (총근무시간 등, 0이면 00:00) */
-export function fmtMinutes(minutes: number): string {
+export function formatMinutes(minutes: number): string {
   const safe = Math.max(0, minutes);
   const hour = Math.floor(safe / 60);
   const minute = safe % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-export function hmToMinutes(value: string): number {
+export function hhmmToMin(value: string): number {
   const [h, m] = value.slice(0, 5).split(":");
   const hour = Number.parseInt(h ?? "0", 10) || 0;
   const minute = Number.parseInt(m ?? "0", 10) || 0;
@@ -49,7 +49,7 @@ export function hmToMinutes(value: string): number {
 }
 
 export function compareHm(a: string, b: string): number {
-  return hmToMinutes(a) - hmToMinutes(b);
+  return hhmmToMin(a) - hhmmToMin(b);
 }
 
 export function hhmmToDateTime(workDate: string, hhmm: string): string {
@@ -57,7 +57,7 @@ export function hhmmToDateTime(workDate: string, hhmm: string): string {
   return `${workDate} ${String(Number(h) || 0).padStart(2, "0")}:${String(Number(m) || 0).padStart(2, "0")}`;
 }
 
-export function fmtDurKo(minutes: number): string {
+export function formatDurKo(minutes: number): string {
   const hour = Math.floor(minutes / 60);
   const minute = minutes % 60;
   if (hour > 0 && minute > 0) {

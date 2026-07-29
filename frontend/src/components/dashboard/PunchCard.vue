@@ -35,8 +35,8 @@ const emit = defineEmits<{
   "apply-picked-time": [value: string];
 }>();
 
-const timePickerOpen = ref(false);
-const settingsOpen = ref(false);
+const isTimePickerOpen = ref(false);
+const isSettingsOpen = ref(false);
 const {
   dayTypeDraft,
   otDraft,
@@ -62,11 +62,11 @@ const dayTypeLabel = computed(
   () => DAY_TYPE_OPTIONS.find((v) => v.value === props.dayType)?.label ?? "일반근무"
 );
 
-const showInlineOtTimes = computed(() => props.isOt && props.hasCheckIn);
+const hasInlineOtTimes = computed(() => props.isOt && props.hasCheckIn);
 
-const otTimesEditable = computed(() => props.isOt && props.hasCheckIn);
+const canEditOtTimes = computed(() => props.isOt && props.hasCheckIn);
 
-const otTimesPreview = computed(() => props.isOt && props.hasCheckIn && props.status === "WORKING");
+const isOtTimesPreview = computed(() => props.isOt && props.hasCheckIn && props.status === "WORKING");
 
 const checkInButtonClass = computed(() =>
   props.status === "BEFORE_CHECK_IN"
@@ -84,7 +84,7 @@ function onTimeRowClick() {
   if (!props.isActTimeEditable) {
     return;
   }
-  timePickerOpen.value = true;
+  isTimePickerOpen.value = true;
 }
 
 function openSettings() {
@@ -93,7 +93,7 @@ function openSettings() {
     isOt: props.isOt,
     remark: props.remark
   });
-  settingsOpen.value = true;
+  isSettingsOpen.value = true;
 }
 
 function onSettingsSave() {
@@ -102,7 +102,7 @@ function onSettingsSave() {
 }
 
 function openInlineOtPicker(field: "mainEnd" | "otStart") {
-  if (!otTimesEditable.value) {
+  if (!canEditOtTimes.value) {
     return;
   }
   inlineOtField.value = field;
@@ -138,11 +138,11 @@ function onInlineOtConfirm(hhmm: string) {
       </button>
     </div>
 
-    <div v-if="showInlineOtTimes" class="ot-row">
+    <div v-if="hasInlineOtTimes" class="ot-row">
       <button
         type="button"
         class="ot-chip"
-        :class="{ preview: otTimesPreview }"
+        :class="{ preview: isOtTimesPreview }"
         @click="openInlineOtPicker('mainEnd')"
       >
         <span class="ot-chip-label">퇴근</span>
@@ -151,7 +151,7 @@ function onInlineOtConfirm(hhmm: string) {
       <button
         type="button"
         class="ot-chip"
-        :class="{ preview: otTimesPreview }"
+        :class="{ preview: isOtTimesPreview }"
         @click="openInlineOtPicker('otStart')"
       >
         <span class="ot-chip-label">야근 시작</span>
@@ -184,7 +184,7 @@ function onInlineOtConfirm(hhmm: string) {
     <p v-if="loading" class="card-note">처리 중입니다. 잠시만 기다려 주세요.</p>
 
     <TimePicker
-      v-model:open="timePickerOpen"
+      v-model:open="isTimePickerOpen"
       :initial-time="actTime"
       @confirm="emit('apply-picked-time', $event)"
     />
@@ -197,7 +197,7 @@ function onInlineOtConfirm(hhmm: string) {
     />
 
     <SettingPicker
-      v-model:open="settingsOpen"
+      v-model:open="isSettingsOpen"
       title="근무 설정"
       :day-type="dayTypeDraft"
       :is-ot="otDraft"

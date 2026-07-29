@@ -1,10 +1,10 @@
 import type { Work } from "../types/dashboard";
 import { shiftDateKey } from "./weekNav";
 
-const OUTLIER_THRESHOLD_MINUTES = 30;
+const OUTLIER_THRESHOLD_MIN = 30;
 const LOOKBACK_DAYS = 30;
 
-function parseCheckInMinutes(rawStart: string): number | null {
+function parseCheckInMin(rawStart: string): number | null {
   const normalized = rawStart.includes("T") ? rawStart : rawStart.replace(" ", "T");
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) {
@@ -33,10 +33,10 @@ function median(values: number[]): number {
 }
 
 /** NOM 출근 기록에서 중앙값 기준 이상치를 제외한 평균 출근 시각(HH:mm) */
-export function typicalCheckIn(records: Work[]): string | null {
+export function typicalInHhmm(records: Work[]): string | null {
   const minutes = records
     .filter((record) => record.dayType === "NOM" && record.rawStart)
-    .map((record) => parseCheckInMinutes(record.rawStart!))
+    .map((record) => parseCheckInMin(record.rawStart!))
     .filter((value): value is number => value !== null);
 
   if (minutes.length === 0) {
@@ -44,7 +44,7 @@ export function typicalCheckIn(records: Work[]): string | null {
   }
 
   const center = median(minutes);
-  const filtered = minutes.filter((value) => Math.abs(value - center) <= OUTLIER_THRESHOLD_MINUTES);
+  const filtered = minutes.filter((value) => Math.abs(value - center) <= OUTLIER_THRESHOLD_MIN);
   const pool = filtered.length > 0 ? filtered : minutes;
   const average = pool.reduce((sum, value) => sum + value, 0) / pool.length;
   return minutesToHhmm(average);

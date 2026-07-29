@@ -53,7 +53,7 @@ export function formatAdminDate(iso: string | null | undefined): string {
     .replace(/\.\s*$/, "");
 }
 
-export function fmtAdminDt(iso: string | null | undefined): string {
+export function formatAdminDt(iso: string | null | undefined): string {
   if (!iso) {
     return "—";
   }
@@ -73,7 +73,7 @@ export function fmtAdminDt(iso: string | null | undefined): string {
 }
 
 /** 모바일 사용자 목록 — 연도 생략 */
-export function fmtAdminDtShort(iso: string | null | undefined): string {
+export function formatAdminDtShort(iso: string | null | undefined): string {
   if (!iso) {
     return "—";
   }

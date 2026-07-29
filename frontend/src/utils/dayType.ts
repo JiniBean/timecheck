@@ -26,18 +26,18 @@ export function dayTypeCellLabel(dayType: DayType): string {
   return dayTypeLabel(dayType);
 }
 
-export function mainMinutesLabel(mainMinutes: number): string {
-  if (mainMinutes <= 0) {
+export function formatMainMin(mainMin: number): string {
+  if (mainMin <= 0) {
     return "-";
   }
-  const hour = Math.floor(mainMinutes / 60);
-  const minute = mainMinutes % 60;
+  const hour = Math.floor(mainMin / 60);
+  const minute = mainMin % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-export function workCellLabel(dayType: DayType, mainMinutes: number): string {
+export function workCellLabel(dayType: DayType, mainMin: number): string {
   if (isDayOff(dayType)) {
     return dayTypeLabel(dayType);
   }
-  return mainMinutesLabel(mainMinutes);
+  return formatMainMin(mainMin);
 }

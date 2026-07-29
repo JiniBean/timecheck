@@ -5,7 +5,7 @@ import SettingPicker from "./SettingPicker.vue";
 import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, WeekDay } from "../../types/dashboard";
 import { isDayOff } from "../../utils/dayType";
-import { formatHm, fmtMinutes } from "../../utils/time";
+import { formatHm, formatMinutes } from "../../utils/time";
 import { dayExtraTotal, dayExtra, type DayExtra } from "../../utils/ot";
 
 interface TodayOtContext {
@@ -38,13 +38,13 @@ const emit = defineEmits<{
   ];
 }>();
 
-const timePickerOpen = ref(false);
+const isTimePickerOpen = ref(false);
 const timePickerInitial = ref("19:00");
 const timeEditField = ref<"start" | "end">("start");
 const editingDay = ref<WeekDay | null>(null);
-const timePickerCanReset = ref(false);
+const canResetTimePicker = ref(false);
 
-const dayTypeSheetOpen = ref(false);
+const isDayTypeSheetOpen = ref(false);
 const dayTypeEditDay = ref<WeekDay | null>(null);
 
 const {
@@ -90,7 +90,7 @@ const displayDays = computed(() =>
       durationPreview,
       startLabel: dayOff || !hasOt ? "-" : formatHm(otStart),
       endLabel: dayOff || !hasOt ? "-" : formatHm(otEnd),
-      durationLabel: dayOff || !hasOt || totalExtra <= 0 ? "-" : fmtMinutes(totalExtra)
+      durationLabel: dayOff || !hasOt || totalExtra <= 0 ? "-" : formatMinutes(totalExtra)
     };
   })
 );
@@ -111,8 +111,8 @@ function openTimePicker(day: (typeof displayDays.value)[number], field: "start" 
   const value = field === "start" ? day.otStart : day.otEnd;
   const formatted = formatHm(value);
   timePickerInitial.value = formatted === "-" ? "19:00" : formatted;
-  timePickerCanReset.value = hasOtTimeValue(day, field);
-  timePickerOpen.value = true;
+  canResetTimePicker.value = hasOtTimeValue(day, field);
+  isTimePickerOpen.value = true;
 }
 
 function onTimeReset() {
@@ -148,11 +148,11 @@ function openDayTypeSheet(day: WeekDay) {
     isOt: day.isOt,
     remark: day.remark
   });
-  dayTypeSheetOpen.value = true;
+  isDayTypeSheetOpen.value = true;
 }
 
 function closeDayTypeSheet() {
-  dayTypeSheetOpen.value = false;
+  isDayTypeSheetOpen.value = false;
   dayTypeEditDay.value = null;
 }
 
@@ -217,16 +217,16 @@ const settingsTitle = computed(() =>
     </div>
 
     <TimePicker
-      v-model:open="timePickerOpen"
+      v-model:open="isTimePickerOpen"
       :initial-time="timePickerInitial"
-      :show-reset="timePickerCanReset"
+      :show-reset="canResetTimePicker"
       :title="timeEditField === 'start' ? '야근 시작' : '야근 종료'"
       @confirm="onTimeConfirm"
       @reset="onTimeReset"
     />
 
     <SettingPicker
-      v-model:open="dayTypeSheetOpen"
+      v-model:open="isDayTypeSheetOpen"
       :title="settingsTitle"
       :day-type="dayTypeDraft"
       :is-ot="otDraft"

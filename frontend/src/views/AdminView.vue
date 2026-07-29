@@ -7,9 +7,9 @@ import logoutIcon from "../assets/icons/logout.svg";
 import * as adminApi from "../api/admin";
 import { useAuthStore } from "../stores/auth";
 import type { Overview, Period, UserDetail, UserForm } from "../types/admin";
-import { adminStatusLabel, fmtAdminDt, fmtAdminDtShort } from "../utils/admin";
+import { adminStatusLabel, formatAdminDt, formatAdminDtShort } from "../utils/admin";
 import { weekSummary } from "../utils/main";
-import { fmtMinutes } from "../utils/time";
+import { formatMinutes } from "../utils/time";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -23,12 +23,12 @@ const weekEnd = ref("");
 const selectedUser = ref<UserDetail | null>(null);
 const statusFilter = ref("");
 const deptFilter = ref("");
-const loadingOverview = ref(false);
-const loadingUsers = ref(false);
-const savingUser = ref(false);
+const isLoadingOverview = ref(false);
+const isLoadingUsers = ref(false);
+const isSavingUser = ref(false);
 const error = ref("");
 const userError = ref("");
-const saveToast = ref(false);
+const isSaveToastVisible = ref(false);
 
 let saveToastTimer: number | null = null;
 
@@ -75,30 +75,30 @@ function weekStats(user: UserDetail) {
 }
 
 function showSaveToast() {
-  saveToast.value = true;
+  isSaveToastVisible.value = true;
   if (saveToastTimer !== null) {
     window.clearTimeout(saveToastTimer);
   }
   saveToastTimer = window.setTimeout(() => {
-    saveToast.value = false;
+    isSaveToastVisible.value = false;
     saveToastTimer = null;
   }, 2000);
 }
 
 async function loadOverview() {
-  loadingOverview.value = true;
+  isLoadingOverview.value = true;
   error.value = "";
   try {
     overview.value = await adminApi.fetchOverview(period.value);
   } catch (e) {
     error.value = resolveMessage(e);
   } finally {
-    loadingOverview.value = false;
+    isLoadingOverview.value = false;
   }
 }
 
 async function loadUsers() {
-  loadingUsers.value = true;
+  isLoadingUsers.value = true;
   error.value = "";
   try {
     const data = await adminApi.fetchUsers({
@@ -111,7 +111,7 @@ async function loadUsers() {
   } catch (e) {
     error.value = resolveMessage(e);
   } finally {
-    loadingUsers.value = false;
+    isLoadingUsers.value = false;
   }
 }
 
@@ -128,7 +128,7 @@ async function saveUser(form: UserForm) {
   if (!selectedUser.value) {
     return;
   }
-  savingUser.value = true;
+  isSavingUser.value = true;
   userError.value = "";
   try {
     const updated = await adminApi.updateUser(selectedUser.value.userId, form);
@@ -141,7 +141,7 @@ async function saveUser(form: UserForm) {
   } catch (e) {
     userError.value = resolveMessage(e);
   } finally {
-    savingUser.value = false;
+    isSavingUser.value = false;
   }
 }
 
@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
     </header>
 
     <Transition name="toast-fade">
-      <p v-if="saveToast" class="admin-toast" role="status">저장되었습니다</p>
+      <p v-if="isSaveToastVisible" class="admin-toast" role="status">저장되었습니다</p>
     </Transition>
 
     <p v-if="error" class="admin-error admin-page-error">{{ error }}</p>
@@ -241,10 +241,10 @@ onBeforeUnmount(() => {
       </div>
       <AdminKpiCards
         :overview="overview"
-        :loading="loadingOverview || loadingUsers"
+        :loading="isLoadingOverview || isLoadingUsers"
         :period="period"
-        :weekly-goal-met-users="goalStats.metUsers"
-        :weekly-goal-rate="goalStats.rate"
+        :week-goal-met-users="goalStats.metUsers"
+        :week-goal-rate="goalStats.rate"
       />
     </section>
 
@@ -282,7 +282,7 @@ onBeforeUnmount(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-if="loadingUsers">
+              <tr v-if="isLoadingUsers">
                 <td colspan="6">불러오는 중…</td>
               </tr>
               <tr v-else-if="users.length === 0">
@@ -311,16 +311,16 @@ onBeforeUnmount(() => {
                   {{ user.weekDays }}일
                   <span v-if="weekStats(user).goalMet" class="admin-goal-met">달성</span>
                   <span v-else-if="weekStats(user).main > 0" class="admin-goal-pending">
-                    {{ fmtMinutes(weekStats(user).main) }}
+                    {{ formatMinutes(weekStats(user).main) }}
                   </span>
                 </td>
                 <td>{{ user.role === "ADMIN" ? "관리자" : "일반" }}</td>
                 <td>
                   <span class="admin-users-access--desktop">{{
-                    user.lastAccess ? fmtAdminDt(user.lastAccess) : "—"
+                    user.lastAccess ? formatAdminDt(user.lastAccess) : "—"
                   }}</span>
                   <span class="admin-users-access--mobile">{{
-                    user.lastAccess ? fmtAdminDtShort(user.lastAccess) : "—"
+                    user.lastAccess ? formatAdminDtShort(user.lastAccess) : "—"
                   }}</span>
                 </td>
               </tr>
@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
           :user="selectedUser"
           :week-start="weekStart"
           :week-end="weekEnd"
-          :saving="savingUser"
+          :saving="isSavingUser"
           :error="userError"
           @close="selectedUser = null"
           @save="saveUser"

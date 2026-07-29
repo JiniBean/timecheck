@@ -4,7 +4,7 @@ import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
 import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, WeekDay } from "../../types/dashboard";
-import { dayTypeCellLabel, isDayOff, mainMinutesLabel } from "../../utils/dayType";
+import { dayTypeCellLabel, isDayOff, formatMainMin } from "../../utils/dayType";
 import { compareHm, formatHm } from "../../utils/time";
 import { WorkPolicy } from "../../utils/workPolicy";
 
@@ -34,14 +34,14 @@ const emit = defineEmits<{
 
 const TIME_PICKER_HINT_DEFAULT = "위·아래로 스크롤해 선택하세요";
 
-const timePickerOpen = ref(false);
+const isTimePickerOpen = ref(false);
 const timePickerInitial = ref("09:00");
 const timePickerHint = ref(TIME_PICKER_HINT_DEFAULT);
 const timeEditField = ref<"start" | "end">("start");
 const editingDay = ref<WeekDay | null>(null);
-const timePickerCanReset = ref(false);
+const canResetTimePicker = ref(false);
 
-const dayTypeSheetOpen = ref(false);
+const isDayTypeSheetOpen = ref(false);
 const dayTypeEditDay = ref<WeekDay | null>(null);
 
 const {
@@ -78,7 +78,7 @@ const displayDays = computed(() =>
         : day;
     const checkout = resolveCheckoutCell(effectiveDay);
     const dayOff = isDayOff(day.dayType);
-    const workPreview = Boolean(liveToday && !dayOff && day.rawStart && !day.rawEnd);
+    const isWorkPreview = Boolean(liveToday && !dayOff && day.rawStart && !day.rawEnd);
 
     return {
       ...effectiveDay,
@@ -86,8 +86,8 @@ const displayDays = computed(() =>
       isToday,
       dayOff,
       checkoutLabel: checkout.label,
-      checkoutPreview: checkout.preview,
-      workPreview
+      isCheckoutPreview: checkout.preview,
+      isWorkPreview
     };
   })
 );
@@ -127,8 +127,8 @@ function openTimePicker(day: WeekDay, field: "start" | "end") {
   } else {
     timePickerInitial.value = resolvePickerInitial(day, field);
   }
-  timePickerCanReset.value = hasTimeValue(day, field);
-  timePickerOpen.value = true;
+  canResetTimePicker.value = hasTimeValue(day, field);
+  isTimePickerOpen.value = true;
 }
 
 function onTimeReset() {
@@ -155,7 +155,7 @@ function onTimeConfirm(hhmm: string) {
   ) {
     timePickerHint.value = `오후반차는 ${WorkPolicy.HALF_DAY_HHMM} 이후에만 퇴근할 수 있습니다.`;
     void nextTick(() => {
-      timePickerOpen.value = true;
+      isTimePickerOpen.value = true;
     });
     return;
   }
@@ -177,11 +177,11 @@ function openDayTypeSheet(day: WeekDay) {
     isOt: day.isOt,
     remark: day.remark
   });
-  dayTypeSheetOpen.value = true;
+  isDayTypeSheetOpen.value = true;
 }
 
 function closeDayTypeSheet() {
-  dayTypeSheetOpen.value = false;
+  isDayTypeSheetOpen.value = false;
   dayTypeEditDay.value = null;
 }
 
@@ -231,7 +231,7 @@ const settingsTitle = computed(() =>
               class="cell-editable"
               :class="{
                 'cell-disabled': day.dayOff,
-                'cell-preview': day.checkoutPreview
+                'cell-preview': day.isCheckoutPreview
               }"
               @click="openTimePicker(day, 'end')"
             >
@@ -240,10 +240,10 @@ const settingsTitle = computed(() =>
             <td>
               <span
                 :class="{
-                  'cell-preview': day.workPreview
+                  'cell-preview': day.isWorkPreview
                 }"
               >
-                {{ mainMinutesLabel(day.displayMain) }}
+                {{ formatMainMin(day.displayMain) }}
               </span>
             </td>
             <td class="cell-editable" @click="openDayTypeSheet(day)">
@@ -257,17 +257,17 @@ const settingsTitle = computed(() =>
     </div>
 
     <TimePicker
-      v-model:open="timePickerOpen"
+      v-model:open="isTimePickerOpen"
       :initial-time="timePickerInitial"
       :hint="timePickerHint"
-      :show-reset="timePickerCanReset"
+      :show-reset="canResetTimePicker"
       :title="timeEditField === 'start' ? '출근 시간' : '퇴근 시간'"
       @confirm="onTimeConfirm"
       @reset="onTimeReset"
     />
 
     <SettingPicker
-      v-model:open="dayTypeSheetOpen"
+      v-model:open="isDayTypeSheetOpen"
       :title="settingsTitle"
       :day-type="dayTypeDraft"
       :is-ot="otDraft"

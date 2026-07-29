@@ -64,7 +64,7 @@ const {
 } = useDashboard(userId);
 
 const isProfileOpen = ref(false);
-const weekPreviewOpen = ref(false);
+const isWeekPreviewOpen = ref(false);
 const mobileWorkTab = ref<WorkTab>("main");
 
 watch(
@@ -81,7 +81,7 @@ async function handleLogout() {
   try {
     await authStore.logout();
   } finally {
-    bootStore.resetShellReady();
+    bootStore.resetReady();
     await router.replace("/login");
   }
 }
@@ -95,10 +95,10 @@ function closeProfile() {
 }
 
 function openWeekPreview() {
-  weekPreviewOpen.value = true;
+  isWeekPreviewOpen.value = true;
 }
 
-async function handlePrvApply(weekStart: string) {
+async function handlePreviewApply(weekStart: string) {
   if (weekStart !== state.value.weeklyReport.weekStart) {
     await goToThisWeek();
   }
@@ -112,7 +112,7 @@ async function handleProfileSaved() {
 const now = ref(new Date());
 let clockTimerId: number | null = null;
 
-const weeklyReportRef = ref<{ copy: () => Promise<void> } | null>(null);
+const weekReportRef = ref<{ copy: () => Promise<void> } | null>(null);
 const otReportRef = ref<{ copy: () => Promise<void>; hasRows: boolean } | null>(null);
 
 const nowLabel = computed(() =>
@@ -138,7 +138,7 @@ const mergedToday = computed(() =>
   )
 );
 
-const prvTime = computed(() => {
+const previewTime = computed(() => {
   const work = mergedToday.value;
   if (isWorking(work) && isCurrentWeek.value) {
     return parseDateTime(hhmmToDateTime(todayDateKey.value, actTime.value)) ?? now.value;
@@ -149,7 +149,7 @@ const prvTime = computed(() => {
 const todayLiveWork = computed(() => {
   const work = mergedToday.value;
   if (isWorking(work) && isCurrentWeek.value) {
-    return calcResult(work, prvTime.value);
+    return calcResult(work, previewTime.value);
   }
   return calcResult(work);
 });
@@ -203,7 +203,7 @@ const hasOtRows = computed(
 );
 
 async function copyWeekReport() {
-  await weeklyReportRef.value?.copy();
+  await weekReportRef.value?.copy();
 }
 
 async function copyOtReport() {
@@ -226,8 +226,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- shellReady 전: emptyWeekReport 껍데기(빈 이름/1월 1주)를 DOM에 올리지 않음 -->
-  <main v-if="bootStore.shellReady" class="dashboard-page">
+  <!-- isReady 전: emptyWeekReport 껍데기(빈 이름/1월 1주)를 DOM에 올리지 않음 -->
+  <main v-if="bootStore.isReady" class="dashboard-page">
     <header class="dashboard-header">
       <div class="dashboard-header-main">
         <h1 class="dashboard-title">근무시간 계산기</h1>
@@ -252,12 +252,12 @@ onBeforeUnmount(() => {
     />
 
     <WeekPreviewSheet
-      v-if="weekPreviewOpen"
-      v-model:open="weekPreviewOpen"
+      v-if="isWeekPreviewOpen"
+      v-model:open="isWeekPreviewOpen"
       :user-id="userId"
       :reference-date="state.weeklyReport.weekStart"
       :as-of="now"
-      @apply="handlePrvApply"
+      @apply="handlePreviewApply"
     />
 
     <section class="dashboard-body">
@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
           :week-start="state.weeklyReport.weekStart"
           :week-end="state.weeklyReport.weekEnd"
           :is-current-week="isCurrentWeek"
-          :loading="state.loading"
+          :loading="state.isLoading"
           @prev="shiftWeek(-1)"
           @next="shiftWeek(1)"
           @this-week="goToThisWeek"
@@ -331,7 +331,7 @@ onBeforeUnmount(() => {
 
       <div class="dashboard-reports-hidden" aria-hidden="true">
         <MainReport
-          ref="weeklyReportRef"
+          ref="weekReportRef"
           hidden
           :weekly-report="state.weeklyReport"
           :today-work-date="todayDateKey"
@@ -352,7 +352,7 @@ onBeforeUnmount(() => {
       <PunchCard
         class="dashboard-punch-card"
         :status="state.todayStatus"
-        :loading="state.actionLoading"
+        :loading="state.isActionLoading"
         :can-check-in="canCheckIn"
         :can-check-out="canCheckOut"
         :day-type="state.todayWork.dayType"

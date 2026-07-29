@@ -594,14 +594,14 @@ function createRow(
     performDate: workDate,
     startTime: segment.start,
     endTime: segment.end,
-    durationLabel: fmtOtDur(minutes),
+    durationLabel: formatOtDur(minutes),
     workType,
     workDetail,
     note: OT_REPORT_NOTE
   };
 }
 
-export function fmtOtDur(minutes: number): string {
+export function formatOtDur(minutes: number): string {
   const safe = Math.max(0, minutes);
   const hour = Math.floor(safe / 60);
   const minute = safe % 60;

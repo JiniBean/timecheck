@@ -18,7 +18,7 @@ const form = ref<SignupForm>({
   position: ""
 });
 const errorMessage = ref<string | null>(null);
-const loading = ref(false);
+const isLoading = ref(false);
 
 const username = computed({
   get: () => form.value.username,
@@ -35,14 +35,14 @@ async function handleSubmit() {
   }
 
   errorMessage.value = null;
-  loading.value = true;
+  isLoading.value = true;
   try {
     await authStore.signup(form.value);
     await router.replace("/");
   } catch (error) {
     errorMessage.value = apiErrMsg(error, "회원가입에 실패했습니다.");
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 </script>
@@ -102,8 +102,8 @@ async function handleSubmit() {
 
         <p v-if="errorMessage" class="auth-error">{{ errorMessage }}</p>
 
-        <button class="button button-primary auth-submit" type="submit" :disabled="loading || !!usernameError || busy">
-          {{ loading ? "가입 중..." : "회원가입" }}
+        <button class="button button-primary auth-submit" type="submit" :disabled="isLoading || !!usernameError || busy">
+          {{ isLoading ? "가입 중..." : "회원가입" }}
         </button>
       </form>
 

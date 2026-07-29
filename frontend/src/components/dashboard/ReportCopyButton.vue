@@ -9,17 +9,17 @@ const emit = defineEmits<{
   copy: [];
 }>();
 
-const showToast = ref(false);
+const isCopyToastVisible = ref(false);
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 function handleClick() {
   emit("copy");
-  showToast.value = true;
+  isCopyToastVisible.value = true;
   if (toastTimer) {
     clearTimeout(toastTimer);
   }
   toastTimer = setTimeout(() => {
-    showToast.value = false;
+    isCopyToastVisible.value = false;
   }, 2000);
 }
 </script>
@@ -27,7 +27,7 @@ function handleClick() {
 <template>
   <div class="actions">
     <Transition name="toast-fade">
-      <span v-if="showToast" class="toast" role="status">복사되었습니다</span>
+      <span v-if="isCopyToastVisible" class="toast" role="status">복사되었습니다</span>
     </Transition>
     <button type="button" class="button button-outline copy-btn" :disabled="disabled" @click="handleClick">복사</button>
   </div>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { SummaryOut } from "../../utils/main";
-import { fmtDurKo, fmtMinutes } from "../../utils/time";
+import { formatDurKo, formatMinutes } from "../../utils/time";
 
 const props = defineProps<{
   summary: SummaryOut;
@@ -16,12 +16,12 @@ const balanceLabel = computed(() => (props.summary.weekOverMin > 0 ? "남음" : 
 
 const balanceValue = computed(() =>
   props.summary.weekOverMin > 0
-    ? fmtMinutes(props.summary.weekOverMin)
-    : fmtMinutes(props.summary.weekRemMin)
+    ? formatMinutes(props.summary.weekOverMin)
+    : formatMinutes(props.summary.weekRemMin)
 );
 
 const avgDisplay = computed(() =>
-  props.isCurrentWeek ? fmtDurKo(props.summary.avgPerDayMin) : "-"
+  props.isCurrentWeek ? formatDurKo(props.summary.avgPerDayMin) : "-"
 );
 
 const daysAfterDisplay = computed(() =>
@@ -46,7 +46,7 @@ function openPreview() {
     <div class="stat-row stat-row--4">
       <div class="stat-item">
         <p class="stat-label">총 근무</p>
-        <p class="stat-value">{{ fmtMinutes(summary.weekMainMin) }}</p>
+        <p class="stat-value">{{ formatMinutes(summary.weekMainMin) }}</p>
       </div>
       <div class="stat-item stat-item--divider">
         <p class="stat-label">{{ balanceLabel }}</p>

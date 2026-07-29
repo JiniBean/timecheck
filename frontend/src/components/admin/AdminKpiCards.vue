@@ -6,8 +6,8 @@ const props = defineProps<{
   overview: Overview | null;
   loading: boolean;
   period: Period;
-  weeklyGoalMetUsers: number;
-  weeklyGoalRate: number;
+  weekGoalMetUsers: number;
+  weekGoalRate: number;
 }>();
 
 function formatRate(rate: number): string {
@@ -81,7 +81,7 @@ const goalHint = computed(() => {
           {{
             loading || !overview
               ? ""
-              : `${weeklyGoalMetUsers}명 (${formatRate(weeklyGoalRate)})`
+              : `${weekGoalMetUsers}명 (${formatRate(weekGoalRate)})`
           }}
         </p>
         <p class="admin-kpi-hint">{{ goalHint }}</p>

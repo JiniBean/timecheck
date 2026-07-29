@@ -4,7 +4,7 @@ import { localDateKey } from "./localDate";
 import { sumExtra1, sumExtra2, type DayExtra } from "./ot";
 import { EMPTY_CELL } from "./reportClipboard";
 import { withCalc } from "./timeCalculator";
-import { formatHm, fmtMinutes } from "./time";
+import { formatHm, formatMinutes } from "./time";
 import { mondayOfDateKey, reportMonthOfWeek, shiftDateKey, weekNumberInMonth } from "./weekNav";
 import { WorkPolicy } from "./workPolicy";
 
@@ -319,16 +319,16 @@ export function buildWeekClip(
   const titleLine = buildTitleLine(header);
   const workerLine = `근무자 : ${header.name || "-"}`;
   const rows = report.days.map((day) => toReportRow(day, options));
-  const totalMinutes = sumClipMainMin(report.days, options);
+  const totalMin = sumClipMainMin(report.days, options);
   const remarks = buildRemarks(report.days);
 
   return {
     titleLine,
     workerLine,
     rows,
-    totalWorkLabel: fmtMinutes(totalMinutes),
+    totalWorkLabel: formatMinutes(totalMin),
     remarks,
-    remarksFooter: fmtRemarksFooter(remarks)
+    remarksFooter: formatRemarksFooter(remarks)
   };
 }
 
@@ -350,7 +350,7 @@ function toReportRow(day: WeekDay, options: WeekClipOptions): ReportTableRow {
 
   if (isDayOff(day.dayType)) {
     return {
-      dateLabel: fmtReportDate(day.workDate),
+      dateLabel: formatReportDate(day.workDate),
       checkIn: EMPTY_CELL,
       checkOut: EMPTY_CELL,
       workLabel: workCellLabel(day.dayType, main)
@@ -358,14 +358,14 @@ function toReportRow(day: WeekDay, options: WeekClipOptions): ReportTableRow {
   }
 
   return {
-    dateLabel: fmtReportDate(day.workDate),
+    dateLabel: formatReportDate(day.workDate),
     checkIn: formatHm(day.rawStart) === "-" ? EMPTY_CELL : formatHm(day.rawStart),
     checkOut: formatHm(day.mainEnd) === "-" ? EMPTY_CELL : formatHm(day.mainEnd),
     workLabel: workCellLabel(day.dayType, main)
   };
 }
 
-export function fmtReportDate(workDate: string): string {
+export function formatReportDate(workDate: string): string {
   const date = new Date(`${workDate}T12:00:00`);
   const month = date.getMonth() + 1;
   const day = date.getDate();
@@ -393,11 +393,11 @@ function buildRemarks(days: WeekDay[]): ReportRemarkLine[] {
     .sort((a, b) => a.workDate.localeCompare(b.workDate))
     .map((day, index) => ({
       index: index + 1,
-      text: `${day.workDate}(${day.weekdayLabel}) ${fmtRemarkLine(day)}`
+      text: `${day.workDate}(${day.weekdayLabel}) ${formatRemarkLine(day)}`
     }));
 }
 
-function fmtRemarkLine(day: WeekDay): string {
+function formatRemarkLine(day: WeekDay): string {
   const typeLabel = dayTypeLabel(day.dayType);
   const remark = day.remark?.trim();
   if (remark) {
@@ -406,7 +406,7 @@ function fmtRemarkLine(day: WeekDay): string {
   return typeLabel;
 }
 
-function fmtRemarksFooter(remarks: ReportRemarkLine[]): string {
+function formatRemarksFooter(remarks: ReportRemarkLine[]): string {
   if (remarks.length === 0) {
     return "";
   }
