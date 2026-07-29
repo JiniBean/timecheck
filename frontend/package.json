@@ -8,7 +8,12 @@
     "build": "vue-tsc -b && vite build",
     "build:deploy": "vue-tsc -b && vite build && node scripts/copy-to-spring.mjs",
     "icons:generate": "node scripts/generate-icons.mjs",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "vue-tsc -b",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "verify:naming": "node scripts/verify-naming.mjs",
+    "check": "npm run typecheck && npm run lint && npm run verify:naming"
   },
   "dependencies": {
     "axios": "^1.9.0",
@@ -20,6 +25,9 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/eslint-config-typescript": "^14.9.0",
+    "eslint": "^10.8.0",
+    "eslint-plugin-vue": "^10.10.0",
     "sharp": "^0.34.5",
     "typescript": "^5.8.3",
     "vite": "^5.4.18",
