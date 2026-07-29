@@ -3,7 +3,7 @@ import { readUserJson, writeUserJson } from "./clientStorage";
 import { isDayOff, formatMainMin } from "./dayType";
 import { localDateKey } from "./localDate";
 import { WEEK_TARGET_MIN, avgPerDay } from "./main";
-import { mainMin, truncateToMinute } from "./ot";
+import { mainMin, otPreview, truncateToMinute } from "./ot";
 import { formatDateTime, formatHm, formatMinutes, hhmmToDateTime, parseDateTime } from "./time";
 import { mergeToday, weekDayCtx, type WeekDayCtx } from "./timeCalculator";
 import { WorkPolicy } from "./workPolicy";
@@ -350,14 +350,27 @@ function collectPreview(input: {
     }
 
     if (ctx.isOt) {
-      const startDt = parseDateTime(rawStart);
-      const endDt = startDt ? endForWorkMin(day.workDate, startDt, ctx.dayType, WorkPolicy.STD_WORK) : null;
-      const mainEnd = endDt ? formatDateTime(localDateKey(endDt), endDt) : null;
-      workedMin += WorkPolicy.STD_WORK;
+      // 펀치카드·일반 근무표와 동일한 투영을 쓰기 위해 otPreview를 그대로 사용
+      const storedMainEnd = rawStart === ctx.rawStart ? ctx.mainEnd : null;
+      const projected = otPreview(
+        {
+          workDate: day.workDate,
+          rawStart,
+          rawEnd: null,
+          dayType: ctx.dayType,
+          isOt: true,
+          mainEnd: storedMainEnd,
+          otStart: null,
+          otEnd: null
+        },
+        asOf
+      );
+      const workMinValue = mainMinBetween(day.workDate, ctx.dayType, rawStart, projected.mainEnd);
+      workedMin += workMinValue;
       fixSlots.set(day.workDate, {
         rawStart,
-        mainEnd,
-        workMin: WorkPolicy.STD_WORK,
+        mainEnd: projected.mainEnd,
+        workMin: workMinValue,
         kind: "prv"
       });
       continue;
