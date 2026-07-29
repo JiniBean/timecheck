@@ -73,7 +73,8 @@ alwaysApply: true
 
 ## 3.2 Coding Style (Frontend TypeScript/Vue)
 - 프론트 네이밍 상세 규칙은 `.cursor/rules/frontend-naming.mdc`를 따름.
-- 새 심볼 추가/리네이밍 시 `frontend/scripts/verify-naming.mjs` 실행으로 회귀 확인.
+- 프론트 파일 변경 시 `cd frontend && npm run check` 실행으로 회귀 확인 (typecheck -> lint -> verify:naming).
+- `verify:naming`은 경고 전용임. 기존 코드 위반을 사용자 승인 없이 일괄 리네이밍하지 않고 목록만 보고함.
 - API/DB 필드명(`rawStart`, `rawEnd`, `checkIn`, `checkOut`)은 백엔드 계약이므로 임의 축약 금지.
 
 ## 4. Response Format

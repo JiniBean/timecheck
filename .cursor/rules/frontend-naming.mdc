@@ -21,13 +21,15 @@ alwaysApply: false
 - `*Min`: 분 단위 숫자 (`mainMin`, `workMin`, `avgPerDayMin`, `liveMainMin`)
 - `*At`: 시각(Date) (`coreEndAt`, `otThresholdAt`)
 - `*Minutes`, `*Mins` 혼용 금지, `*Min`으로 통일
-- UI 표시용 `HH:mm` 문자열은 `fmt*`/`hhmm*` 계열 사용
+  - 적용 대상: 분 값을 담는 변수·필드 (`offMin`, `totalMin`)
+  - 예외: 함수 어휘와 표준 API (`addMinutes`, `formatMinutes`, `minutesBetween`, `truncateToTenMinutes`, `Date.getMinutes()`)
+- UI 표시용 `HH:mm` 문자열은 `format*`/`hhmm*` 계열 사용 (`fmt*` 축약 금지)
 
 ## 4. 타입/도메인 축약
 - 주간 리포트: `Week*` 접두 (`WeeklyReport` -> `WeekReport`, `WeeklyDay` -> `WeekDay`)
 - 주간 요약 필드: 짧은 명사 (`avgRequiredPerDayMinutes` -> `avgPerDayMin`, `remainingWorkDays` -> `daysAfter`)
-- 주간 미리보기: `Prv` 접두 (`buildWeekPreview` -> `buildPrv`, `PreviewRow` -> `PrvRow`)
-- 미리보기 포맷: `fmtIn`/`fmtOut` (`formatPreviewCheckIn` -> `fmtIn`)
+- 주간 미리보기: `Preview` 풀 단어 사용 (`buildPreview`, `PreviewRow`), `Prv` 축약 금지
+- 미리보기 포맷: `formatIn`/`formatOut`/`formatWork`
 - 누락 기록: `Missing` 계열 (`missingGap`, `MissingDay`)
 - 오늘 병합: `mergeToday` (`resolveEffectiveTodayWork` -> `mergeToday`)
 - 앵커 후처리: `clearAnchors`/`recalcAnchors`로 통합
@@ -47,11 +49,13 @@ alwaysApply: false
 ### 선호
 - 팩토리: `emptyWork`, `emptyWeekReport`, `loadTodayCache` (`createEmpty*` 지양)
 - 동기화: `syncActTime`, `syncFromMainEnd`, `withCalc`, `withOtRecalc`
-- 요약/빌드: `mainSummary`, `buildWeekReport`, `buildPrv`, `weekSummary`
+- 요약/빌드: `mainSummary`, `buildWeekReport`, `buildPreview`, `weekSummary`
+- 파생/판정: `resolve*`, `compute*` 허용 (Vue `computed()`, `Promise.resolve()`/`router.resolve()` 등 생태계 핵심 어휘와 동일)
+- 포맷: `format*` (`fmt*` 축약 금지)
 - 에러: `apiErrMsg`
 
 ### 지양
-- `createEmpty*`, `compute*`, `resolve*`, `format*`, `refresh*With*`, `normalize*After*`
+- `createEmpty*`, `refresh*With*`, `normalize*After*`
 - 동일 파일 내 `get*`/`fetch*` 혼용 (API는 `fetch*`, 순수 유틸은 동사형)
 
 ## 7. composable return API
@@ -60,27 +64,49 @@ alwaysApply: false
 - 내부 전용 함수는 export/return 노출을 지양
 
 ## 8. Vue props / emits
-- props: 도메인 축약 허용 (`weekStart`, `weekEnd`, `mergedToday`, `prvTime`)
-- boolean props: `is*`/`can*`
+- props: 도메인 축약 허용 (`weekStart`, `weekEnd`, `mergedToday`, `previewTime`)
+- boolean props: 네이티브 HTML 속성 관례를 따라 맨 형태 허용 (`loading`, `disabled`, `open`, `visible`, `saving`)
+  - 컴포넌트 내부 로컬 ref/state의 boolean은 `is*`/`can*`/`has*` 유지 (props와 구분)
 - emit: 동사 원형(`save`, `close`) 또는 `set*` 기준 유지
 
 ## 9. admin 영역
-- admin 전용 유틸은 `admin` 접두 또는 `fmtAdmin*`/`adminStatusLabel` 유지
+- admin 전용 유틸은 `admin` 접두 또는 `formatAdmin*`/`adminStatusLabel` 유지
 - 백엔드 DTO 필드(`userId`, `weekDays`, `lastAccess`)는 API 응답 명세를 그대로 사용
 
 ## 10. 새 코드 작성 체크리스트
-1. boolean이 `is`/`can`/`has`/`should` 중 하나를 따르는가?
+1. boolean이 `is`/`can`/`has`/`should` 중 하나를 따르는가? (컴포넌트 props boolean은 맨 형태 허용)
 2. 분 단위 변수에 `*Min` 접미를 사용했는가?
 3. UI `in/out` vs API `checkIn/checkOut` vs DB `rawStart/rawEnd`를 구분했는가?
 4. `Weekly*` 대신 `Week*`를 사용했는가?
-5. export 추가 시 `frontend/scripts/verify-naming.mjs`의 `REQUIRED_EXPORTS` 갱신이 필요한가?
+5. 미리보기 식별자에 `Prv` 축약 대신 `Preview`를 사용했는가?
+6. 포맷 함수에 `fmt*` 대신 `format*`를 사용했는가?
 
 ## 11. 회귀 검증
+
+프론트 파일을 변경했으면 아래를 실행함.
+
 ```bash
 cd frontend
-node scripts/verify-naming.mjs
-npx tsx scripts/verify-runtime.mjs
-npm run build
+npm run check
 ```
 
-- 구 심볼 재도입 시 CI/로컬에서 즉시 실패하도록 `OLD_PATTERNS`를 유지/확장
+`check`는 세 단계를 순차 실행함.
+
+| 단계 | 명령 | 검사 내용 | 실패 시 |
+|---|---|---|---|
+| typecheck | `vue-tsc -b` | 타입 오류, 미사용 지역변수·파라미터 | 중단 |
+| lint | `eslint . --max-warnings 0` | eslint-plugin-vue + typescript-eslint recommended | 중단 |
+| verify:naming | `node scripts/verify-naming.mjs` | 본 문서의 네이밍 컨벤션 | 경고만, 중단 없음 |
+
+### 에이전트 준수 사항
+- 프론트 파일 변경 후 `npm run check`를 실행하고 결과를 보고함. 실행하지 못했으면 그 사실과 기술적 사유를 명시함
+- 편집한 파일은 ReadLints로 진단을 확인함
+- `verify:naming`은 경고 전용임. 출력된 기존 코드 위반을 사용자 승인 없이 일괄 리네이밍하지 않음. 목록만 보고하고 수정 여부는 사용자가 결정함
+- 작업 범위에 명시되지 않은 식별자를 리네이밍하지 않음. 필요해 보이면 실행 전에 확인을 받음
+- composable return 키나 props처럼 다른 파일에 파급되는 이름은 소비처를 모두 함께 변경함. 부분 변경으로 컴파일이 깨진 상태를 남기지 않음
+- 의도된 예외는 해당 줄 또는 직전 줄에 `naming-ok` 주석을 남김
+
+### 현재 알려진 경고 (사용자 판단으로 유지)
+- `WeekPreviewSheet.vue` `loading`
+- `useDaySettingsDraft.ts` `otDraft`
+- `useUsernameField.ts` `touched`, `busy`

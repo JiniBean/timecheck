@@ -32,3 +32,29 @@
 - 작은 프로젝트 특성상 구조 단순성을 우선함.
 - 과도한 폴더 분할 및 초기 과설계를 지양함.
 - 타입은 API 경계부터 점진 도입함.
+
+## 7) 로컬 빌드·검증 환경
+
+### 7-1) 백엔드 (JDK 17)
+- `.vscode/settings.json`의 `java.configuration.runtimes`, `java.jdt.ls.java.home`은 VS Code Java 확장 전용 설정임.
+- 위 설정은 셸의 `JAVA_HOME`/`PATH`에 반영되지 않음. 따라서 터미널에서 `mvnw`를 실행하면 시스템 기본 JDK가 사용되어 버전 불일치가 발생함.
+- 백엔드 명령은 세션 한정으로 JDK 17을 지정한 뒤 실행함.
+
+```powershell
+$env:JAVA_HOME = "C:\jini\Setup\OpenJDK17U-jdk_x64_windows_hotspot_17.0.18_8\jdk-17.0.18+8"
+.\mvnw -B test
+```
+
+- 백엔드 코드 변경 시 위 방식으로 테스트를 실제 실행함.
+- 실행하지 못한 경우 생략 사실과 기술적 사유를 보고함. 검증했다고 단정하지 않음.
+
+### 7-2) 프론트엔드
+- 검증 명령은 `npm run check`로 통일함 (`typecheck` -> `lint` -> `verify:naming`).
+
+```powershell
+cd frontend
+npm run check
+```
+
+- 세부 규칙과 에이전트 준수 사항은 `.cursor/rules/frontend-naming.mdc` 11절을 따름.
+- `verify:naming`은 경고 전용이므로, 출력된 기존 코드 위반을 사용자 승인 없이 일괄 수정하지 않음.
