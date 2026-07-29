@@ -73,6 +73,63 @@ class RecordServiceTest {
     }
 
     @Test
+    void applyPrvStoresRequestedMainEnd() {
+        LocalDate today = requireWeekday();
+        LocalDateTime rawStart = today.atTime(9, 0);
+        LocalDateTime rawEnd = today.atTime(22, 30);
+        LocalDateTime mainEnd = today.atTime(19, 0);
+        Work request = Work.builder()
+                .workDate(today)
+                .rawStart(rawStart)
+                .rawEnd(rawEnd)
+                .mainEnd(mainEnd)
+                .build();
+        Work stored = Work.builder()
+                .userId(1L)
+                .workDate(today)
+                .rawStart(rawStart)
+                .rawEnd(rawEnd)
+                .mainEnd(mainEnd)
+                .build();
+
+        when(recordMapper.selectWork(1L, today)).thenReturn(null, null, stored);
+        when(recordMapper.selectWorks(any(), any(), any())).thenReturn(List.of(stored));
+
+        recordService.applyPrv(1L, List.of(request));
+
+        ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
+        verify(recordMapper).insertRecord(captor.capture());
+        assertEquals(mainEnd, captor.getValue().getMainEnd());
+    }
+
+    @Test
+    void applyPrvFallsBackToRawEndForMainEnd() {
+        LocalDate today = requireWeekday();
+        LocalDateTime rawStart = today.atTime(9, 0);
+        LocalDateTime rawEnd = today.atTime(18, 0);
+        Work request = Work.builder()
+                .workDate(today)
+                .rawStart(rawStart)
+                .rawEnd(rawEnd)
+                .build();
+        Work stored = Work.builder()
+                .userId(1L)
+                .workDate(today)
+                .rawStart(rawStart)
+                .rawEnd(rawEnd)
+                .build();
+
+        when(recordMapper.selectWork(1L, today)).thenReturn(null, null, stored);
+        when(recordMapper.selectWorks(any(), any(), any())).thenReturn(List.of(stored));
+
+        recordService.applyPrv(1L, List.of(request));
+
+        ArgumentCaptor<Work> captor = ArgumentCaptor.forClass(Work.class);
+        verify(recordMapper).insertRecord(captor.capture());
+        assertEquals(rawEnd, captor.getValue().getMainEnd());
+    }
+
+    @Test
     void applyPrvKeepsCompletedRecord() {
         LocalDate today = requireWeekday();
         Work request = Work.builder()

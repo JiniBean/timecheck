@@ -3,16 +3,16 @@ import { computed, ref, toRef, watch } from "vue";
 import TimePicker from "./TimePicker.vue";
 import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
 import {
-  applyPrv as applyPrvRequest,
+  applyPreview as applyPreviewRequest,
   fetchWork,
   fetchWeek,
   fetchWorks
 } from "../../api/dashboard";
 import { localDateKey } from "../../utils/localDate";
 import type { WeekReport, Work } from "../../types/dashboard";
-import { typicalCheckIn, checkInRange } from "../../utils/checkInAverage";
+import { typicalInHhmm as computeTypicalInHhmm, checkInRange } from "../../utils/checkInAverage";
 import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
-import { formatHm, fmtMinutes, hhmmToDateTime } from "../../utils/time";
+import { formatHm, formatMinutes, hhmmToDateTime } from "../../utils/time";
 import {
   currentDateKey,
   formatWeekLabel,
@@ -23,21 +23,21 @@ import { WorkPolicy } from "../../utils/workPolicy";
 import { apiErrMsg } from "../../utils/apiError";
 import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
 import {
-  buildPrv,
-  fmtIn,
-  fmtOut,
-  fmtWork,
+  buildPreview,
+  formatIn,
+  formatOut,
+  formatWork,
   isNextDay,
   loadPref,
-  PRV_START_MODE,
-  PRV_START_PRESET,
-  prvStartFromPref,
+  PREVIEW_START_MODE,
+  PREVIEW_START_PRESET,
+  previewStartFromPref,
   savePref,
-  toPrvRecords,
-  type PrvOvrs,
-  type PrvRow,
-  type PrvStartMode,
-  type PrvStartPreset
+  toPreviewRecords,
+  type PreviewOverrides,
+  type PreviewRow,
+  type PreviewStartMode,
+  type PreviewStartPreset
 } from "../../utils/weekPreview";
 
 type TimePickerContext = "row" | "summary";
@@ -61,54 +61,54 @@ const isApplying = ref(false);
 const applyError = ref<string | null>(null);
 const weeklyReport = ref<WeekReport | null>(null);
 const todayWork = ref<Work | null>(null);
-const overrides = ref<PrvOvrs>({});
+const overrides = ref<PreviewOverrides>({});
 
-const prvStartMode = ref<PrvStartMode>(PRV_START_MODE.ON_TIME);
-const prvStartHhmm = ref(ON_TIME_HHMM);
+const previewStartMode = ref<PreviewStartMode>(PREVIEW_START_MODE.ON_TIME);
+const previewStartHhmm = ref(ON_TIME_HHMM);
 const typicalInHhmm = ref<string | null>(null);
-const prvStartPreset = ref<PrvStartPreset>(PRV_START_PRESET.ON_TIME);
+const previewStartPreset = ref<PreviewStartPreset>(PREVIEW_START_PRESET.ON_TIME);
 
-const timePickerOpen = ref(false);
+const isTimePickerOpen = ref(false);
 const timePickerInitial = ref(ON_TIME_HHMM);
 const timePickerContext = ref<TimePickerContext>("row");
 const timeEditField = ref<"start" | "end">("start");
-const editingRow = ref<PrvRow | null>(null);
+const editingRow = ref<PreviewRow | null>(null);
 
 const todayDateKey = computed(() => currentDateKey());
 const currentWeekStart = computed(() => mondayOfDateKey(todayDateKey.value));
 const selectedWeekStart = computed(() => mondayOfDateKey(props.referenceDate));
-const prvDateKey = computed(() =>
+const previewDateKey = computed(() =>
   selectedWeekStart.value > currentWeekStart.value
     ? selectedWeekStart.value
     : todayDateKey.value
 );
-const prvWeekStart = computed(() => mondayOfDateKey(prvDateKey.value));
-const prvTitle = computed(() => {
-  if (prvWeekStart.value === currentWeekStart.value) {
+const previewWeekStart = computed(() => mondayOfDateKey(previewDateKey.value));
+const previewTitle = computed(() => {
+  if (previewWeekStart.value === currentWeekStart.value) {
     return "이번 주 미리보기";
   }
-  if (prvWeekStart.value === shiftDateKey(currentWeekStart.value, 7)) {
+  if (previewWeekStart.value === shiftDateKey(currentWeekStart.value, 7)) {
     return "다음 주 미리보기";
   }
-  return `${formatWeekLabel(prvWeekStart.value)} 미리보기`;
+  return `${formatWeekLabel(previewWeekStart.value)} 미리보기`;
 });
 
 const preview = computed(() => {
   if (!weeklyReport.value || !todayWork.value) {
     return null;
   }
-  return buildPrv({
+  return buildPreview({
     weeklyReport: weeklyReport.value,
     todayWork: todayWork.value,
     todayDateKey: todayDateKey.value,
     overrides: overrides.value,
-    prvStartHhmm: prvStartHhmm.value,
+    previewStartHhmm: previewStartHhmm.value,
     asOf: props.asOf
   });
 });
 
-const prvRecords = computed(() => toPrvRecords(preview.value?.rows ?? []));
-const canApply = computed(() => prvRecords.value.length > 0 && !isApplying.value);
+const previewRecords = computed(() => toPreviewRecords(preview.value?.rows ?? []));
+const canApply = computed(() => previewRecords.value.length > 0 && !isApplying.value);
 
 const timePickerTitle = computed(() => {
   if (timePickerContext.value === "summary") {
@@ -117,17 +117,17 @@ const timePickerTitle = computed(() => {
   return timeEditField.value === "start" ? "출근 시간" : "퇴근 시간";
 });
 
-const presetToggleMuted = computed(() => prvStartMode.value === PRV_START_MODE.CUSTOM);
+const presetToggleMuted = computed(() => previewStartMode.value === PREVIEW_START_MODE.CUSTOM);
 const canSelectAverage = computed(() => typicalInHhmm.value !== null);
 
 const presetToggleAverage = computed(() => {
-  if (prvStartMode.value === PRV_START_MODE.AVERAGE) {
+  if (previewStartMode.value === PREVIEW_START_MODE.AVERAGE) {
     return true;
   }
-  if (prvStartMode.value === PRV_START_MODE.ON_TIME) {
+  if (previewStartMode.value === PREVIEW_START_MODE.ON_TIME) {
     return false;
   }
-  return prvStartPreset.value === PRV_START_PRESET.AVERAGE;
+  return previewStartPreset.value === PREVIEW_START_PRESET.AVERAGE;
 });
 
 const balanceLabel = computed(() =>
@@ -139,8 +139,8 @@ const balanceValue = computed(() => {
     return "-";
   }
   return preview.value.weekOverMin > 0
-    ? fmtMinutes(preview.value.weekOverMin)
-    : fmtMinutes(preview.value.weekRemMin);
+    ? formatMinutes(preview.value.weekOverMin)
+    : formatMinutes(preview.value.weekRemMin);
 });
 
 function clearStartOverrides() {
@@ -158,7 +158,7 @@ function clearStartOverrides() {
     }
     const updated = { ...entry };
     delete updated.rawStart;
-    if (!updated.rawEnd) {
+    if (!updated.mainEnd) {
       delete next[row.workDate];
     } else {
       next[row.workDate] = updated;
@@ -184,28 +184,28 @@ watch(
     const range = checkInRange(todayDateKey.value);
     bootLog("weekPreview:fetch:start", {
       userId: props.userId,
-      weekRef: prvDateKey.value,
+      weekRef: previewDateKey.value,
       workDate: localDateKey(),
       rangeStart: range.start,
       rangeEnd: range.end
     });
     try {
       const [weekly, today, rangeRecords] = await Promise.all([
-        fetchWeek(props.userId, prvDateKey.value),
+        fetchWeek(props.userId, previewDateKey.value),
         fetchWork(props.userId, localDateKey()),
         fetchWorks(props.userId, range.start, range.end)
       ]);
       weeklyReport.value = weekly;
       todayWork.value = today;
       overrides.value = {};
-      typicalInHhmm.value = typicalCheckIn(rangeRecords);
-      const next = prvStartFromPref(loadPref(props.userId), typicalInHhmm.value, ON_TIME_HHMM);
-      prvStartMode.value = next.mode;
-      prvStartHhmm.value = next.hhmm;
-      prvStartPreset.value = next.preset;
+      typicalInHhmm.value = computeTypicalInHhmm(rangeRecords);
+      const next = previewStartFromPref(loadPref(props.userId), typicalInHhmm.value, ON_TIME_HHMM);
+      previewStartMode.value = next.mode;
+      previewStartHhmm.value = next.hhmm;
+      previewStartPreset.value = next.preset;
       bootLog("weekPreview:fetch:done", {
         hasWeekly: weekly != null,
-        weeklyDays: weekly?.days?.length ?? null,
+        weekDays: weekly?.days?.length ?? null,
         weekStart: weekly?.weekStart ?? null,
         todayWorkDate: today?.workDate ?? null,
         rangeCount: rangeRecords?.length ?? 0,
@@ -213,7 +213,7 @@ watch(
       });
     } catch (error) {
       bootError("weekPreview:fetch:fail", error, {
-        weekRef: prvDateKey.value,
+        weekRef: previewDateKey.value,
         workDate: localDateKey()
       });
     } finally {
@@ -244,16 +244,16 @@ function closeSheet() {
   emit("update:open", false);
 }
 
-async function applyPrv() {
+async function applyPreview() {
   if (!canApply.value) {
     return;
   }
 
-  const records = prvRecords.value.map((record) => ({ ...record }));
+  const records = previewRecords.value.map((record) => ({ ...record }));
   isApplying.value = true;
   applyError.value = null;
   try {
-    const applied = await applyPrvRequest(props.userId, records);
+    const applied = await applyPreviewRequest(props.userId, records);
     emit("apply", applied.weekStart);
     emit("update:open", false);
   } catch (error) {
@@ -263,7 +263,7 @@ async function applyPrv() {
   }
 }
 
-const dialogKeyboardDisabled = computed(() => timePickerOpen.value);
+const dialogKeyboardDisabled = computed(() => isTimePickerOpen.value);
 
 useDialogKeyboard({
   open: toRef(props, "open"),
@@ -271,8 +271,8 @@ useDialogKeyboard({
   disabled: dialogKeyboardDisabled
 });
 
-function resolvePickerInitial(row: PrvRow, field: "start" | "end"): string {
-  const value = field === "start" ? row.rawStart : row.rawEnd;
+function resolvePickerInitial(row: PreviewRow, field: "start" | "end"): string {
+  const value = field === "start" ? row.rawStart : row.mainEnd;
   const formatted = formatHm(value);
   return formatted !== "-" ? formatted : field === "end" ? "18:00" : "09:00";
 }
@@ -283,21 +283,21 @@ function openSummaryTimePicker() {
   }
   timePickerContext.value = "summary";
   editingRow.value = null;
-  timePickerInitial.value = prvStartHhmm.value;
-  timePickerOpen.value = true;
+  timePickerInitial.value = previewStartHhmm.value;
+  isTimePickerOpen.value = true;
 }
 
 function selectOnTime() {
   if (isApplying.value) {
     return;
   }
-  prvStartPreset.value = PRV_START_PRESET.ON_TIME;
-  prvStartMode.value = PRV_START_MODE.ON_TIME;
-  prvStartHhmm.value = ON_TIME_HHMM;
+  previewStartPreset.value = PREVIEW_START_PRESET.ON_TIME;
+  previewStartMode.value = PREVIEW_START_MODE.ON_TIME;
+  previewStartHhmm.value = ON_TIME_HHMM;
   clearStartOverrides();
   savePref(props.userId, {
-    mode: PRV_START_MODE.ON_TIME,
-    lastPresetMode: PRV_START_PRESET.ON_TIME
+    mode: PREVIEW_START_MODE.ON_TIME,
+    lastPresetMode: PREVIEW_START_PRESET.ON_TIME
   });
 }
 
@@ -305,33 +305,33 @@ function selectAverage() {
   if (isApplying.value || !typicalInHhmm.value) {
     return;
   }
-  prvStartPreset.value = PRV_START_PRESET.AVERAGE;
-  prvStartMode.value = PRV_START_MODE.AVERAGE;
-  prvStartHhmm.value = typicalInHhmm.value;
+  previewStartPreset.value = PREVIEW_START_PRESET.AVERAGE;
+  previewStartMode.value = PREVIEW_START_MODE.AVERAGE;
+  previewStartHhmm.value = typicalInHhmm.value;
   clearStartOverrides();
   savePref(props.userId, {
-    mode: PRV_START_MODE.AVERAGE,
-    lastPresetMode: PRV_START_PRESET.AVERAGE
+    mode: PREVIEW_START_MODE.AVERAGE,
+    lastPresetMode: PREVIEW_START_PRESET.AVERAGE
   });
 }
 
-function handlePresetSelect(target: PrvStartPreset) {
-  if (prvStartMode.value === PRV_START_MODE.CUSTOM) {
-    if (prvStartPreset.value === PRV_START_PRESET.AVERAGE) {
+function handlePresetSelect(target: PreviewStartPreset) {
+  if (previewStartMode.value === PREVIEW_START_MODE.CUSTOM) {
+    if (previewStartPreset.value === PREVIEW_START_PRESET.AVERAGE) {
       selectAverage();
     } else {
       selectOnTime();
     }
     return;
   }
-  if (target === PRV_START_PRESET.ON_TIME) {
+  if (target === PREVIEW_START_PRESET.ON_TIME) {
     selectOnTime();
     return;
   }
   selectAverage();
 }
 
-function openTimePicker(row: PrvRow, field: "start" | "end") {
+function openTimePicker(row: PreviewRow, field: "start" | "end") {
   if (isApplying.value) {
     return;
   }
@@ -348,18 +348,18 @@ function openTimePicker(row: PrvRow, field: "start" | "end") {
   editingRow.value = row;
   timeEditField.value = field;
   timePickerInitial.value = resolvePickerInitial(row, field);
-  timePickerOpen.value = true;
+  isTimePickerOpen.value = true;
 }
 
 function onTimeConfirm(hhmm: string) {
   if (timePickerContext.value === "summary") {
-    prvStartMode.value = PRV_START_MODE.CUSTOM;
-    prvStartHhmm.value = hhmm;
+    previewStartMode.value = PREVIEW_START_MODE.CUSTOM;
+    previewStartHhmm.value = hhmm;
     clearStartOverrides();
     savePref(props.userId, {
-      mode: PRV_START_MODE.CUSTOM,
+      mode: PREVIEW_START_MODE.CUSTOM,
       hhmm,
-      lastPresetMode: prvStartPreset.value
+      lastPresetMode: previewStartPreset.value
     });
     return;
   }
@@ -373,7 +373,7 @@ function onTimeConfirm(hhmm: string) {
   if (timeEditField.value === "start") {
     current.rawStart = hhmmToDateTime(workDate, hhmm);
   } else {
-    current.rawEnd = hhmmToDateTime(workDate, hhmm);
+    current.mainEnd = hhmmToDateTime(workDate, hhmm);
   }
 
   overrides.value = {
@@ -388,10 +388,10 @@ function hasOverride(workDate: string, field: "start" | "end"): boolean {
   if (!override) {
     return false;
   }
-  return field === "start" ? Boolean(override.rawStart) : Boolean(override.rawEnd);
+  return field === "start" ? Boolean(override.rawStart) : Boolean(override.mainEnd);
 }
 
-function cellToneClass(row: PrvRow, field: "start" | "end" | "work"): string {
+function cellToneClass(row: PreviewRow, field: "start" | "end" | "work"): string {
   if (isDayOff(row.dayType)) {
     return "cell-tone-muted";
   }
@@ -440,7 +440,7 @@ function cellToneClass(row: PrvRow, field: "start" | "end" | "work"): string {
   return "cell-tone-fixed";
 }
 
-function weekdayToneClass(row: PrvRow): string {
+function weekdayToneClass(row: PreviewRow): string {
   if (isDayOff(row.dayType)) {
     return "cell-tone-muted";
   }
@@ -450,7 +450,7 @@ function weekdayToneClass(row: PrvRow): string {
   return "cell-tone-weekday-preview";
 }
 
-function rowToneClass(row: PrvRow): string {
+function rowToneClass(row: PreviewRow): string {
   if (row.canEditIn || row.canEditOut) {
     return "row-tone-preview";
   }
@@ -472,7 +472,7 @@ function rowToneClass(row: PrvRow): string {
       <div class="week-preview-panel" @click.stop>
         <header class="week-preview-header">
           <div>
-            <h2 id="week-preview-title" class="week-preview-title">{{ prvTitle }}</h2>
+            <h2 id="week-preview-title" class="week-preview-title">{{ previewTitle }}</h2>
             <p v-if="weeklyReport" class="week-preview-subtitle">
               {{ weeklyReport.weekStart.slice(5).replace("-", "/") }} ~
               {{ weeklyReport.weekEnd.slice(5).replace("-", "/") }}
@@ -483,7 +483,7 @@ function rowToneClass(row: PrvRow): string {
               type="button"
               class="button button-outline button-sm week-preview-apply"
               :disabled="!canApply"
-              @click="applyPrv"
+              @click="applyPreview"
             >
               {{ isApplying ? "적용 중..." : "적용" }}
             </button>
@@ -506,13 +506,13 @@ function rowToneClass(row: PrvRow): string {
             <div class="stat-row stat-row--3">
               <div class="stat-item">
                 <p class="stat-label">총 근무</p>
-                <p class="stat-value">{{ fmtMinutes(preview.weekWorkedMin) }}</p>
+                <p class="stat-value">{{ formatMinutes(preview.weekWorkedMin) }}</p>
               </div>
               <div class="stat-item stat-item--divider">
                 <p class="stat-label">{{ balanceLabel }}</p>
                 <p class="stat-value">{{ balanceValue }}</p>
               </div>
-              <div class="stat-item stat-item--divider stat-item--prv-start">
+              <div class="stat-item stat-item--divider stat-item--preview-start">
                 <p class="stat-label">예정 출근시간</p>
                 <button
                   type="button"
@@ -521,7 +521,7 @@ function rowToneClass(row: PrvRow): string {
                   :disabled="isApplying"
                   @click="openSummaryTimePicker"
                 >
-                  {{ prvStartHhmm }}
+                  {{ previewStartHhmm }}
                 </button>
                 <div
                   class="start-preset-switch"
@@ -540,7 +540,7 @@ function rowToneClass(row: PrvRow): string {
                     :class="{ 'start-preset-switch__option--active': !presetToggleAverage }"
                     :aria-pressed="!presetToggleAverage"
                     :disabled="isApplying"
-                    @click="handlePresetSelect(PRV_START_PRESET.ON_TIME)"
+                    @click="handlePresetSelect(PREVIEW_START_PRESET.ON_TIME)"
                   >
                     정시
                   </button>
@@ -551,7 +551,7 @@ function rowToneClass(row: PrvRow): string {
                     :aria-pressed="presetToggleAverage"
                     :disabled="isApplying || !canSelectAverage"
                     :title="canSelectAverage ? undefined : '최근 출근 기록 없음'"
-                    @click="handlePresetSelect(PRV_START_PRESET.AVERAGE)"
+                    @click="handlePresetSelect(PREVIEW_START_PRESET.AVERAGE)"
                   >
                     평균
                   </button>
@@ -584,22 +584,22 @@ function rowToneClass(row: PrvRow): string {
                     :class="[cellToneClass(row, 'start'), { 'cell-editable': row.canEditIn }]"
                     @click="openTimePicker(row, 'start')"
                   >
-                    {{ fmtIn(row) }}
+                    {{ formatIn(row) }}
                   </td>
                   <td
                     :class="[cellToneClass(row, 'end'), { 'cell-editable': row.canEditOut }]"
                     @click="openTimePicker(row, 'end')"
                   >
                     <template v-if="isNextDay(row)">
-                      {{ formatHm(row.rawEnd) }}<span class="cell-next-day">(+1)</span>
+                      {{ formatHm(row.mainEnd) }}<span class="cell-next-day">(+1)</span>
                     </template>
                     <template v-else>
-                      {{ fmtOut(row) }}
+                      {{ formatOut(row) }}
                     </template>
                   </td>
                   <td>
                     <span :class="cellToneClass(row, 'work')">
-                      {{ fmtWork(row) }}
+                      {{ formatWork(row) }}
                     </span>
                   </td>
                   <td>
@@ -623,7 +623,7 @@ function rowToneClass(row: PrvRow): string {
     </div>
 
     <TimePicker
-      v-model:open="timePickerOpen"
+      v-model:open="isTimePickerOpen"
       :initial-time="timePickerInitial"
       :z-index="220"
       :title="timePickerTitle"
@@ -715,7 +715,7 @@ function rowToneClass(row: PrvRow): string {
   font-size: 0.92em;
 }
 
-.stat-item--prv-start {
+.stat-item--preview-start {
   gap: 4px;
 }
 

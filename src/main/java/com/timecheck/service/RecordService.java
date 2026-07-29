@@ -82,6 +82,8 @@ public class RecordService {
                 throw new IllegalArgumentException("최신 출근 기록보다 늦은 퇴근 시간이 필요합니다.");
             }
             target.setMainStart(target.getRawStart());
+            target.setMainEnd(
+                    record.getMainEnd() != null ? record.getMainEnd() : target.getRawEnd());
             saveRecord(target, RecordAction.SETTINGS);
         }
 

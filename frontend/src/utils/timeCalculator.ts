@@ -66,6 +66,8 @@ export interface WeekDayCtx {
   isToday: boolean;
   rawStart: string | null;
   rawEnd: string | null;
+  mainEnd: string | null;
+  mainMin: number;
   dayType: DayType;
   isOt: boolean;
   isOff: boolean;
@@ -81,6 +83,8 @@ export function weekDayCtx(
   const isToday = day.workDate === todayDateKey;
   const rawStart = isToday ? mergedToday.rawStart : day.rawStart;
   const rawEnd = isToday ? mergedToday.rawEnd : day.rawEnd;
+  const mainEnd = isToday ? mergedToday.mainEnd ?? null : day.mainEnd;
+  const mainMin = isToday ? mergedToday.main : day.main;
   const dayType = isToday ? mergedToday.dayType : day.dayType;
   const isOt = isToday ? mergedToday.isOt : day.isOt;
   const slice = { rawStart, rawEnd, dayType };
@@ -88,6 +92,8 @@ export function weekDayCtx(
     isToday,
     rawStart,
     rawEnd,
+    mainEnd,
+    mainMin,
     dayType,
     isOt,
     isOff: isDayOff(dayType),
@@ -102,10 +108,10 @@ export function weekDayCtx(
  */
 export function mergeToday(
   todayWork: Work,
-  weeklyDays: WeekDay[],
+  weekDays: WeekDay[],
   todayDate: string = localDateKey()
 ): Work {
-  const row = weeklyDays.find((day) => day.workDate === todayDate);
+  const row = weekDays.find((day) => day.workDate === todayDate);
 
   return {
     ...todayWork,
@@ -235,11 +241,11 @@ export function liveWorkMin(
       },
       asOf
     );
+    // 야근 지정 근무중: 일반근무 분은 투영 mainEnd 기준으로 고정 (펀치카드 일반 퇴근과 동일)
     const projectedMainEnd = parseDateTime(preview.mainEnd);
-    const elapsed = elapsedMainMin(input.workDate, rawStart, asOf, input.dayType);
     const main = projectedMainEnd
-      ? Math.min(elapsed, mainMin(input.workDate, rawStart, projectedMainEnd, input.dayType))
-      : elapsed;
+      ? mainMin(input.workDate, rawStart, projectedMainEnd, input.dayType)
+      : elapsedMainMin(input.workDate, rawStart, asOf, input.dayType);
 
     const otStartDt = parseDateTime(preview.otStart);
     const otEndDt = truncateToTenMinutes(asOf);
@@ -272,24 +278,24 @@ export function liveWorkMin(
 }
 
 function calculateBase(input: CalcInput): number {
-  let offMins = 0;
+  let offMin = 0;
 
   if (input.lateIn) {
-    offMins += minutesBetween(
+    offMin += minutesBetween(
       atTime(input.workDate, WorkPolicy.STD_START),
       atTime(input.workDate, parseHm(input.lateIn))
     );
   }
 
   if (input.earlyOut) {
-    offMins += minutesBetween(
+    offMin += minutesBetween(
       atTime(input.workDate, parseHm(input.earlyOut)),
       atTime(input.workDate, WorkPolicy.STD_END)
     );
   }
 
-  offMins = Math.min(offMins, WorkPolicy.STD_WORK);
-  return Math.max(WorkPolicy.STD_WORK - offMins, 0);
+  offMin = Math.min(offMin, WorkPolicy.STD_WORK);
+  return Math.max(WorkPolicy.STD_WORK - offMin, 0);
 }
 
 function calculateWork(

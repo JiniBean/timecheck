@@ -1,5 +1,5 @@
 import type { DayType, WeekReport, Work } from "../types/dashboard";
-import { readUserJson, userStorageKey, writeUserJson } from "../utils/clientStorage";
+import { readUserJson, writeUserJson } from "../utils/clientStorage";
 import { localDateKey } from "../utils/localDate";
 import { withCalc as applyCalc } from "../utils/timeCalculator";
 import { buildWeekReport, type WeekApiRsp } from "../utils/main";
@@ -29,10 +29,6 @@ export interface WorkPatch {
   clearOtEnd?: boolean;
 }
 
-function todayWorkKey(userId: number): string {
-  return userStorageKey(TODAY_WORK_SCOPE, userId);
-}
-
 export function loadTodayCache(userId: number): Work | null {
   const parsed = readUserJson<Work>(TODAY_WORK_SCOPE, userId);
   if (!parsed) {
@@ -41,13 +37,13 @@ export function loadTodayCache(userId: number): Work | null {
   if (parsed.workDate !== localDateKey()) {
     return null;
   }
-  return normalizeWork(parsed, userId, parsed.workDate);
+  return toWork(parsed, userId, parsed.workDate);
 }
 
 export async function checkIn(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/in", toPayload(workDate, options));
-  const normalized = normalizeWork(requireWork(data.work), userId, workDate);
+  const normalized = toWork(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -55,7 +51,7 @@ export async function checkIn(userId: number, options: WorkPatch = {}): Promise<
 export async function checkOut(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/out", toPayload(workDate, options));
-  const normalized = normalizeWork(requireWork(data.work), userId, workDate);
+  const normalized = toWork(requireWork(data.work), userId, workDate);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -70,7 +66,7 @@ export async function patchWork(userId: number, options: WorkPatch = {}): Promis
     saveTodayWork(userId, empty);
     return empty;
   }
-  const normalized = normalizeWork(data.work, userId, today);
+  const normalized = toWork(data.work, userId, today);
   saveTodayWork(userId, normalized);
   return normalized;
 }
@@ -82,7 +78,7 @@ export async function fetchWork(userId: number, workDate: string): Promise<Work>
   if (!data.work) {
     return emptyWork(userId, workDate);
   }
-  const normalized = normalizeWork(data.work, userId, workDate);
+  const normalized = toWork(data.work, userId, workDate);
   if (workDate === localDateKey()) {
     saveTodayWork(userId, normalized);
   }
@@ -102,7 +98,7 @@ export async function fetchWorks(
     params: { start: startDate, end: endDate }
   });
   return (data.records ?? []).map((record) =>
-    normalizeWork(record, userId, record.workDate)
+    toWork(record, userId, record.workDate)
   );
 }
 
@@ -114,9 +110,9 @@ export async function fetchWeek(userId: number, referenceDate?: string): Promise
   return toWeekReport(data, ref, userId);
 }
 
-export async function applyPrv(
+export async function applyPreview(
   userId: number,
-  records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd">>
+  records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">>
 ): Promise<WeekReport> {
   const ref = records[0]?.workDate ?? localDateKey();
   const { data } = await http.post<WeekApiRsp>("/work/apply-prv", records);
@@ -198,7 +194,7 @@ function toPayload(workDate: string, options: WorkPatch) {
   return payload;
 }
 
-function normalizeWork(source: Work, userId: number, date: string): Work {
+function toWork(source: Work, userId: number, date: string): Work {
   const work: Work = {
     workId: source.workId,
     userId: source.userId ?? userId,
@@ -233,5 +229,3 @@ function requireWork(work: Work | null): Work {
 function saveTodayWork(userId: number, work: Work): void {
   writeUserJson(TODAY_WORK_SCOPE, userId, work);
 }
-
-export { todayWorkKey as getTodayWorkKey };
