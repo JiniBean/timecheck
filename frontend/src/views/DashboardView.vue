@@ -12,6 +12,7 @@ import MainReport from "../components/dashboard/MainReport.vue";
 import MainTable from "../components/dashboard/MainTable.vue";
 import DashboardMobileTabs, { type WorkTab } from "../components/dashboard/DashboardMobileTabs.vue";
 import ProfileEditDialog from "../components/auth/ProfileEditDialog.vue";
+import PatchNotesDialog from "../components/common/PatchNotesDialog.vue";
 import logoutIcon from "../assets/icons/logout.svg";
 import { useDashboard } from "../composables/useDashboard";
 import { useAuthStore } from "../stores/auth";
@@ -22,6 +23,8 @@ import { isWorking, mergeToday, calcResult } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import { mainSummary } from "../utils/main";
 import { hhmmToDateTime, parseDateTime } from "../utils/time";
+import { markPatchSeen, resolvePatchNote } from "../utils/patchNotes";
+import type { PatchNote } from "../types/patchNotes";
 
 const WeekPreviewSheet = defineAsyncComponent(
   () => import("../components/dashboard/WeekPreviewSheet.vue")
@@ -66,6 +69,8 @@ const {
 const isProfileOpen = ref(false);
 const isWeekPreviewOpen = ref(false);
 const mobileWorkTab = ref<WorkTab>("main");
+const activeNote = ref<PatchNote | null>(null);
+const hasCheckedPatch = ref(false);
 
 watch(
   () => state.value.todayWork.isOt,
@@ -75,6 +80,17 @@ watch(
     }
   },
   { immediate: true }
+);
+
+watch(
+  () => bootStore.isReady,
+  (ready) => {
+    if (!ready || hasCheckedPatch.value) {
+      return;
+    }
+    hasCheckedPatch.value = true;
+    activeNote.value = resolvePatchNote(userId);
+  }
 );
 
 async function handleLogout() {
@@ -92,6 +108,14 @@ function openProfile() {
 
 function closeProfile() {
   isProfileOpen.value = false;
+}
+
+function closePatchNotes() {
+  const note = activeNote.value;
+  if (note) {
+    markPatchSeen(userId, note.version);
+  }
+  activeNote.value = null;
 }
 
 function openWeekPreview() {
@@ -249,6 +273,13 @@ onBeforeUnmount(() => {
       :user="authStore.user"
       @close="closeProfile"
       @saved="handleProfileSaved"
+    />
+
+    <PatchNotesDialog
+      v-if="activeNote"
+      :visible="true"
+      :note="activeNote"
+      @close="closePatchNotes"
     />
 
     <WeekPreviewSheet

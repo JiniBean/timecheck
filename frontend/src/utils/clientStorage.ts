@@ -17,5 +17,9 @@ export function readUserJson<T>(scope: string, userId: number): T | null {
 }
 
 export function writeUserJson(scope: string, userId: number, value: unknown): void {
-  localStorage.setItem(userStorageKey(scope, userId), JSON.stringify(value));
+  try {
+    localStorage.setItem(userStorageKey(scope, userId), JSON.stringify(value));
+  } catch {
+    // 프라이빗 모드·용량 초과 등에서 쓰기 실패해도 호출부를 깨지 않음
+  }
 }
