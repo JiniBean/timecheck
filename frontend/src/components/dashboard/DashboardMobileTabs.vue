@@ -1,5 +1,5 @@
 <script setup lang="ts">
-export type WorkTab = "main" | "ot";
+import { type WorkTab } from "../../utils/mobileWorkTab";
 
 const model = defineModel<WorkTab>({ required: true });
 

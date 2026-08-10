@@ -10,7 +10,7 @@ import WeekNavigator from "../components/dashboard/WeekNavigator.vue";
 import OtReportPreview from "../components/dashboard/OtReportPreview.vue";
 import MainReport from "../components/dashboard/MainReport.vue";
 import MainTable from "../components/dashboard/MainTable.vue";
-import DashboardMobileTabs, { type WorkTab } from "../components/dashboard/DashboardMobileTabs.vue";
+import DashboardMobileTabs from "../components/dashboard/DashboardMobileTabs.vue";
 import ProfileEditDialog from "../components/auth/ProfileEditDialog.vue";
 import PatchNotesDialog from "../components/common/PatchNotesDialog.vue";
 import logoutIcon from "../assets/icons/logout.svg";
@@ -23,6 +23,7 @@ import { isWorking, mergeToday, calcResult } from "../utils/timeCalculator";
 import { localDateKey } from "../utils/localDate";
 import { mainSummary } from "../utils/main";
 import { hhmmToDateTime, parseDateTime } from "../utils/time";
+import { readMobileWorkTab, writeMobileWorkTab, type WorkTab } from "../utils/mobileWorkTab";
 import { markPatchSeen, resolvePatchNote } from "../utils/patchNotes";
 import type { PatchNote } from "../types/patchNotes";
 
@@ -68,19 +69,13 @@ const {
 
 const isProfileOpen = ref(false);
 const isWeekPreviewOpen = ref(false);
-const mobileWorkTab = ref<WorkTab>("main");
+const mobileWorkTab = ref<WorkTab>(readMobileWorkTab(userId));
 const activeNote = ref<PatchNote | null>(null);
 const hasCheckedPatch = ref(false);
 
-watch(
-  () => state.value.todayWork.isOt,
-  (isOt) => {
-    if (isOt) {
-      mobileWorkTab.value = "ot";
-    }
-  },
-  { immediate: true }
-);
+watch(mobileWorkTab, (tab) => {
+  writeMobileWorkTab(userId, tab);
+});
 
 watch(
   () => bootStore.isReady,
