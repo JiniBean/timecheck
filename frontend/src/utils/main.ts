@@ -192,12 +192,12 @@ export function sumWeekMain(
   }, 0);
 }
 
-/** 오늘(포함) ~ 이번 주 금요일까지 남은 평일 수 */
+/** 오늘(포함) ~ 이번 주 금요일까지 남은 평일 수. weekEnd 이후면 0 */
 export function daysInclToday(todayWorkDate: string, weekEnd: string): number {
   const today = parseDateKey(todayWorkDate);
   const end = parseDateKey(weekEnd);
   if (today > end) {
-    return 1;
+    return 0;
   }
 
   let count = 0;
