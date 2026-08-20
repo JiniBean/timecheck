@@ -916,6 +916,7 @@ function rowToneClass(row: PreviewRow): string {
 
 .day-md {
   color: var(--color-text-muted);
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium);
 }
 

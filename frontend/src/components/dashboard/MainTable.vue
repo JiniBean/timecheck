@@ -359,6 +359,7 @@ const settingsTitle = computed(() =>
 
 .day-md {
   color: var(--color-text-muted);
+  font-size: var(--font-sm);
   font-weight: var(--weight-medium);
 }
 
