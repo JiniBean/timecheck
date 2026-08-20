@@ -21,4 +21,10 @@ public interface UserMapper {
     int updateUser(User user);
 
     int updateLastAccess(@Param("userId") Long userId, @Param("lastAccess") String lastAccess);
+
+    String selectByNameAndDepartment(@Param("name") String name, @Param("department") String department);
+
+    Long selectByUsernameAndName(@Param("username") String username, @Param("name") String name);
+
+    int updatePasswordByUserId(@Param("userId") Long userId, @Param("pwd") String pwd);
 }

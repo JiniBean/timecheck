@@ -32,3 +32,20 @@ export interface ProfileForm {
   team: string;
   position: string;
 }
+
+export interface UsernameFindForm {
+  name: string;
+  department: string;
+}
+
+export interface AccountVerifyForm {
+  username: string;
+  name: string;
+}
+
+export interface PasswordResetForm {
+  username: string;
+  name: string;
+  password: string;
+  confirmPassword: string;
+}

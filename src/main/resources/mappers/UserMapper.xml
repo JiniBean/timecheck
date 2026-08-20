@@ -92,4 +92,26 @@
         WHERE USER_ID = #{userId, jdbcType=BIGINT}
     </update>
 
+    <select id="selectByNameAndDepartment" resultType="string">
+        SELECT USERNAME
+        FROM USERS
+        WHERE NAME = #{name, jdbcType=VARCHAR}
+          AND DEPARTMENT = #{department, jdbcType=VARCHAR}
+        LIMIT 1
+    </select>
+
+    <select id="selectByUsernameAndName" resultType="long">
+        SELECT USER_ID
+        FROM USERS
+        WHERE USERNAME = #{username, jdbcType=VARCHAR}
+          AND NAME = #{name, jdbcType=VARCHAR}
+    </select>
+
+    <update id="updatePasswordByUserId">
+        UPDATE USERS
+        SET PWD = #{pwd, jdbcType=VARCHAR},
+            UPDATED_AT = datetime('now', 'localtime')
+        WHERE USER_ID = #{userId, jdbcType=BIGINT}
+    </update>
+
 </mapper>

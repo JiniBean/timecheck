@@ -1,6 +1,6 @@
 import axios from "axios";
 import http from "./http";
-import type { AuthUser, LoginForm, ProfileForm, SignupForm } from "../types/auth";
+import type { AccountVerifyForm, AuthUser, LoginForm, PasswordResetForm, ProfileForm, SignupForm, UsernameFindForm } from "../types/auth";
 import { bootError, bootLog } from "../utils/bootLog";
 
 interface AuthResponse {
@@ -72,4 +72,17 @@ export async function fetchUsernameOk(name: string): Promise<boolean> {
     params: { name }
   });
   return data.ok;
+}
+
+export async function findUsername(form: UsernameFindForm): Promise<string> {
+  const { data } = await http.post<{ username: string }>("/auth/find-username", form);
+  return data.username;
+}
+
+export async function verifyAccount(form: AccountVerifyForm): Promise<void> {
+  await http.post("/auth/verify-account", form);
+}
+
+export async function resetPassword(form: Omit<PasswordResetForm, "confirmPassword">): Promise<void> {
+  await http.post("/auth/reset-password", form);
 }

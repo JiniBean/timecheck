@@ -1,8 +1,11 @@
 package com.timecheck.controller;
 
+import com.timecheck.dto.AccountVerifyReq;
 import com.timecheck.dto.LoginReq;
+import com.timecheck.dto.PasswordResetReq;
 import com.timecheck.dto.ProfileReq;
 import com.timecheck.dto.SignupReq;
+import com.timecheck.dto.UsernameFindReq;
 import com.timecheck.dto.UserRsp;
 import com.timecheck.service.AuthService;
 import com.timecheck.security.SecurityUtils;
@@ -55,6 +58,24 @@ public class AuthController {
             HttpServletRequest httpRequest, HttpServletResponse httpResponse) {
         authService.logout(httpRequest);
         expireSessionCookie(httpResponse);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/find-username")
+    public ResponseEntity<Map<String, String>> findUsername(@RequestBody UsernameFindReq req) {
+        String username = authService.findUsername(req);
+        return ResponseEntity.ok(Map.of("username", username));
+    }
+
+    @PostMapping("/verify-account")
+    public ResponseEntity<Void> verifyAccount(@RequestBody AccountVerifyReq req) {
+        authService.verifyAccount(req);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody PasswordResetReq req) {
+        authService.resetPassword(req);
         return ResponseEntity.noContent().build();
     }
 

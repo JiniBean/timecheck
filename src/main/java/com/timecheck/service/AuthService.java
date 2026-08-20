@@ -1,8 +1,11 @@
 package com.timecheck.service;
 
+import com.timecheck.dto.AccountVerifyReq;
 import com.timecheck.dto.LoginReq;
+import com.timecheck.dto.PasswordResetReq;
 import com.timecheck.dto.ProfileReq;
 import com.timecheck.dto.SignupReq;
+import com.timecheck.dto.UsernameFindReq;
 import com.timecheck.dto.UserRsp;
 import com.timecheck.mapper.UserMapper;
 import com.timecheck.model.User;
@@ -106,6 +109,51 @@ public class AuthService {
     public UserRsp findMe() {
         Long userId = SecurityUtils.requireCurrentUserId();
         return UserRsp.from(requireUser(userId));
+    }
+
+    public String findUsername(UsernameFindReq req) {
+        String name = normalizeRequired(req.name(), "이름");
+        String department = normalizeRequired(req.department(), "부서");
+        validateLength(name, NAME_MAX_LENGTH, "이름");
+        validateLength(department, DEPARTMENT_MAX_LENGTH, "부서");
+
+        String username = userMapper.selectByNameAndDepartment(name, department);
+        if (username == null) {
+            throw new IllegalArgumentException("입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
+        }
+        return username;
+    }
+
+    @Transactional
+    public void resetPassword(PasswordResetReq req) {
+        String username = normalizeRequired(req.username(), "아이디");
+        String name = normalizeRequired(req.name(), "이름");
+        String password = normalizeRequired(req.password(), "비밀번호");
+
+        validateLength(name, NAME_MAX_LENGTH, "이름");
+
+        Long userId = userMapper.selectByUsernameAndName(username, name);
+        if (userId == null) {
+            throw new IllegalArgumentException("입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
+        }
+
+        validatePassword(password);
+
+        int updated = userMapper.updatePasswordByUserId(userId, passwordEncoder.encode(password));
+        if (updated != 1) {
+            throw new IllegalStateException("비밀번호 재설정 처리에 실패했습니다.");
+        }
+    }
+
+    public void verifyAccount(AccountVerifyReq req) {
+        String username = normalizeRequired(req.username(), "아이디");
+        String name = normalizeRequired(req.name(), "이름");
+        validateLength(name, NAME_MAX_LENGTH, "이름");
+
+        Long userId = userMapper.selectByUsernameAndName(username, name);
+        if (userId == null) {
+            throw new IllegalArgumentException("입력하신 정보와 일치하는 계정을 찾을 수 없습니다.");
+        }
     }
 
     public boolean usernameOk(String name, Long exceptUserId) {

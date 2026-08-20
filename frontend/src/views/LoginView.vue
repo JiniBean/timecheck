@@ -72,10 +72,16 @@ async function handleSubmit() {
         </button>
       </form>
 
-      <p class="auth-footer">
-        계정이 없으신가요?
-        <router-link to="/signup">회원가입</router-link>
-      </p>
+      <div class="auth-links">
+        <p class="auth-footer">
+          계정을 잃어버리셨나요?
+          <router-link to="/find-account">계정찾기</router-link>
+        </p>
+        <p class="auth-footer">
+          계정이 없으신가요?
+          <router-link to="/signup">회원가입</router-link>
+        </p>
+      </div>
     </section>
   </main>
 </template>
@@ -114,8 +120,16 @@ async function handleSubmit() {
   width: 100%;
 }
 
+.auth-links {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
 .auth-footer {
-  margin: 18px 0 0;
+  margin: 0;
   text-align: center;
   color: var(--color-text-muted);
   font-size: var(--font-sm);

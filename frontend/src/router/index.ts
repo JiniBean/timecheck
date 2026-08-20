@@ -20,6 +20,12 @@ const router = createRouter({
       meta: { guestOnly: true }
     },
     {
+      path: "/find-account",
+      name: "findAccount",
+      component: () => import("../views/FindAccountView.vue"),
+      meta: { guestOnly: true }
+    },
+    {
       path: "/",
       name: "dashboard",
       component: () => import("../views/DashboardView.vue"),
