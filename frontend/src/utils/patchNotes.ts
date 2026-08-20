@@ -6,6 +6,16 @@ export const SEEN_PATCH_SCOPE = "seen-patch";
 /** 최신 항목이 배열 첫 번째. version은 앱 버전 단일 소스. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "0.0.2",
+    date: "2026-08-20",
+    title: "계정찾기 기능 추가",
+    items: [
+      "로그인 화면에서 계정찾기로 아이디를 확인할 수 있어요.",
+      "이름·부서로 아이디 찾기, 아이디·이름으로 비밀번호 재설정이 가능해요.",
+      "일반근무표·주간 미리보기 요일 옆에 일자를 함께 표시해요."
+    ]
+  },
+  {
     version: "0.0.1",
     date: "2026-08-10",
     title: "업데이트 안내",

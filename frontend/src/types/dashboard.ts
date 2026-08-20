@@ -33,6 +33,8 @@ export interface WeekSummary {
 export interface WeekDay {
   workDate: string;
   weekdayLabel: string;
+  /** 대시보드 표 요일 셀 표기. 예: "월(8/18)" */
+  dayLabel: string;
   rawStart: string | null;
   rawEnd: string | null;
   main: number;

@@ -5,6 +5,7 @@ import SettingPicker from "./SettingPicker.vue";
 import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, WeekDay } from "../../types/dashboard";
 import { dayTypeCellLabel, isDayOff, formatMainMin } from "../../utils/dayType";
+import { formatMonthDay } from "../../utils/main";
 import { compareHm, formatHm } from "../../utils/time";
 import { WorkPolicy } from "../../utils/workPolicy";
 
@@ -198,7 +199,7 @@ function saveDaySettings() {
 }
 
 const settingsTitle = computed(() =>
-  dayTypeEditDay.value ? `${dayTypeEditDay.value.weekdayLabel}요일 · 근무 설정` : "근무 설정"
+  dayTypeEditDay.value ? `${dayTypeEditDay.value.dayLabel} · 근무 설정` : "근무 설정"
 );
 </script>
 
@@ -218,7 +219,7 @@ const settingsTitle = computed(() =>
         <tbody>
           <tr v-for="day in displayDays" :key="day.workDate" :class="{ 'row-today': day.isToday }">
             <th scope="row" class="cell-editable" @click="openDayTypeSheet(day)">
-              {{ day.weekdayLabel }}
+              {{ day.weekdayLabel }}<span class="day-md">({{ formatMonthDay(day.workDate) }})</span>
             </th>
             <td
               class="cell-editable"
@@ -354,5 +355,14 @@ const settingsTitle = computed(() =>
   color: var(--color-text-muted);
   font-size: var(--font-sm);
   font-weight: var(--weight-medium);
+}
+
+.day-md {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.row-today .day-md {
+  color: var(--color-text-muted);
 }
 </style>

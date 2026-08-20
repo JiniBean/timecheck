@@ -12,6 +12,7 @@ import { localDateKey } from "../../utils/localDate";
 import type { WeekReport, Work } from "../../types/dashboard";
 import { typicalInHhmm as computeTypicalInHhmm, checkInRange } from "../../utils/checkInAverage";
 import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
+import { formatMonthDay } from "../../utils/main";
 import { formatHm, formatMinutes, hhmmToDateTime } from "../../utils/time";
 import {
   currentDateKey,
@@ -578,7 +579,7 @@ function rowToneClass(row: PreviewRow): string {
                   :class="[rowToneClass(row), { 'row-today': row.isToday }]"
                 >
                   <th scope="row" :class="weekdayToneClass(row)">
-                    {{ row.weekdayLabel }}
+                    {{ row.weekdayLabel }}<span class="day-md">({{ formatMonthDay(row.workDate) }})</span>
                   </th>
                   <td
                     :class="[cellToneClass(row, 'start'), { 'cell-editable': row.canEditIn }]"
@@ -911,6 +912,15 @@ function rowToneClass(row: PreviewRow): string {
 .cell-tone-weekday-preview {
   color: var(--color-preview-edited);
   font-weight: var(--weight-semibold);
+}
+
+.day-md {
+  color: var(--color-text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.row-today .day-md {
+  color: var(--color-text-muted);
 }
 
 .row-today .cell-tone-fixed {

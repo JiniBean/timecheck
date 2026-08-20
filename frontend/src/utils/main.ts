@@ -94,10 +94,12 @@ function buildHeader(payload: WeekApiRsp, weekStart: string): ReportHeader {
 function toDayRow(workDate: string, work: Work): WeekDay {
   const weekday = new Date(`${workDate}T12:00:00`).getDay();
   const dayOff = isDayOff(work.dayType);
+  const weekdayLabel = WEEKDAY_LABELS[weekday] ?? "";
 
   return {
     workDate,
-    weekdayLabel: WEEKDAY_LABELS[weekday] ?? "",
+    weekdayLabel,
+    dayLabel: formatDashboardDayLabel(workDate, weekdayLabel),
     rawStart: dayOff ? null : work.rawStart,
     rawEnd: dayOff ? null : work.rawEnd,
     main: work.main,
@@ -365,12 +367,23 @@ function toReportRow(day: WeekDay, options: WeekClipOptions): ReportTableRow {
   };
 }
 
-export function formatReportDate(workDate: string): string {
+/** 월/일 (선행 0 없음). 예: "8/18" */
+export function formatMonthDay(workDate: string): string {
   const date = new Date(`${workDate}T12:00:00`);
   const month = date.getMonth() + 1;
   const day = date.getDate();
+  return `${month}/${day}`;
+}
+
+/** 대시보드 표 요일 셀: "월(8/18)" */
+export function formatDashboardDayLabel(workDate: string, weekdayLabel: string): string {
+  return `${weekdayLabel}(${formatMonthDay(workDate)})`;
+}
+
+export function formatReportDate(workDate: string): string {
+  const date = new Date(`${workDate}T12:00:00`);
   const weekday = WEEKDAY_KO[date.getDay()];
-  return `${month}/${day}(${weekday})`;
+  return `${formatMonthDay(workDate)}(${weekday})`;
 }
 
 function clipDayMainMin(day: WeekDay): number {

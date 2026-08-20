@@ -29,6 +29,7 @@ export interface PreviewOverrides {
 export interface PreviewRow {
   workDate: string;
   weekdayLabel: string;
+  dayLabel: string;
   dayType: DayType;
   rawStart: string | null;
   mainEnd: string | null;
@@ -507,6 +508,7 @@ export function buildPreview(input: {
     return {
       workDate: day.workDate,
       weekdayLabel: day.weekdayLabel,
+      dayLabel: day.dayLabel,
       dayType: ctx.dayType,
       rawStart: times.rawStart,
       mainEnd: times.mainEnd,
