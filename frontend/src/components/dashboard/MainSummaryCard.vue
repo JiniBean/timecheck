@@ -73,7 +73,7 @@ function openPreview() {
 
 @media (hover: hover) and (pointer: fine) {
   .summary-card:hover {
-    background-color: var(--color-surface-preview);
+    background-color: var(--color-primary-soft);
     box-shadow: 0 8px 22px var(--color-shadow-elevated);
   }
 }
