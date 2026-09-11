@@ -36,7 +36,7 @@ timecheck:
     stale-cleanup-cron: "0 0 3 * * *"
 
 server:
-  port: 2406
+  port: 8082
   forward-headers-strategy: framework
   servlet:
     session:

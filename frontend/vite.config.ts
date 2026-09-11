@@ -11,7 +11,7 @@ function isNgrokHost(host: string | undefined): boolean {
 
 function createApiProxy(): ProxyOptions {
   return {
-    target: "http://localhost:2406",
+    target: "http://localhost:8082",
     changeOrigin: true,
     configure: (proxy) => {
       proxy.on("proxyReq", (proxyReq, req) => {
