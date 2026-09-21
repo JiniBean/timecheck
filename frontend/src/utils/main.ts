@@ -1,5 +1,5 @@
 import type { DayType, WeekDay, WeekReport, ReportHeader, Work } from "../types/dashboard";
-import { dayTypeLabel, isDayOff, workCellLabel } from "./dayType";
+import { dayTypeLabel, isDayOff, isShortWork, workCellLabel } from "./dayType";
 import { localDateKey } from "./localDate";
 import { sumExtra1, sumExtra2, type DayExtra } from "./ot";
 import { EMPTY_CELL } from "./reportClipboard";
@@ -110,6 +110,8 @@ function toDayRow(workDate: string, work: Work): WeekDay {
     otStart: dayOff ? null : work.otStart ?? null,
     otEnd: dayOff ? null : work.otEnd ?? null,
     dayType: work.dayType,
+    lateIn: dayOff ? null : work.lateIn ?? null,
+    earlyOut: dayOff ? null : work.earlyOut ?? null,
     remark: work.remark
   };
 }
@@ -402,7 +404,7 @@ function sumClipMainMin(days: WeekDay[], options: WeekClipOptions): number {
 
 function buildRemarks(days: WeekDay[]): ReportRemarkLine[] {
   return days
-    .filter((day) => day.dayType !== "NOM")
+    .filter((day) => day.dayType !== "NOM" || isShortWork(day.dayType, day.earlyOut, day.lateIn))
     .sort((a, b) => a.workDate.localeCompare(b.workDate))
     .map((day, index) => ({
       index: index + 1,
@@ -411,9 +413,14 @@ function buildRemarks(days: WeekDay[]): ReportRemarkLine[] {
 }
 
 function formatRemarkLine(day: WeekDay): string {
-  const typeLabel = dayTypeLabel(day.dayType);
+  const typeLabel = isShortWork(day.dayType, day.earlyOut, day.lateIn)
+    ? "단축근무"
+    : dayTypeLabel(day.dayType);
   const remark = day.remark?.trim();
   if (remark) {
+    if (day.dayType === "HOL") {
+      return remark;
+    }
     return `${remark} ${typeLabel}`;
   }
   return typeLabel;

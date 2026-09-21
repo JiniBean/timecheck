@@ -237,6 +237,8 @@ public class RecordService {
         target.setClearMainEnd(Boolean.FALSE);
         target.setClearOtStart(Boolean.FALSE);
         target.setClearOtEnd(Boolean.FALSE);
+        target.setClearLateIn(Boolean.FALSE);
+        target.setClearEarlyOut(Boolean.FALSE);
         if (request != null) {
             if (Boolean.TRUE.equals(request.getClearMainEnd())) {
                 target.setClearMainEnd(Boolean.TRUE);
@@ -246,6 +248,12 @@ public class RecordService {
             }
             if (Boolean.TRUE.equals(request.getClearOtEnd())) {
                 target.setClearOtEnd(Boolean.TRUE);
+            }
+            if (Boolean.TRUE.equals(request.getClearLateIn())) {
+                target.setClearLateIn(Boolean.TRUE);
+            }
+            if (Boolean.TRUE.equals(request.getClearEarlyOut())) {
+                target.setClearEarlyOut(Boolean.TRUE);
             }
         }
         return target;
@@ -283,6 +291,14 @@ public class RecordService {
         if (Boolean.TRUE.equals(request.getClearOtEnd())) {
             target.setOtEnd(null);
             target.setClearOtEnd(Boolean.TRUE);
+        }
+        if (Boolean.TRUE.equals(request.getClearLateIn())) {
+            target.setLateIn(null);
+            target.setClearLateIn(Boolean.TRUE);
+        }
+        if (Boolean.TRUE.equals(request.getClearEarlyOut())) {
+            target.setEarlyOut(null);
+            target.setClearEarlyOut(Boolean.TRUE);
         }
     }
 
@@ -331,7 +347,10 @@ public class RecordService {
     }
 
     private boolean shouldKeepRemark(Work work) {
-        return work.getDayType() == DayType.HOL || Boolean.TRUE.equals(work.getIsOt());
+        return work.getDayType() == DayType.HOL
+                || Boolean.TRUE.equals(work.getIsOt())
+                || work.getLateIn() != null
+                || work.getEarlyOut() != null;
     }
 
     private void validateAction(Work target, RecordAction action) {

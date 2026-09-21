@@ -7,7 +7,7 @@ import type { DayType, WeekDay } from "../../types/dashboard";
 import { dayTypeCellLabel, isDayOff, formatMainMin } from "../../utils/dayType";
 import { formatMonthDay } from "../../utils/main";
 import { compareHm, formatHm } from "../../utils/time";
-import { WorkPolicy } from "../../utils/workPolicy";
+import { WorkPolicy, hmOf } from "../../utils/workPolicy";
 
 const props = defineProps<{
   days: WeekDay[];
@@ -29,6 +29,8 @@ const emit = defineEmits<{
       dayType: DayType;
       isOt: boolean;
       remark: string | null;
+      lateIn: string | null;
+      earlyOut: string | null;
     }
   ];
 }>();
@@ -49,10 +51,14 @@ const {
   dayTypeDraft,
   otDraft,
   remarkDraft,
+  lateInDraft,
+  earlyOutDraft,
   loadDraft,
   setDayType,
   onToggleOt,
   setRemark,
+  setLateIn,
+  setEarlyOut,
   buildPayload
 } = useDaySettingsDraft();
 
@@ -112,7 +118,10 @@ function resolvePickerInitial(day: WeekDay, field: "start" | "end"): string {
   if (field === "end" && day.dayType === "PM") {
     return WorkPolicy.HALF_DAY_HHMM;
   }
-  return field === "end" ? "18:00" : "09:00";
+  if (field === "end" && day.earlyOut) {
+    return day.earlyOut.slice(0, 5);
+  }
+  return field === "end" ? hmOf(WorkPolicy.STD_END) : hmOf(WorkPolicy.STD_START);
 }
 
 function openTimePicker(day: WeekDay, field: "start" | "end") {
@@ -176,7 +185,9 @@ function openDayTypeSheet(day: WeekDay) {
   loadDraft({
     dayType: day.dayType,
     isOt: day.isOt,
-    remark: day.remark
+    remark: day.remark,
+    lateIn: day.lateIn,
+    earlyOut: day.earlyOut
   });
   isDayTypeSheetOpen.value = true;
 }
@@ -248,8 +259,13 @@ const settingsTitle = computed(() =>
               </span>
             </td>
             <td class="cell-editable" @click="openDayTypeSheet(day)">
-              <span :class="{ 'cell-day-type': day.dayType !== 'NOM' }">
-                {{ dayTypeCellLabel(day.dayType) }}
+              <span
+                :class="{
+                  'cell-day-type':
+                    day.dayType !== 'NOM' || Boolean(day.earlyOut || day.lateIn)
+                }"
+              >
+                {{ dayTypeCellLabel(day.dayType, day.earlyOut, day.lateIn) }}
               </span>
             </td>
           </tr>
@@ -273,9 +289,13 @@ const settingsTitle = computed(() =>
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
+      :late-in="lateInDraft"
+      :early-out="earlyOutDraft"
       @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
       @update-remark="setRemark"
+      @update-late-in="setLateIn"
+      @update-early-out="setEarlyOut"
       @save="saveDaySettings"
     />
   </section>

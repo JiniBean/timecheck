@@ -15,3 +15,7 @@ export const WorkPolicy = {
   LUNCH_END: { hour: 12, minute: 30 },
   OT_SPLIT: { hour: 22, minute: 0 }
 } as const;
+
+export function hmOf(time: { hour: number; minute: number }): string {
+  return `${String(time.hour).padStart(2, "0")}:${String(time.minute).padStart(2, "0")}`;
+}

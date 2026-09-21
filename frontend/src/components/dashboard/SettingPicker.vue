@@ -1,37 +1,82 @@
 <script setup lang="ts">
-import { computed, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 import type { DayType } from "../../types/dashboard";
 import { DAY_TYPE_OPTIONS, isDayOff } from "../../utils/dayType";
+import { WorkPolicy, hmOf } from "../../utils/workPolicy";
 import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
+import TimePicker from "./TimePicker.vue";
 
-const props = withDefaults(
-  defineProps<{
-    open: boolean;
-    title: string;
-    dayType: DayType;
-    isOt: boolean;
-    remark: string | null;
-    showOtTimeFields?: boolean;
-  }>(),
-  {
-    showOtTimeFields: false
-  }
-);
+type ShortField = "earlyOut" | "lateIn";
+
+const props = defineProps<{
+  open: boolean;
+  title: string;
+  dayType: DayType;
+  isOt: boolean;
+  remark: string | null;
+  lateIn: string | null;
+  earlyOut: string | null;
+}>();
 
 const emit = defineEmits<{
   "update:open": [value: boolean];
   updateDayType: [value: DayType];
   toggleOt: [];
   updateRemark: [value: string];
+  updateLateIn: [value: string | null];
+  updateEarlyOut: [value: string | null];
   save: [];
 }>();
 
-const showRemarkField = computed(
-  () => props.dayType === "HOL" || (props.isOt && !isDayOff(props.dayType))
+const isTimePickerOpen = ref(false);
+const shortField = ref<ShortField | null>(null);
+const timePickerInitial = ref<string>(hmOf(WorkPolicy.STD_END));
+
+const canEditShortWork = computed(() => props.dayType === "NOM");
+const hasShortWork = computed(() => Boolean(props.lateIn || props.earlyOut));
+const isSheetKeyboardDisabled = computed(() => isTimePickerOpen.value);
+
+const remarkMode = computed(() => {
+  if (props.dayType === "HOL") {
+    return "hol";
+  }
+  if (hasShortWork.value && !(props.isOt && !isDayOff(props.dayType))) {
+    return "short";
+  }
+  if (props.isOt && !isDayOff(props.dayType)) {
+    return "ot";
+  }
+  return null;
+});
+
+const showRemarkField = computed(() => remarkMode.value !== null);
+
+const remarkFieldLabel = computed(() => {
+  if (remarkMode.value === "hol") {
+    return "비고 (공휴일)";
+  }
+  if (remarkMode.value === "short") {
+    return "비고 (단축근무)";
+  }
+  return "근무내역";
+});
+
+const remarkPlaceholder = computed(() => {
+  if (remarkMode.value === "hol") {
+    return "예: 개천절, 추석 대체공휴일";
+  }
+  if (remarkMode.value === "short") {
+    return "예: 추석연휴";
+  }
+  return "예: 레포트 개발, 배포 테스트";
+});
+
+const earlyOutLabel = computed(() =>
+  props.earlyOut ? `조기퇴근 ${props.earlyOut.slice(0, 5)}` : "조기퇴근"
 );
 
-const remarkFieldLabel = computed(() =>
-  props.dayType === "HOL" ? "비고 (공휴일)" : "근무내역"
+const lateInLabel = computed(() =>
+  props.lateIn ? `늦은출근 ${props.lateIn.slice(0, 5)}` : "늦은출근"
 );
 
 const canToggleOt = computed(() => !isDayOff(props.dayType));
@@ -53,10 +98,43 @@ function onRemarkInput(event: Event) {
   emit("updateRemark", (event.target as HTMLInputElement).value);
 }
 
+function openShortPicker(field: ShortField) {
+  if (!canEditShortWork.value) {
+    return;
+  }
+  shortField.value = field;
+  if (field === "earlyOut") {
+    timePickerInitial.value = props.earlyOut?.slice(0, 5) ?? hmOf(WorkPolicy.STD_END);
+  } else {
+    timePickerInitial.value = props.lateIn?.slice(0, 5) ?? hmOf(WorkPolicy.STD_START);
+  }
+  isTimePickerOpen.value = true;
+}
+
+function onShortTimeConfirm(hhmm: string) {
+  const time = hhmm.slice(0, 5);
+  if (shortField.value === "earlyOut") {
+    emit("updateEarlyOut", time === hmOf(WorkPolicy.STD_END) ? null : time);
+  } else if (shortField.value === "lateIn") {
+    emit("updateLateIn", time === hmOf(WorkPolicy.STD_START) ? null : time);
+  }
+  shortField.value = null;
+}
+
+function onShortTimeReset() {
+  if (shortField.value === "earlyOut") {
+    emit("updateEarlyOut", null);
+  } else if (shortField.value === "lateIn") {
+    emit("updateLateIn", null);
+  }
+  shortField.value = null;
+}
+
 useDialogKeyboard({
   open: toRef(props, "open"),
   onClose: closeSheet,
-  onSubmit: saveSheet
+  onSubmit: saveSheet,
+  disabled: isSheetKeyboardDisabled
 });
 </script>
 
@@ -77,7 +155,26 @@ useDialogKeyboard({
             >
               {{ option.label }}
             </button>
+            <button
+              type="button"
+              class="option"
+              :class="{ active: Boolean(earlyOut) }"
+              :disabled="!canEditShortWork"
+              @click="openShortPicker('earlyOut')"
+            >
+              {{ earlyOutLabel }}
+            </button>
+            <button
+              type="button"
+              class="option"
+              :class="{ active: Boolean(lateIn) }"
+              :disabled="!canEditShortWork"
+              @click="openShortPicker('lateIn')"
+            >
+              {{ lateInLabel }}
+            </button>
           </div>
+
           <label class="field">
             <span class="field-label">야근</span>
             <button
@@ -95,7 +192,7 @@ useDialogKeyboard({
               type="text"
               class="text-input"
               :value="remark ?? ''"
-              :placeholder="dayType === 'HOL' ? '예: 개천절' : '예: 레포트 개발, 배포 테스트'"
+              :placeholder="remarkPlaceholder"
               @input="onRemarkInput"
               @keydown.enter.prevent="saveSheet"
             />
@@ -104,6 +201,16 @@ useDialogKeyboard({
         </div>
       </div>
     </div>
+
+    <TimePicker
+      v-model:open="isTimePickerOpen"
+      :initial-time="timePickerInitial"
+      :title="shortField === 'lateIn' ? '늦은출근' : '조기퇴근'"
+      :show-reset="shortField === 'earlyOut' ? Boolean(earlyOut) : Boolean(lateIn)"
+      :z-index="300"
+      @confirm="onShortTimeConfirm"
+      @reset="onShortTimeReset"
+    />
   </teleport>
 </template>
 
@@ -178,6 +285,11 @@ useDialogKeyboard({
   border-color: var(--color-primary);
   background-color: var(--color-primary-soft);
   color: var(--color-primary-text);
+}
+
+.option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .toggle {

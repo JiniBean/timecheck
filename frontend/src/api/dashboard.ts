@@ -19,6 +19,8 @@ export interface WorkPatch {
   dayType?: DayType;
   isOt?: boolean;
   remark?: string | null;
+  lateIn?: string | null;
+  earlyOut?: string | null;
   mainEnd?: string | null;
   otStart?: string | null;
   otEnd?: string | null;
@@ -27,6 +29,8 @@ export interface WorkPatch {
   clearMainEnd?: boolean;
   clearOtStart?: boolean;
   clearOtEnd?: boolean;
+  clearLateIn?: boolean;
+  clearEarlyOut?: boolean;
 }
 
 export function loadTodayCache(userId: number): Work | null {
@@ -190,6 +194,18 @@ function toPayload(workDate: string, options: WorkPatch) {
   }
   if (options.clearOtEnd) {
     payload.clearOtEnd = true;
+  }
+  if (options.lateIn !== undefined) {
+    payload.lateIn = options.lateIn;
+  }
+  if (options.earlyOut !== undefined) {
+    payload.earlyOut = options.earlyOut;
+  }
+  if (options.clearLateIn) {
+    payload.clearLateIn = true;
+  }
+  if (options.clearEarlyOut) {
+    payload.clearEarlyOut = true;
   }
   return payload;
 }

@@ -31,6 +31,8 @@ export interface PreviewRow {
   weekdayLabel: string;
   dayLabel: string;
   dayType: DayType;
+  lateIn: string | null;
+  earlyOut: string | null;
   rawStart: string | null;
   mainEnd: string | null;
   workMin: number;
@@ -332,11 +334,19 @@ function collectPreview(input: {
 
     const fallbackStart = ctx.dayType === "AM"
       ? halfDayBoundary(day.workDate)
-      : (ctx.rawStart ?? defaultStart(day.workDate, ctx.dayType, previewStartHhmm));
+      : ctx.lateIn
+        ? hhmmToDateTime(day.workDate, ctx.lateIn.slice(0, 5))
+        : (ctx.rawStart ?? defaultStart(day.workDate, ctx.dayType, previewStartHhmm));
     let rawStart = override?.rawStart ?? fallbackStart;
     rawStart = bumpStartIfLate(day.workDate, rawStart, ctx, asOf, Boolean(override?.rawStart));
 
-    const lockedEnd = override?.mainEnd ?? (ctx.dayType === "PM" ? halfDayBoundary(day.workDate) : null);
+    const lockedEnd =
+      override?.mainEnd ??
+      (ctx.dayType === "PM"
+        ? halfDayBoundary(day.workDate)
+        : ctx.earlyOut
+          ? hhmmToDateTime(day.workDate, ctx.earlyOut.slice(0, 5))
+          : null);
 
     if (lockedEnd) {
       const workMinValue = mainMinBetween(day.workDate, ctx.dayType, rawStart, lockedEnd);
@@ -510,6 +520,8 @@ export function buildPreview(input: {
       weekdayLabel: day.weekdayLabel,
       dayLabel: day.dayLabel,
       dayType: ctx.dayType,
+      lateIn: ctx.lateIn,
+      earlyOut: ctx.earlyOut,
       rawStart: times.rawStart,
       mainEnd: times.mainEnd,
       workMin: times.workMin,

@@ -45,6 +45,8 @@ export interface WeekDay {
   otStart: string | null;
   otEnd: string | null;
   dayType: DayType;
+  lateIn: string | null;
+  earlyOut: string | null;
   remark: string | null;
 }
 

@@ -27,7 +27,8 @@ import { apiErrMsg } from "../utils/apiError";
 import { bootError, bootLog } from "../utils/bootLog";
 import { copyText } from "../utils/reportClipboard";
 import { currentDateKey, isSameWeek, shiftDateKey } from "../utils/weekNav";
-import { isDayOff } from "../utils/dayType";
+import { isDayOff, isShortWork } from "../utils/dayType";
+import type { DaySettings as DaySettingsFields } from "./useDaySettingsDraft";
 import { compareHm, formatNowHm, hhmmToDateTime } from "../utils/time";
 import { WorkPolicy } from "../utils/workPolicy";
 
@@ -64,11 +65,8 @@ function emptyWeekReport(): WeekReport {
   };
 }
 
-export interface DaySettings {
+export interface DaySettings extends DaySettingsFields {
   workDate: string;
-  dayType: DayType;
-  isOt: boolean;
-  remark: string | null;
 }
 
 export function useDashboard(userId: number) {
@@ -376,16 +374,15 @@ export function useDashboard(userId: number) {
     state.value.todayWork = withOtRecalc(work, "ot_start", { otStart });
   }
 
-  function setWorkSettings(payload: { dayType: DayType; isOt: boolean; remark: string | null }) {
+  function setWorkSettings(payload: DaySettingsFields) {
     const finalIsOt = isDayOff(payload.dayType) ? false : payload.isOt;
-    const finalRemark =
-      payload.dayType === "HOL" || finalIsOt ? payload.remark?.trim() || null : null;
-
     const work: Work = {
       ...state.value.todayWork,
       dayType: payload.dayType,
       isOt: finalIsOt,
-      remark: finalRemark
+      lateIn: payload.lateIn,
+      earlyOut: payload.earlyOut,
+      remark: payload.remark
     };
 
     if (!finalIsOt) {
@@ -535,14 +532,14 @@ export function useDashboard(userId: number) {
     await runAction(async () => {
       const existing = await fetchWork(userId, payload.workDate);
       const finalIsOt = isDayOff(payload.dayType) ? false : payload.isOt;
-      const finalRemark =
-        payload.dayType === "HOL" || finalIsOt ? payload.remark?.trim() || null : null;
 
       let work: Work = {
         ...existing,
         dayType: payload.dayType,
         isOt: finalIsOt,
-        remark: finalRemark
+        lateIn: payload.lateIn,
+        earlyOut: payload.earlyOut,
+        remark: payload.remark
       };
 
       if (!finalIsOt) {
@@ -553,7 +550,11 @@ export function useDashboard(userId: number) {
         workDate: payload.workDate,
         dayType: payload.dayType,
         isOt: finalIsOt,
-        remark: finalRemark
+        remark: payload.remark,
+        lateIn: payload.lateIn,
+        earlyOut: payload.earlyOut,
+        clearLateIn: !payload.lateIn,
+        clearEarlyOut: !payload.earlyOut
       };
 
       let updated: Work;
@@ -710,16 +711,24 @@ function otOnCheckout(
   return { work: next, cancelled: false };
 }
 
-/** 근무 설정 저장: isOt·remark·dayType만 전송. 퇴근 전에는 앵커 필드도 DB에서 비움. */
+/** 근무 설정 저장: isOt·remark·dayType·lateIn·earlyOut 전송. 퇴근 전에는 앵커 필드도 DB에서 비움. */
 function toSettingsPatch(work: Work, override: WorkPatch = {}): WorkPatch {
   const { mainEnd: _mainEnd, otStart: _otStart, otEnd: _otEnd, ...safeOverride } = override;
   const hasCheckout = Boolean(safeOverride.rawEnd ?? work.rawEnd);
+  const lateIn =
+    safeOverride.lateIn !== undefined ? safeOverride.lateIn : (work.lateIn ?? null);
+  const earlyOut =
+    safeOverride.earlyOut !== undefined ? safeOverride.earlyOut : (work.earlyOut ?? null);
   return {
     workDate: work.workDate,
     dayType: safeOverride.dayType ?? work.dayType,
     isOt: safeOverride.isOt ?? work.isOt,
     remark:
       safeOverride.remark !== undefined ? safeOverride.remark : remarkForApi(work),
+    lateIn,
+    earlyOut,
+    clearLateIn: !lateIn,
+    clearEarlyOut: !earlyOut,
     ...(hasCheckout
       ? {}
       : {
@@ -772,7 +781,7 @@ function toWorkPatch(work: Work, override: WorkPatch = {}): WorkPatch {
 }
 
 function remarkForApi(work: Work): string | null {
-  if (work.dayType === "HOL" || work.isOt) {
+  if (work.dayType === "HOL" || work.isOt || isShortWork(work.dayType, work.earlyOut, work.lateIn)) {
     return work.remark?.trim() || null;
   }
   return null;
@@ -833,6 +842,8 @@ function mergeDayToday(day: WeekDay, today: Work, todayDate: string): WeekDay {
     otStart: today.otStart ?? null,
     otEnd: today.otEnd ?? null,
     dayType: today.dayType,
+    lateIn: dayOff ? null : today.lateIn ?? null,
+    earlyOut: dayOff ? null : today.earlyOut ?? null,
     remark: today.remark
   };
 }

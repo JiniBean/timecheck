@@ -153,8 +153,14 @@
             <if test="extra2 != null">EXTRA_2 = #{extra2, jdbcType=INTEGER},</if>
             <if test="isOt != null">IS_OT = #{isOt, jdbcType=BOOLEAN},</if>
             <if test="dayType != null">DAY_TYPE = #{dayType, jdbcType=VARCHAR},</if>
-            <if test="lateIn != null">LATE_IN = #{lateIn, jdbcType=TIME},</if>
-            <if test="earlyOut != null">EARLY_OUT = #{earlyOut, jdbcType=TIME},</if>
+            <choose>
+                <when test="clearLateIn == true">LATE_IN = NULL,</when>
+                <when test="lateIn != null">LATE_IN = #{lateIn, jdbcType=TIME},</when>
+            </choose>
+            <choose>
+                <when test="clearEarlyOut == true">EARLY_OUT = NULL,</when>
+                <when test="earlyOut != null">EARLY_OUT = #{earlyOut, jdbcType=TIME},</when>
+            </choose>
             REMARK = #{remark, jdbcType=LONGVARCHAR},
         </set>
         WHERE USER_ID = #{userId, jdbcType=BIGINT}

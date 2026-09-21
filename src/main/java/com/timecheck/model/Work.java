@@ -84,6 +84,12 @@ public class Work {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Boolean clearOtEnd;
 
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Boolean clearLateIn;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Boolean clearEarlyOut;
+
     public void setDayType(DayType dayType) {
         this.dayType = dayType == null ? DayType.NOM : dayType;
     }

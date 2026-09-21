@@ -20,7 +20,7 @@ import {
   mondayOfDateKey,
   shiftDateKey
 } from "../../utils/weekNav";
-import { WorkPolicy } from "../../utils/workPolicy";
+import { WorkPolicy, hmOf } from "../../utils/workPolicy";
 import { apiErrMsg } from "../../utils/apiError";
 import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
 import {
@@ -43,7 +43,7 @@ import {
 
 type TimePickerContext = "row" | "summary";
 
-const ON_TIME_HHMM = `${String(WorkPolicy.STD_START.hour).padStart(2, "0")}:${String(WorkPolicy.STD_START.minute).padStart(2, "0")}`;
+const ON_TIME_HHMM = hmOf(WorkPolicy.STD_START);
 
 const props = defineProps<{
   open: boolean;
@@ -605,7 +605,7 @@ function rowToneClass(row: PreviewRow): string {
                   </td>
                   <td>
                     <span :class="{ 'cell-day-type': row.dayType !== 'NOM' }">
-                      {{ dayTypeCellLabel(row.dayType) }}
+                      {{ dayTypeCellLabel(row.dayType, row.earlyOut, row.lateIn) }}
                     </span>
                   </td>
                 </tr>

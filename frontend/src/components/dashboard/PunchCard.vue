@@ -4,7 +4,7 @@ import TimePicker from "./TimePicker.vue";
 import SettingPicker from "./SettingPicker.vue";
 import { useDaySettingsDraft } from "../../composables/useDaySettingsDraft";
 import type { DayType, TodayStatus } from "../../types/dashboard";
-import { DAY_TYPE_OPTIONS } from "../../utils/dayType";
+import { DAY_TYPE_OPTIONS, dayTypeCellLabel } from "../../utils/dayType";
 import { formatHm } from "../../utils/time";
 
 const props = defineProps<{
@@ -15,6 +15,8 @@ const props = defineProps<{
   dayType: DayType;
   isOt: boolean;
   remark: string | null;
+  lateIn: string | null;
+  earlyOut: string | null;
   displayMainEnd: string | null;
   displayOtStart: string | null;
   hasCheckIn: boolean;
@@ -28,7 +30,15 @@ const props = defineProps<{
 const emit = defineEmits<{
   "check-in": [];
   "check-out": [];
-  "apply-settings": [payload: { dayType: DayType; isOt: boolean; remark: string | null }];
+  "apply-settings": [
+    payload: {
+      dayType: DayType;
+      isOt: boolean;
+      remark: string | null;
+      lateIn: string | null;
+      earlyOut: string | null;
+    }
+  ];
   "update-main-end": [value: string];
   "update-ot-start": [value: string];
   "save-settings": [];
@@ -41,10 +51,14 @@ const {
   dayTypeDraft,
   otDraft,
   remarkDraft,
+  lateInDraft,
+  earlyOutDraft,
   loadDraft,
   setDayType,
   onToggleOt,
   setRemark,
+  setLateIn,
+  setEarlyOut,
   buildPayload
 } = useDaySettingsDraft();
 const isOtPickerOpen = ref(false);
@@ -58,9 +72,13 @@ const statusText = computed(() => {
 });
 const statusClass = computed(() => `status-badge status-${props.status.toLowerCase()}`);
 
-const dayTypeLabel = computed(
-  () => DAY_TYPE_OPTIONS.find((v) => v.value === props.dayType)?.label ?? "일반근무"
-);
+const dayTypeLabel = computed(() => {
+  const label = dayTypeCellLabel(props.dayType, props.earlyOut, props.lateIn);
+  if (label !== "-") {
+    return label;
+  }
+  return DAY_TYPE_OPTIONS.find((v) => v.value === props.dayType)?.label ?? "일반근무";
+});
 
 const hasInlineOtTimes = computed(() => props.isOt && props.hasCheckIn);
 
@@ -91,7 +109,9 @@ function openSettings() {
   loadDraft({
     dayType: props.dayType,
     isOt: props.isOt,
-    remark: props.remark
+    remark: props.remark,
+    lateIn: props.lateIn,
+    earlyOut: props.earlyOut
   });
   isSettingsOpen.value = true;
 }
@@ -202,9 +222,13 @@ function onInlineOtConfirm(hhmm: string) {
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
+      :late-in="lateInDraft"
+      :early-out="earlyOutDraft"
       @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
       @update-remark="setRemark"
+      @update-late-in="setLateIn"
+      @update-early-out="setEarlyOut"
       @save="onSettingsSave"
     />
   </section>

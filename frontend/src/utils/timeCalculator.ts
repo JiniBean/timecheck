@@ -72,6 +72,8 @@ export interface WeekDayCtx {
   isOt: boolean;
   isOff: boolean;
   isWorking: boolean;
+  lateIn: string | null;
+  earlyOut: string | null;
 }
 
 /** 주간 행 + 오늘 병합본 기준 당일 근무 컨텍스트 */
@@ -87,6 +89,8 @@ export function weekDayCtx(
   const mainMin = isToday ? mergedToday.main : day.main;
   const dayType = isToday ? mergedToday.dayType : day.dayType;
   const isOt = isToday ? mergedToday.isOt : day.isOt;
+  const lateIn = isToday ? mergedToday.lateIn ?? null : day.lateIn;
+  const earlyOut = isToday ? mergedToday.earlyOut ?? null : day.earlyOut;
   const slice = { rawStart, rawEnd, dayType };
   return {
     isToday,
@@ -97,7 +101,9 @@ export function weekDayCtx(
     dayType,
     isOt,
     isOff: isDayOff(dayType),
-    isWorking: isWorking(slice)
+    isWorking: isWorking(slice),
+    lateIn,
+    earlyOut
   };
 }
 

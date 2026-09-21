@@ -6,6 +6,15 @@ export const SEEN_PATCH_SCOPE = "seen-patch";
 /** 최신 항목이 배열 첫 번째. version은 앱 버전 단일 소스. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "0.0.3",
+    date: "2026-09-21",
+    title: "단축근무 설정",
+    items: [
+      "근무 설정에 조기퇴근·늦은출근 기능이 추가되었어요.",
+      "목표 근무시간이 줄고 보고서 비고에 단축근무로 표시돼요."
+    ]
+  },
+  {
     version: "0.0.2",
     date: "2026-08-20",
     title: "계정찾기 기능 추가",

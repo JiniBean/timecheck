@@ -34,6 +34,8 @@ const emit = defineEmits<{
       dayType: DayType;
       isOt: boolean;
       remark: string | null;
+      lateIn: string | null;
+      earlyOut: string | null;
     }
   ];
 }>();
@@ -51,10 +53,14 @@ const {
   dayTypeDraft,
   otDraft,
   remarkDraft,
+  lateInDraft,
+  earlyOutDraft,
   loadDraft,
   setDayType,
   onToggleOt,
   setRemark,
+  setLateIn,
+  setEarlyOut,
   buildPayload
 } = useDaySettingsDraft();
 
@@ -146,7 +152,9 @@ function openDayTypeSheet(day: WeekDay) {
   loadDraft({
     dayType: day.dayType,
     isOt: day.isOt,
-    remark: day.remark
+    remark: day.remark,
+    lateIn: day.lateIn,
+    earlyOut: day.earlyOut
   });
   isDayTypeSheetOpen.value = true;
 }
@@ -231,9 +239,13 @@ const settingsTitle = computed(() =>
       :day-type="dayTypeDraft"
       :is-ot="otDraft"
       :remark="remarkDraft"
+      :late-in="lateInDraft"
+      :early-out="earlyOutDraft"
       @update-day-type="setDayType"
       @toggle-ot="onToggleOt"
       @update-remark="setRemark"
+      @update-late-in="setLateIn"
+      @update-early-out="setEarlyOut"
       @save="saveDaySettings"
     />
   </section>

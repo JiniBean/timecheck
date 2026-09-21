@@ -15,11 +15,26 @@ export function isDayOff(dayType: DayType): boolean {
   return DAY_OFF_TYPES.includes(dayType);
 }
 
+export function isShortWork(
+  dayType: DayType,
+  earlyOut?: string | null,
+  lateIn?: string | null
+): boolean {
+  return dayType === "NOM" && Boolean(earlyOut || lateIn);
+}
+
 export function dayTypeLabel(dayType: DayType): string {
   return DAY_TYPE_OPTIONS.find((option) => option.value === dayType)?.label ?? "일반근무";
 }
 
-export function dayTypeCellLabel(dayType: DayType): string {
+export function dayTypeCellLabel(
+  dayType: DayType,
+  earlyOut?: string | null,
+  lateIn?: string | null
+): string {
+  if (isShortWork(dayType, earlyOut, lateIn)) {
+    return "단축근무";
+  }
   if (dayType === "NOM") {
     return "-";
   }
