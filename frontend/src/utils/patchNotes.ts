@@ -6,6 +6,15 @@ export const SEEN_PATCH_SCOPE = "seen-patch";
 /** 최신 항목이 배열 첫 번째. version은 앱 버전 단일 소스. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: "0.0.4",
+    date: "2026-09-22",
+    title: "오늘 날짜 자동 갱신",
+    items: [
+      "절전모드에서 다시 켰을 때 날짜가 전날로 멈춰있던 문제를 고쳤어요.",
+      "이제 다른 기기에서 찍은 출퇴근도 바로 반영돼요."
+    ]
+  },
+  {
     version: "0.0.3",
     date: "2026-09-21",
     title: "단축근무 설정",

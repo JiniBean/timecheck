@@ -86,9 +86,12 @@ export function useDashboard(userId: number) {
   let toastTimerId: number | null = null;
   let refreshingToday = false;
 
-  async function ensureTodayWork(): Promise<void> {
+  async function ensureTodayWork(force = false): Promise<void> {
     const today = localDateKey();
-    if (state.value.todayWork.workDate === today || refreshingToday) {
+    if (refreshingToday) {
+      return;
+    }
+    if (!force && state.value.todayWork.workDate === today) {
       return;
     }
     refreshingToday = true;
@@ -103,7 +106,7 @@ export function useDashboard(userId: number) {
         await loadWeekReport();
       }
     } catch {
-      // 자정 rollover 갱신 실패 시 기존 todayWork 유지
+      // 자정 rollover / wake 갱신 실패 시 기존 todayWork 유지
     } finally {
       refreshingToday = false;
     }
@@ -652,6 +655,7 @@ export function useDashboard(userId: number) {
     applyPickedTime,
     syncActTime,
     onClockTick,
+    ensureTodayWork,
     canCheckIn,
     canCheckOut,
     loadDashboard,

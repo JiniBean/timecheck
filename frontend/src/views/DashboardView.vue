@@ -44,6 +44,7 @@ const {
   isActTimeLocked,
   applyPickedTime,
   onClockTick,
+  ensureTodayWork,
   canCheckIn,
   canCheckOut,
   handleCheckIn,
@@ -147,7 +148,7 @@ const nowLabel = computed(() =>
   })
 );
 
-const todayDateKey = computed(() => localDateKey());
+const todayDateKey = computed(() => localDateKey(now.value));
 
 const mergedToday = computed(() =>
   mergeToday(
@@ -229,18 +230,45 @@ async function copyOtReport() {
   await otReportRef.value?.copy();
 }
 
+let lastResumeAt = 0;
+
+function resumeFromServer() {
+  const nowMs = Date.now();
+  if (nowMs - lastResumeAt < 2000) {
+    return;
+  }
+  lastResumeAt = nowMs;
+  now.value = new Date();
+  onClockTick(now.value);
+  void ensureTodayWork(true);
+}
+
+function onVisibilityChange() {
+  if (document.visibilityState === "visible") {
+    resumeFromServer();
+  }
+}
+
+function onWindowFocus() {
+  resumeFromServer();
+}
+
 onMounted(() => {
   bootLog("dashboard.view.mounted", { userId });
   clockTimerId = window.setInterval(() => {
     now.value = new Date();
     onClockTick(now.value);
   }, 1000);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  window.addEventListener("focus", onWindowFocus);
 });
 
 onBeforeUnmount(() => {
   if (clockTimerId !== null) {
     clearInterval(clockTimerId);
   }
+  document.removeEventListener("visibilitychange", onVisibilityChange);
+  window.removeEventListener("focus", onWindowFocus);
 });
 </script>
 
