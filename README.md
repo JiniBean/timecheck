@@ -77,8 +77,6 @@ SQLite DB는 `./data/timecheck.db`에 생성됩니다.
 
 ## 스크린샷
 
-<!-- docs/images/ 에 스크린샷을 추가한 뒤 아래 예시처럼 연결하세요 -->
-<!--
 ![대시보드](docs/images/dashboard.png)
+
 ![모바일](docs/images/mobile.png)
--->
