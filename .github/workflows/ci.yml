@@ -3,6 +3,11 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "README.md"
+      - "docs/**"
+      - ".cursor/**"
+      - "**/*.md"
 
 jobs:
   build:
