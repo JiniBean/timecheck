@@ -77,6 +77,10 @@ SQLite DB는 `./data/timecheck.db`에 생성됩니다.
 
 ## 스크린샷
 
-![대시보드](docs/images/dashboard.png)
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="대시보드" width="720" />
+</p>
 
-![모바일](docs/images/mobile.png)
+<p align="center">
+  <img src="docs/images/mobile.png" alt="모바일" width="280" />
+</p>
