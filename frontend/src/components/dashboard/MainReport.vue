@@ -23,8 +23,8 @@ const built = computed(() =>
     todayWorkDate: props.todayWorkDate,
     todayWork: props.todayWork,
     todayMainMin: props.todayMainMin,
-    isLiveToday: props.isLiveToday
-  })
+    isLiveToday: props.isLiveToday,
+  }),
 );
 
 async function handleCopy() {
@@ -87,9 +87,7 @@ defineExpose({ copy: handleCopy });
 
       <div v-if="built.remarks.length > 0" class="remarks">
         <p class="remarks-title">비고:</p>
-        <p v-for="line in built.remarks" :key="line.index" class="remarks-line">
-          {{ line.index }}. {{ line.text }}
-        </p>
+        <p v-for="line in built.remarks" :key="line.index" class="remarks-line">{{ line.index }}. {{ line.text }}</p>
       </div>
     </div>
   </div>
@@ -140,9 +138,7 @@ defineExpose({ copy: handleCopy });
 
       <div v-if="built.remarks.length > 0" class="remarks">
         <p class="remarks-title">비고:</p>
-        <p v-for="line in built.remarks" :key="line.index" class="remarks-line">
-          {{ line.index }}. {{ line.text }}
-        </p>
+        <p v-for="line in built.remarks" :key="line.index" class="remarks-line">{{ line.index }}. {{ line.text }}</p>
       </div>
     </div>
   </section>

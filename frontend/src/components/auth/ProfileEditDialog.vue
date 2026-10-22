@@ -29,17 +29,19 @@ useDialogKeyboard({
   open: visibleRef,
   onClose: close,
   onSubmit: handleSubmit,
-  disabled: isLoading
+  disabled: isLoading,
 });
 
 const username = computed({
   get: () => form.value.username,
   set: (value: string) => {
     form.value.username = value;
-  }
+  },
 });
 const except = computed(() => props.user.username);
-const { usernameError, busy, touch, reset } = useUsernameField(username, { except });
+const { usernameError, busy, touch, reset } = useUsernameField(username, {
+  except,
+});
 
 function canAutoFocusInput(): boolean {
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -57,7 +59,7 @@ watch(
         firstInputRef.value?.focus();
       }
     }
-  }
+  },
 );
 
 watch(
@@ -66,7 +68,7 @@ watch(
     if (props.visible) {
       form.value = createFormFromUser(user);
     }
-  }
+  },
 );
 
 function createFormFromUser(user: AuthUser): ProfileForm {
@@ -76,7 +78,7 @@ function createFormFromUser(user: AuthUser): ProfileForm {
     name: user.name,
     department: user.department ?? "",
     team: user.team ?? "",
-    position: user.position ?? ""
+    position: user.position ?? "",
   };
 }
 
@@ -115,14 +117,7 @@ async function handleSubmit() {
             <h2 id="profile-modal-title" class="profile-modal-title">회원정보 변경</h2>
             <p class="profile-modal-subtitle">아이디, 비밀번호, 이름을 수정할 수 있습니다.</p>
           </div>
-          <RouterLink
-            v-if="authStore.isAdmin"
-            to="/admin"
-            class="profile-admin-link"
-            @click="close"
-          >
-            관리
-          </RouterLink>
+          <RouterLink v-if="authStore.isAdmin" to="/admin" class="profile-admin-link" @click="close"> 관리 </RouterLink>
         </header>
 
         <form class="profile-modal-form" novalidate @submit.prevent="handleSubmit">
@@ -174,13 +169,19 @@ async function handleSubmit() {
             <input v-model="form.team" class="text-input" type="text" placeholder="예: FM개발팀" />
           </label>
 
-          <p v-if="errorMessage" class="profile-modal-error">{{ errorMessage }}</p>
+          <p v-if="errorMessage" class="profile-modal-error">
+            {{ errorMessage }}
+          </p>
 
           <div class="profile-modal-actions">
             <button type="button" class="button button-soft button-sm" :disabled="isLoading" @click="close">
               취소
             </button>
-            <button type="submit" class="button button-primary button-sm" :disabled="isLoading || !!usernameError || busy">
+            <button
+              type="submit"
+              class="button button-primary button-sm"
+              :disabled="isLoading || !!usernameError || busy"
+            >
               {{ isLoading ? "저장 중..." : "저장" }}
             </button>
           </div>
@@ -236,7 +237,9 @@ async function handleSubmit() {
   text-decoration: none;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

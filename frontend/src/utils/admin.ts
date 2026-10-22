@@ -1,7 +1,7 @@
 export const ADMIN_STATUS_LABEL: Record<string, string> = {
   active: "활성",
   inactive: "미사용",
-  new: "신규"
+  new: "신규",
 };
 
 const KST = "Asia/Seoul";
@@ -48,7 +48,7 @@ export function formatAdminDate(iso: string | null | undefined): string {
       timeZone: KST,
       year: "numeric",
       month: "2-digit",
-      day: "2-digit"
+      day: "2-digit",
     })
     .replace(/\.\s*$/, "");
 }
@@ -68,7 +68,7 @@ export function formatAdminDt(iso: string | null | undefined): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false
+    hour12: false,
   });
 }
 
@@ -87,7 +87,7 @@ export function formatAdminDtShort(iso: string | null | undefined): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false
+    hour12: false,
   });
 }
 

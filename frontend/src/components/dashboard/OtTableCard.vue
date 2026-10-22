@@ -36,7 +36,7 @@ const emit = defineEmits<{
       remark: string | null;
       lateIn: string | null;
       earlyOut: string | null;
-    }
+    },
   ];
 }>();
 
@@ -61,7 +61,7 @@ const {
   setRemark,
   setLateIn,
   setEarlyOut,
-  buildPayload
+  buildPayload,
 } = useDaySettingsDraft();
 
 const displayDays = computed(() =>
@@ -76,8 +76,8 @@ const displayDays = computed(() =>
     const hasOt = day.isOt && !dayOff;
     const useLive = Boolean(props.isLiveToday && isToday);
 
-    const otStart = useLive ? props.otCtx?.otStart ?? day.otStart : day.otStart;
-    const otEnd = useLive ? props.otCtx?.otEnd ?? day.otEnd : day.otEnd;
+    const otStart = useLive ? (props.otCtx?.otStart ?? day.otStart) : day.otStart;
+    const otEnd = useLive ? (props.otCtx?.otEnd ?? day.otEnd) : day.otEnd;
 
     const otStartPreview = hasOt && !day.rawEnd && Boolean(otStart);
     const otEndPreview = hasOt && !day.rawEnd && Boolean(otEnd);
@@ -96,9 +96,9 @@ const displayDays = computed(() =>
       durationPreview,
       startLabel: dayOff || !hasOt ? "-" : formatHm(otStart),
       endLabel: dayOff || !hasOt ? "-" : formatHm(otEnd),
-      durationLabel: dayOff || !hasOt || totalExtra <= 0 ? "-" : formatMinutes(totalExtra)
+      durationLabel: dayOff || !hasOt || totalExtra <= 0 ? "-" : formatMinutes(totalExtra),
     };
-  })
+  }),
 );
 
 function hasOtTimeValue(day: (typeof displayDays.value)[number], field: "start" | "end"): boolean {
@@ -154,7 +154,7 @@ function openDayTypeSheet(day: WeekDay) {
     isOt: day.isOt,
     remark: day.remark,
     lateIn: day.lateIn,
-    earlyOut: day.earlyOut
+    earlyOut: day.earlyOut,
   });
   isDayTypeSheetOpen.value = true;
 }
@@ -171,13 +171,13 @@ function saveDaySettings() {
   const payload = buildPayload();
   emit("save-day-settings", {
     workDate: dayTypeEditDay.value.workDate,
-    ...payload
+    ...payload,
   });
   closeDayTypeSheet();
 }
 
 const settingsTitle = computed(() =>
-  dayTypeEditDay.value ? `${dayTypeEditDay.value.weekdayLabel}요일 · 근무 설정` : "근무 설정"
+  dayTypeEditDay.value ? `${dayTypeEditDay.value.weekdayLabel}요일 · 근무 설정` : "근무 설정",
 );
 </script>
 
@@ -202,7 +202,7 @@ const settingsTitle = computed(() =>
               class="cell-editable"
               :class="{
                 'cell-disabled': day.dayOff || !day.hasOt,
-                'cell-preview': day.otStartPreview
+                'cell-preview': day.otStartPreview,
               }"
               @click="openTimePicker(day, 'start')"
             >
@@ -212,13 +212,15 @@ const settingsTitle = computed(() =>
               class="cell-editable"
               :class="{
                 'cell-disabled': day.dayOff || !day.hasOt,
-                'cell-preview': day.otEndPreview
+                'cell-preview': day.otEndPreview,
               }"
               @click="openTimePicker(day, 'end')"
             >
               {{ day.endLabel }}
             </td>
-            <td :class="{ 'cell-preview': day.durationPreview }">{{ day.durationLabel }}</td>
+            <td :class="{ 'cell-preview': day.durationPreview }">
+              {{ day.durationLabel }}
+            </td>
           </tr>
         </tbody>
       </table>

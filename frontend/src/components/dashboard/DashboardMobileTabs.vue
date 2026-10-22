@@ -5,7 +5,7 @@ const model = defineModel<WorkTab>({ required: true });
 
 const tabs: { id: WorkTab; label: string }[] = [
   { id: "main", label: "일반 근무" },
-  { id: "ot", label: "시간외 근무" }
+  { id: "ot", label: "시간외 근무" },
 ];
 </script>
 

@@ -41,7 +41,7 @@ watch(
   () => ({
     isSessionChecked: authStore.isSessionChecked,
     name: route.name,
-    hasUser: Boolean(authStore.user)
+    hasUser: Boolean(authStore.user),
   }),
   ({ isSessionChecked, name, hasUser }) => {
     if (!isSessionChecked) {
@@ -53,7 +53,7 @@ watch(
     if (name === "login" || name === "signup" || !hasUser) {
       bootStore.markReady();
     }
-  }
+  },
 );
 
 onMounted(() => {
@@ -85,8 +85,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   background-color: var(--color-bg);
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .app-splash__content {

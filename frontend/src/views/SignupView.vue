@@ -15,7 +15,7 @@ const form = ref<SignupForm>({
   name: "",
   department: "",
   team: "",
-  position: ""
+  position: "",
 });
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(false);
@@ -24,7 +24,7 @@ const username = computed({
   get: () => form.value.username,
   set: (value: string) => {
     form.value.username = value;
-  }
+  },
 });
 const { usernameError, busy, touch } = useUsernameField(username);
 
@@ -102,7 +102,11 @@ async function handleSubmit() {
 
         <p v-if="errorMessage" class="auth-error">{{ errorMessage }}</p>
 
-        <button class="button button-primary auth-submit" type="submit" :disabled="isLoading || !!usernameError || busy">
+        <button
+          class="button button-primary auth-submit"
+          type="submit"
+          :disabled="isLoading || !!usernameError || busy"
+        >
           {{ isLoading ? "가입 중..." : "회원가입" }}
         </button>
       </form>

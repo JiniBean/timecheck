@@ -2,7 +2,7 @@ const EMPTY_CELL = "\u3000";
 const MAIN_REPORT_TABLE_WIDTH = "500px";
 const OT_REPORT_TABLE_WIDTH = "980px";
 const REPORT_CELL_PADDING = "6px";
-const REPORT_FONT_FAMILY = "\"Malgun Gothic\", \"맑은 고딕\", sans-serif";
+const REPORT_FONT_FAMILY = '"Malgun Gothic", "맑은 고딕", sans-serif';
 const REPORT_FONT_SIZE = "10pt";
 const REPORT_BORDER = "1px solid #222";
 const REPORT_FONT_WEIGHT = "normal";
@@ -36,9 +36,7 @@ function rowToTsvCells(row: HTMLTableRowElement): string[] {
 
 export function tableToTsv(table: HTMLTableElement, footerText?: string): string {
   const rows = Array.from(table.querySelectorAll("tr"));
-  const body = rows
-    .map((row) => rowToTsvCells(row as HTMLTableRowElement).join("\t"))
-    .join("\n");
+  const body = rows.map((row) => rowToTsvCells(row as HTMLTableRowElement).join("\t")).join("\n");
   if (!footerText?.trim()) {
     return body;
   }
@@ -60,8 +58,7 @@ export function tableToInlineHtml(table: HTMLTableElement): string {
     const el = cell as HTMLElement;
     el.style.border = REPORT_BORDER;
     el.style.padding = REPORT_CELL_PADDING;
-    el.style.textAlign =
-      el.classList.contains("ot-report-detail") || el.classList.contains("left") ? "left" : "center";
+    el.style.textAlign = el.classList.contains("ot-report-detail") || el.classList.contains("left") ? "left" : "center";
     el.style.whiteSpace = el.classList.contains("ot-report-date") ? "nowrap" : "pre";
     el.style.fontWeight = REPORT_FONT_WEIGHT;
   });
@@ -138,14 +135,16 @@ function reportContentToHtml(root: HTMLElement): string {
     el.style.color = "#222";
   });
 
-  clone.querySelectorAll(".remarks-title, .remarks-line, .report-remarks-title, .report-remarks-line").forEach((node) => {
-    const el = node as HTMLElement;
-    el.style.margin = "0 0 4px";
-    el.style.padding = "0";
-    el.style.fontFamily = REPORT_FONT_FAMILY;
-    el.style.fontSize = REPORT_FONT_SIZE;
-    el.style.fontWeight = REPORT_FONT_WEIGHT;
-  });
+  clone
+    .querySelectorAll(".remarks-title, .remarks-line, .report-remarks-title, .report-remarks-line")
+    .forEach((node) => {
+      const el = node as HTMLElement;
+      el.style.margin = "0 0 4px";
+      el.style.padding = "0";
+      el.style.fontFamily = REPORT_FONT_FAMILY;
+      el.style.fontSize = REPORT_FONT_SIZE;
+      el.style.fontWeight = REPORT_FONT_WEIGHT;
+    });
 
   stripBoldFromTree(clone);
   return clone.innerHTML;
@@ -186,7 +185,7 @@ async function writeClipboardPayload(plain: string, html: string): Promise<void>
   if (navigator.clipboard?.write && window.isSecureContext) {
     const item = new ClipboardItem({
       "text/plain": new Blob([plain], { type: "text/plain" }),
-      "text/html": new Blob([html], { type: "text/html" })
+      "text/html": new Blob([html], { type: "text/html" }),
     });
     await navigator.clipboard.write([item]);
     return;

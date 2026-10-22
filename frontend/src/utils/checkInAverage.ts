@@ -51,9 +51,12 @@ export function typicalInHhmm(records: Work[]): string | null {
 }
 
 /** today 기준 최근 30일 조회 구간 [start, end] (yyyy-MM-dd) */
-export function checkInRange(todayDateKey: string): { start: string; end: string } {
+export function checkInRange(todayDateKey: string): {
+  start: string;
+  end: string;
+} {
   return {
     start: shiftDateKey(todayDateKey, -(LOOKBACK_DAYS - 1)),
-    end: todayDateKey
+    end: todayDateKey,
   };
 }

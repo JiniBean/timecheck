@@ -49,7 +49,8 @@ $env:JAVA_HOME = "C:\jini\Setup\OpenJDK17U-jdk_x64_windows_hotspot_17.0.18_8\jdk
 - 실행하지 못한 경우 생략 사실과 기술적 사유를 보고함. 검증했다고 단정하지 않음.
 
 ### 7-2) 프론트엔드
-- 검증 명령은 `npm run check`로 통일함 (`typecheck` -> `lint` -> `verify:naming`).
+- 검증 명령은 `npm run check`로 통일함 (`typecheck` -> `lint` -> `format:check` -> `verify:naming`).
+- 포맷 SSOT는 Prettier(`frontend/.prettierrc.json`).
 
 ```powershell
 cd frontend

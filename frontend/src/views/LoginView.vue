@@ -11,7 +11,7 @@ const route = useRoute();
 
 const form = ref<LoginForm>({
   username: "",
-  password: ""
+  password: "",
 });
 const errorMessage = ref<string | null>(null);
 const isLoading = ref(false);
@@ -45,24 +45,12 @@ async function handleSubmit() {
       <form class="auth-form" @submit.prevent="handleSubmit">
         <label class="field">
           <span class="field-label">아이디</span>
-          <input
-            v-model="form.username"
-            class="text-input"
-            type="text"
-            autocomplete="username"
-            required
-          />
+          <input v-model="form.username" class="text-input" type="text" autocomplete="username" required />
         </label>
 
         <label class="field">
           <span class="field-label">비밀번호</span>
-          <input
-            v-model="form.password"
-            class="text-input"
-            type="password"
-            autocomplete="current-password"
-            required
-          />
+          <input v-model="form.password" class="text-input" type="password" autocomplete="current-password" required />
         </label>
 
         <p v-if="errorMessage" class="auth-error">{{ errorMessage }}</p>

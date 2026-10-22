@@ -50,10 +50,7 @@ const goalHint = computed(() => {
         </div>
         <div class="stat-item stat-item--divider">
           <p class="stat-label">미사용 사용자</p>
-          <p
-            class="stat-value admin-kpi-value admin-kpi-value--warn"
-            :class="{ 'admin-kpi-value--skeleton': loading }"
-          >
+          <p class="stat-value admin-kpi-value admin-kpi-value--warn" :class="{ 'admin-kpi-value--skeleton': loading }">
             {{ loading || !overview ? "" : overview.inactiveUsers }}
           </p>
         </div>
@@ -78,11 +75,7 @@ const goalHint = computed(() => {
       <article class="card admin-kpi-card">
         <p class="stat-label">주간 목표 달성</p>
         <p class="stat-value admin-kpi-value" :class="{ 'admin-kpi-value--skeleton': loading }">
-          {{
-            loading || !overview
-              ? ""
-              : `${weekGoalMetUsers}명 (${formatRate(weekGoalRate)})`
-          }}
+          {{ loading || !overview ? "" : `${weekGoalMetUsers}명 (${formatRate(weekGoalRate)})` }}
         </p>
         <p class="admin-kpi-hint">{{ goalHint }}</p>
       </article>

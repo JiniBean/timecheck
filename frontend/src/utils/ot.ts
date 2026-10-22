@@ -4,14 +4,7 @@ import { WorkPolicy } from "./workPolicy";
 
 // --- Recalc ---
 
-export type OtRecalcTrigger =
-  | "auto"
-  | "raw_start"
-  | "raw_end"
-  | "checkout_repeat"
-  | "main_end"
-  | "ot_start"
-  | "ot_end";
+export type OtRecalcTrigger = "auto" | "raw_start" | "raw_end" | "checkout_repeat" | "main_end" | "ot_start" | "ot_end";
 
 export interface OtAnchorPatch {
   mainEnd?: string | null;
@@ -24,18 +17,15 @@ export interface OtAnchorPatch {
 
 /** 야근 앵커(mainEnd·otStart·otEnd)를 트리거에 맞게 갱신합니다. */
 export function recalcOtAnchors(
-  work: Pick<
-    Work,
-    "workDate" | "rawStart" | "rawEnd" | "dayType" | "isOt" | "mainEnd" | "otStart" | "otEnd"
-  >,
+  work: Pick<Work, "workDate" | "rawStart" | "rawEnd" | "dayType" | "isOt" | "mainEnd" | "otStart" | "otEnd">,
   trigger: OtRecalcTrigger,
-  patch?: OtAnchorPatch
+  patch?: OtAnchorPatch,
 ): OtAnchorPatch {
   if (!work.isOt) {
     return {
       clearMainEnd: true,
       clearOtStart: true,
-      clearOtEnd: true
+      clearOtEnd: true,
     };
   }
 
@@ -53,37 +43,33 @@ export function recalcOtAnchors(
       return {
         mainEnd: work.mainEnd ?? undefined,
         otStart: work.otStart ?? undefined,
-        otEnd: formatDateTime(workDate, truncatedEnd)
+        otEnd: formatDateTime(workDate, truncatedEnd),
       };
     case "ot_end": {
       const otEnd = parseDateTime(patch?.otEnd ?? work.otEnd) ?? truncatedEnd;
       return {
         mainEnd: work.mainEnd ?? undefined,
         otStart: work.otStart ?? undefined,
-        otEnd: formatDateTime(workDate, truncateToTenMinutes(otEnd))
+        otEnd: formatDateTime(workDate, truncateToTenMinutes(otEnd)),
       };
     }
     case "main_end": {
-      const mainEnd = enforceMainEnd(
-        workDate,
-        parseDateTime(patch?.mainEnd ?? work.mainEnd) ?? coreEndAt(workDate)
-      );
+      const mainEnd = enforceMainEnd(workDate, parseDateTime(patch?.mainEnd ?? work.mainEnd) ?? coreEndAt(workDate));
       const otStart = addMinutes(mainEnd, WorkPolicy.BREAK_OVER);
       return {
         mainEnd: formatDateTime(workDate, mainEnd),
         otStart: formatDateTime(workDate, otStart),
-        otEnd: formatDateTime(workDate, truncatedEnd)
+        otEnd: formatDateTime(workDate, truncatedEnd),
       };
     }
     case "ot_start": {
       const otStart =
-        parseDateTime(patch?.otStart ?? work.otStart) ??
-        addMinutes(coreEndAt(workDate), WorkPolicy.BREAK_OVER);
+        parseDateTime(patch?.otStart ?? work.otStart) ?? addMinutes(coreEndAt(workDate), WorkPolicy.BREAK_OVER);
       const mainEnd = enforceMainEnd(workDate, addMinutes(otStart, -WorkPolicy.BREAK_OVER));
       return {
         mainEnd: formatDateTime(workDate, mainEnd),
         otStart: formatDateTime(workDate, otStart),
-        otEnd: formatDateTime(workDate, truncatedEnd)
+        otEnd: formatDateTime(workDate, truncatedEnd),
       };
     }
     case "raw_start":
@@ -95,9 +81,7 @@ export function recalcOtAnchors(
 }
 
 /** 출퇴근 기준 자동 야근 앵커 (기본 main 8시간 분할) */
-export function autoOtAnchors(
-  work: Pick<Work, "workDate" | "rawStart" | "rawEnd" | "dayType">
-): OtAnchorPatch {
+export function autoOtAnchors(work: Pick<Work, "workDate" | "rawStart" | "rawEnd" | "dayType">): OtAnchorPatch {
   const rawStart = parseDateTime(work.rawStart);
   const rawEnd = parseDateTime(work.rawEnd);
   if (!rawStart || !rawEnd) {
@@ -116,7 +100,7 @@ export function autoOtAnchors(
       mainEnd: formatDateTime(workDate, mainEnd),
       otStart: null,
       otEnd: formatDateTime(workDate, otEnd),
-      clearOtStart: true
+      clearOtStart: true,
     };
   }
 
@@ -126,21 +110,15 @@ export function autoOtAnchors(
   return {
     mainEnd: formatDateTime(workDate, mainEnd),
     otStart: formatDateTime(workDate, otStart),
-    otEnd: formatDateTime(workDate, otEnd)
+    otEnd: formatDateTime(workDate, otEnd),
   };
 }
 
-export function mainMin(
-  workDate: string,
-  rawStart: Date,
-  mainEnd: Date,
-  dayType: DayType
-): number {
+export function mainMin(workDate: string, rawStart: Date, mainEnd: Date, dayType: DayType): number {
   const start = amStart(workDate, rawStart, dayType);
   let total = minutesBetween(start, mainEnd);
 
-  const skipBreak =
-    dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
+  const skipBreak = dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
   if (!skipBreak) {
     total -= resolveBreakMinutes(workDate, rawStart, mainEnd);
   }
@@ -155,7 +133,7 @@ export function mainMin(
 export function extraSplit(
   workDate: string,
   otStart: Date,
-  otEnd: Date
+  otEnd: Date,
 ): { extra1: number; extra2: number; extraTotal: number } {
   const extraRaw = Math.max(0, minutesBetween(otStart, otEnd));
   const extraTotal = Math.floor(extraRaw / 10) * 10;
@@ -222,37 +200,27 @@ export function shouldCancelOt(workDate: string, checkoutAt: Date): boolean {
   return checkoutAt.getTime() <= otThresholdAt(workDate).getTime();
 }
 
-export function syncFromMainEnd(
-  workDate: string,
-  mainEnd: string
-): { mainEnd: string; otStart: string } {
+export function syncFromMainEnd(workDate: string, mainEnd: string): { mainEnd: string; otStart: string } {
   const mainEndDt = enforceMainEnd(workDate, parseDateTime(mainEnd)!);
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
-    otStart: formatDateTime(workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER))
+    otStart: formatDateTime(workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER)),
   };
 }
 
-export function syncFromOtStart(
-  workDate: string,
-  otStart: string
-): { mainEnd: string; otStart: string } {
+export function syncFromOtStart(workDate: string, otStart: string): { mainEnd: string; otStart: string } {
   const otStartDt = parseDateTime(otStart)!;
   const mainEndDt = enforceMainEnd(workDate, addMinutes(otStartDt, -WorkPolicy.BREAK_OVER));
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
-    otStart: formatDateTime(workDate, otStartDt)
+    otStart: formatDateTime(workDate, otStartDt),
   };
 }
 
 /**
  * 일반근무 8시간(480분)이 채워지는 시각을 산출합니다.
  */
-export function mainEndAtStd(
-  workDate: string,
-  rawStart: Date,
-  dayType: DayType
-): Date {
+export function mainEndAtStd(workDate: string, rawStart: Date, dayType: DayType): Date {
   let cursor = addMinutes(rawStart, 60);
   const maxEnd = addMinutes(rawStart, 16 * 60);
 
@@ -271,11 +239,8 @@ export function mainEndAtStd(
  * 퇴근 전 3단계: 코어미준수 / 코어준수·main8h미만 / main8h충족
  */
 export function otPreview(
-  work: Pick<
-    Work,
-    "workDate" | "rawStart" | "rawEnd" | "dayType" | "isOt" | "mainEnd" | "otStart" | "otEnd"
-  >,
-  asOf?: Date
+  work: Pick<Work, "workDate" | "rawStart" | "rawEnd" | "dayType" | "isOt" | "mainEnd" | "otStart" | "otEnd">,
+  asOf?: Date,
 ): OtPreviewDisplay {
   if (!work.isOt || !work.rawStart) {
     return { mainEnd: null, otStart: null, otCoreEligible: true };
@@ -290,7 +255,7 @@ export function otPreview(
     return {
       mainEnd: mainEndStr,
       otStart: eligible ? otStartStr : null,
-      otCoreEligible: eligible
+      otCoreEligible: eligible,
     };
   }
 
@@ -300,13 +265,11 @@ export function otPreview(
       return { mainEnd: null, otStart: null, otCoreEligible: true };
     }
     const eligible = !isBeforeCore(mainEndDt, work.workDate);
-    const otStartStr =
-      work.otStart ??
-      formatDateTime(work.workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER));
+    const otStartStr = work.otStart ?? formatDateTime(work.workDate, addMinutes(mainEndDt, WorkPolicy.BREAK_OVER));
     return {
       mainEnd: work.mainEnd,
       otStart: eligible ? otStartStr : null,
-      otCoreEligible: eligible
+      otCoreEligible: eligible,
     };
   }
 
@@ -332,22 +295,16 @@ export function otPreview(
   return {
     mainEnd: formatDateTime(workDate, mainEndDt),
     otStart: formatDateTime(workDate, otStartDt),
-    otCoreEligible: true
+    otCoreEligible: true,
   };
 }
 
-export function elapsedMainMin(
-  workDate: string,
-  rawStart: Date,
-  asOf: Date,
-  dayType: DayType
-): number {
+export function elapsedMainMin(workDate: string, rawStart: Date, asOf: Date, dayType: DayType): number {
   const end = truncateToMinute(asOf);
   const start = amStart(workDate, rawStart, dayType);
   let total = minutesBetween(start, end);
 
-  const skipBreak =
-    dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
+  const skipBreak = dayType === "PM" && rawStart.getTime() > atTime(workDate, WorkPolicy.LUNCH_END).getTime();
   if (!skipBreak) {
     total -= resolveBreakMinutes(workDate, rawStart, end);
   }
@@ -356,8 +313,7 @@ export function elapsedMainMin(
     total += WorkPolicy.STD_HALF;
   }
 
-  const capped =
-    total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_MAIN : total;
+  const capped = total > WorkPolicy.STD_WORK ? total - WorkPolicy.BREAK_MAIN : total;
   return Math.max(0, capped);
 }
 
@@ -426,41 +382,27 @@ export interface DayExtra {
   extra2: number;
 }
 
-export function sumExtra1(
-  days: WeekDay[],
-  todayWorkDate: string,
-  todayExtra?: DayExtra
-): number {
+export function sumExtra1(days: WeekDay[], todayWorkDate: string, todayExtra?: DayExtra): number {
   return days.reduce((sum, day) => {
-    const extra1 =
-      day.workDate === todayWorkDate ? (todayExtra?.extra1 ?? day.extra1) : day.extra1;
+    const extra1 = day.workDate === todayWorkDate ? (todayExtra?.extra1 ?? day.extra1) : day.extra1;
     return sum + extra1;
   }, 0);
 }
 
-export function sumExtra2(
-  days: WeekDay[],
-  todayWorkDate: string,
-  todayExtra?: DayExtra
-): number {
+export function sumExtra2(days: WeekDay[], todayWorkDate: string, todayExtra?: DayExtra): number {
   return days.reduce((sum, day) => {
-    const extra2 =
-      day.workDate === todayWorkDate ? (todayExtra?.extra2 ?? day.extra2) : day.extra2;
+    const extra2 = day.workDate === todayWorkDate ? (todayExtra?.extra2 ?? day.extra2) : day.extra2;
     return sum + extra2;
   }, 0);
 }
 
-export function dayExtra(
-  day: WeekDay,
-  todayWorkDate: string,
-  todayExtra?: DayExtra
-): DayExtra {
+export function dayExtra(day: WeekDay, todayWorkDate: string, todayExtra?: DayExtra): DayExtra {
   if (day.workDate === todayWorkDate && todayExtra) {
     return todayExtra;
   }
   return {
     extra1: day.extra1,
-    extra2: day.extra2
+    extra2: day.extra2,
   };
 }
 
@@ -502,7 +444,7 @@ export function buildOtReport(
     todayWorkDate: string;
     otCtx?: OtDayContext;
     isLiveToday: boolean;
-  }
+  },
 ): BuiltOtReport {
   const weekLabel = `${report.header.reportMonth}월 ${report.header.weekNum}주차`;
   const titleLine = "아래와 같이 시간외근무 실적을 보고드립니다.";
@@ -521,7 +463,7 @@ function resolveOtDayContext(
     todayWorkDate: string;
     otCtx?: OtDayContext;
     isLiveToday: boolean;
-  }
+  },
 ): OtDayContext {
   if (options.isLiveToday && day.workDate === options.todayWorkDate && options.otCtx) {
     return options.otCtx;
@@ -532,7 +474,7 @@ function resolveOtDayContext(
     extra2: day.extra2,
     otStart: day.otStart,
     otEnd: day.otEnd,
-    remark: day.remark
+    remark: day.remark,
   };
 }
 
@@ -556,25 +498,20 @@ function buildRowsForDay(workDate: string, weekLabel: string, context: OtDayCont
 function resolveSegmentTimes(
   workDate: string,
   context: OtDayContext,
-  workType: "1형" | "2형"
+  workType: "1형" | "2형",
 ): { start: string; end: string } {
   if (context.otStart && context.otEnd) {
     const split = `${workDate} ${pad2(WorkPolicy.OT_SPLIT.hour)}:${pad2(WorkPolicy.OT_SPLIT.minute)}`;
     if (workType === "2형") {
       return {
         start: formatHm(split) === "-" ? "22:00" : formatHm(split),
-        end: formatHm(context.otEnd)
+        end: formatHm(context.otEnd),
       };
     }
 
     return {
       start: formatHm(context.otStart),
-      end:
-        context.extra2 > 0
-          ? formatHm(split) === "-"
-            ? "22:00"
-            : formatHm(split)
-          : formatHm(context.otEnd)
+      end: context.extra2 > 0 ? (formatHm(split) === "-" ? "22:00" : formatHm(split)) : formatHm(context.otEnd),
     };
   }
 
@@ -587,7 +524,7 @@ function createRow(
   segment: { start: string; end: string },
   workType: "1형" | "2형",
   minutes: number,
-  workDetail: string
+  workDetail: string,
 ): OtReportRow {
   return {
     weekLabel,
@@ -597,7 +534,7 @@ function createRow(
     durationLabel: formatOtDur(minutes),
     workType,
     workDetail,
-    note: OT_REPORT_NOTE
+    note: OT_REPORT_NOTE,
   };
 }
 

@@ -25,7 +25,7 @@ const form = reactive<UserForm>({
   department: "",
   team: "",
   position: "",
-  role: "USER"
+  role: "USER",
 });
 
 let mediaQuery: MediaQueryList | null = null;
@@ -52,7 +52,7 @@ watch(
     form.position = user.position ?? "";
     form.role = user.role;
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(
@@ -63,7 +63,7 @@ watch(
     } else {
       document.body.style.overflow = "";
     }
-  }
+  },
 );
 
 onMounted(() => {
@@ -83,12 +83,7 @@ const weekStats = computed(() => {
   if (!props.user || !props.weekStart || !props.weekEnd) {
     return { main: 0, goalMet: false };
   }
-  const stats = weekSummary(
-    props.user.weekRecords,
-    props.weekStart,
-    props.weekEnd,
-    props.user.userId
-  );
+  const stats = weekSummary(props.user.weekRecords, props.weekStart, props.weekEnd, props.user.userId);
   return { main: stats.main, goalMet: stats.goalMet };
 });
 
@@ -104,18 +99,11 @@ function close() {
 <template>
   <template v-if="user">
     <Teleport v-if="!isDesktop" to="body">
-      <div
-        class="admin-detail-fullscreen"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="admin-detail-title"
-      >
+      <div class="admin-detail-fullscreen" role="dialog" aria-modal="true" aria-labelledby="admin-detail-title">
         <header class="admin-detail-header admin-detail-header--fullscreen">
           <div>
             <h2 id="admin-detail-title" class="admin-detail-title">사용자 상세</h2>
-            <p class="admin-detail-meta">
-              @{{ user.username }} · 가입 {{ formatAdminDate(user.createdAt) }}
-            </p>
+            <p class="admin-detail-meta">@{{ user.username }} · 가입 {{ formatAdminDate(user.createdAt) }}</p>
           </div>
           <button type="button" class="admin-detail-close-btn" @click="close">닫기</button>
         </header>
@@ -157,11 +145,15 @@ function close() {
               </div>
               <div>
                 <dt>최근 접속</dt>
-                <dd>{{ user.lastAccess ? formatAdminDt(user.lastAccess) : "없음" }}</dd>
+                <dd>
+                  {{ user.lastAccess ? formatAdminDt(user.lastAccess) : "없음" }}
+                </dd>
               </div>
               <div>
                 <dt>최근 근무 기록</dt>
-                <dd>{{ user.lastActivityDate ? formatAdminDate(user.lastActivityDate) : "없음" }}</dd>
+                <dd>
+                  {{ user.lastActivityDate ? formatAdminDate(user.lastActivityDate) : "없음" }}
+                </dd>
               </div>
               <div>
                 <dt>이번 주 기록</dt>
@@ -236,11 +228,15 @@ function close() {
           </div>
           <div>
             <dt>최근 접속</dt>
-            <dd>{{ user.lastAccess ? formatAdminDt(user.lastAccess) : "없음" }}</dd>
+            <dd>
+              {{ user.lastAccess ? formatAdminDt(user.lastAccess) : "없음" }}
+            </dd>
           </div>
           <div>
             <dt>최근 근무 기록</dt>
-            <dd>{{ user.lastActivityDate ? formatAdminDate(user.lastActivityDate) : "없음" }}</dd>
+            <dd>
+              {{ user.lastActivityDate ? formatAdminDate(user.lastActivityDate) : "없음" }}
+            </dd>
           </div>
           <div>
             <dt>이번 주 기록</dt>

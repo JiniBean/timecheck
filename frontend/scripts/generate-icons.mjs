@@ -10,7 +10,7 @@ const outputs = [
   { input: "icon.svg", output: "pwa-192x192.png", size: 192 },
   { input: "icon.svg", output: "pwa-512x512.png", size: 512 },
   { input: "icon.svg", output: "apple-touch-icon.png", size: 180 },
-  { input: "icon-maskable.svg", output: "pwa-512x512-maskable.png", size: 512 }
+  { input: "icon-maskable.svg", output: "pwa-512x512-maskable.png", size: 512 },
 ];
 
 for (const { input, output, size } of outputs) {

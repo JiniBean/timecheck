@@ -56,14 +56,14 @@ export interface PreviewResult {
 export const PREVIEW_START_MODE = {
   ON_TIME: "on-time",
   AVERAGE: "average",
-  CUSTOM: "custom"
+  CUSTOM: "custom",
 } as const;
 
 export type PreviewStartMode = (typeof PREVIEW_START_MODE)[keyof typeof PREVIEW_START_MODE];
 
 export const PREVIEW_START_PRESET = {
   ON_TIME: PREVIEW_START_MODE.ON_TIME,
-  AVERAGE: PREVIEW_START_MODE.AVERAGE
+  AVERAGE: PREVIEW_START_MODE.AVERAGE,
 } as const;
 
 export type PreviewStartPreset = (typeof PREVIEW_START_PRESET)[keyof typeof PREVIEW_START_PRESET];
@@ -107,7 +107,7 @@ function parsePref(raw: unknown): PreviewPref | null {
   return {
     mode: source.mode,
     hhmm: typeof source.hhmm === "string" ? source.hhmm : undefined,
-    lastPresetMode: isPreviewStartPreset(source.lastPresetMode) ? source.lastPresetMode : undefined
+    lastPresetMode: isPreviewStartPreset(source.lastPresetMode) ? source.lastPresetMode : undefined,
   };
 }
 
@@ -122,12 +122,12 @@ export function savePref(userId: number, pref: PreviewPref): void {
 export function previewStartFromPref(
   pref: PreviewPref | null,
   typicalInHhmm: string | null,
-  onTimeHhmm: string
+  onTimeHhmm: string,
 ): { mode: PreviewStartMode; hhmm: string; preset: PreviewStartPreset } {
   const fallback = {
     mode: PREVIEW_START_MODE.ON_TIME,
     hhmm: onTimeHhmm,
-    preset: PREVIEW_START_PRESET.ON_TIME
+    preset: PREVIEW_START_PRESET.ON_TIME,
   };
   if (!pref) {
     return fallback;
@@ -189,12 +189,7 @@ function defaultStart(workDate: string, dayType: DayType, previewStartHhmm: stri
   return hhmmToDateTime(workDate, previewStartHhmm || DEFAULT_PREVIEW_START_HHMM);
 }
 
-function endForWorkMin(
-  workDate: string,
-  rawStart: Date,
-  dayType: DayType,
-  targetWorkMin: number
-): Date {
+function endForWorkMin(workDate: string, rawStart: Date, dayType: DayType, targetWorkMin: number): Date {
   const target = Math.max(0, targetWorkMin);
   let cursor = addMinutes(rawStart, 30);
   const maxEnd = addMinutes(rawStart, 16 * 60);
@@ -210,12 +205,7 @@ function endForWorkMin(
 }
 
 /** 일반근무 시작~종료 사이 인정 근무 분 (투영 행 계산용) */
-function mainMinBetween(
-  workDate: string,
-  dayType: DayType,
-  mainStart: string | null,
-  mainEnd: string | null
-): number {
+function mainMinBetween(workDate: string, dayType: DayType, mainStart: string | null, mainEnd: string | null): number {
   const start = parseDateTime(mainStart);
   const end = parseDateTime(mainEnd);
   if (!start || !end) {
@@ -262,7 +252,7 @@ function fixTimes(ctx: WeekDayCtx): FixSlot {
       rawStart: null,
       mainEnd: null,
       workMin: WorkPolicy.STD_WORK,
-      kind: "fix"
+      kind: "fix",
     };
   }
 
@@ -270,17 +260,11 @@ function fixTimes(ctx: WeekDayCtx): FixSlot {
     rawStart: ctx.rawStart,
     mainEnd: ctx.mainEnd,
     workMin: ctx.mainMin,
-    kind: "fix"
+    kind: "fix",
   };
 }
 
-function bumpStartIfLate(
-  workDate: string,
-  start: string,
-  ctx: WeekDayCtx,
-  asOf: Date,
-  hasOverride: boolean
-): string {
+function bumpStartIfLate(workDate: string, start: string, ctx: WeekDayCtx, asOf: Date, hasOverride: boolean): string {
   if (!ctx.isToday || ctx.rawStart || hasOverride) {
     return start;
   }
@@ -320,7 +304,7 @@ function collectPreview(input: {
       const workMinValue = gap !== "none" ? 0 : actual.workMin;
       fixSlots.set(day.workDate, {
         ...actual,
-        workMin: workMinValue
+        workMin: workMinValue,
       });
       workedMin += workMinValue;
       continue;
@@ -332,11 +316,12 @@ function collectPreview(input: {
       continue;
     }
 
-    const fallbackStart = ctx.dayType === "AM"
-      ? halfDayBoundary(day.workDate)
-      : ctx.lateIn
-        ? hhmmToDateTime(day.workDate, ctx.lateIn.slice(0, 5))
-        : (ctx.rawStart ?? defaultStart(day.workDate, ctx.dayType, previewStartHhmm));
+    const fallbackStart =
+      ctx.dayType === "AM"
+        ? halfDayBoundary(day.workDate)
+        : ctx.lateIn
+          ? hhmmToDateTime(day.workDate, ctx.lateIn.slice(0, 5))
+          : (ctx.rawStart ?? defaultStart(day.workDate, ctx.dayType, previewStartHhmm));
     let rawStart = override?.rawStart ?? fallbackStart;
     rawStart = bumpStartIfLate(day.workDate, rawStart, ctx, asOf, Boolean(override?.rawStart));
 
@@ -355,7 +340,7 @@ function collectPreview(input: {
         rawStart,
         mainEnd: lockedEnd,
         workMin: workMinValue,
-        kind: "prv"
+        kind: "prv",
       });
       continue;
     }
@@ -372,9 +357,9 @@ function collectPreview(input: {
           isOt: true,
           mainEnd: storedMainEnd,
           otStart: null,
-          otEnd: null
+          otEnd: null,
         },
-        asOf
+        asOf,
       );
       const workMinValue = mainMinBetween(day.workDate, ctx.dayType, rawStart, projected.mainEnd);
       workedMin += workMinValue;
@@ -382,7 +367,7 @@ function collectPreview(input: {
         rawStart,
         mainEnd: projected.mainEnd,
         workMin: workMinValue,
-        kind: "prv"
+        kind: "prv",
       });
       continue;
     }
@@ -410,12 +395,7 @@ function fillPreviewSlots(input: {
     const todaySlot = previewSlots[todayIdx];
     const startDt = parseDateTime(todaySlot.rawStart);
     if (startDt) {
-      const end = endForWorkMin(
-        todaySlot.day.workDate,
-        startDt,
-        todaySlot.ctx.dayType,
-        perDayMin
-      );
+      const end = endForWorkMin(todaySlot.day.workDate, startDt, todaySlot.ctx.dayType, perDayMin);
       const splitWorkMin = mainMin(todaySlot.day.workDate, startDt, end, todaySlot.ctx.dayType);
       if (asOf.getTime() > end.getTime()) {
         const liveWorkMin = mainMin(todaySlot.day.workDate, startDt, asOf, todaySlot.ctx.dayType);
@@ -438,15 +418,12 @@ function fillPreviewSlots(input: {
         rawStart: slot.rawStart,
         mainEnd: null,
         workMin: 0,
-        kind: "prv"
+        kind: "prv",
       });
       continue;
     }
 
-    const targetWorkMin =
-      slot.ctx.isToday && todayMin !== null
-        ? todayMin
-        : restPerDayMin;
+    const targetWorkMin = slot.ctx.isToday && todayMin !== null ? todayMin : restPerDayMin;
     const endDt =
       slot.ctx.isToday && todayLiveEnd
         ? todayLiveEnd
@@ -458,7 +435,7 @@ function fillPreviewSlots(input: {
       rawStart: slot.rawStart,
       mainEnd,
       workMin: workMinValue,
-      kind: "prv"
+      kind: "prv",
     });
   }
 
@@ -486,7 +463,7 @@ export function buildPreview(input: {
     todayDateKey,
     overrides,
     previewStartHhmm,
-    asOf
+    asOf,
   });
 
   const leftMin = Math.max(0, weekTargetMin - workedMin);
@@ -496,7 +473,7 @@ export function buildPreview(input: {
     leftMin,
     perDayMin,
     asOf,
-    fixSlots
+    fixSlots,
   });
 
   const missingDays: MissingDay[] = [];
@@ -511,7 +488,7 @@ export function buildPreview(input: {
       missingDays.push({
         workDate: day.workDate,
         weekdayLabel: day.weekdayLabel,
-        gap
+        gap,
       });
     }
 
@@ -529,7 +506,7 @@ export function buildPreview(input: {
       isToday: ctx.isToday,
       canEditIn: edit.canEditIn,
       canEditOut: edit.canEditOut,
-      missingGap: gap
+      missingGap: gap,
     };
   });
 
@@ -544,13 +521,13 @@ export function buildPreview(input: {
     weekRemMin,
     weekOverMin,
     avgPerDayMin: restPerDayMin,
-    missingDays
+    missingDays,
   };
 }
 
 /** 적용 요청 레코드. 일반근무 종료를 mainEnd로 보내고, rawEnd는 같은 값을 API 계약용으로 함께 전송합니다. */
 export function toPreviewRecords(
-  rows: PreviewRow[]
+  rows: PreviewRow[],
 ): Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">> {
   const records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">> = [];
   for (const row of rows) {
@@ -576,7 +553,7 @@ export function toPreviewRecords(
       workDate: row.workDate,
       rawStart: row.rawStart,
       rawEnd: mainEnd,
-      mainEnd
+      mainEnd,
     });
   }
   return records;

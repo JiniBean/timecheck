@@ -37,7 +37,7 @@ const emit = defineEmits<{
       remark: string | null;
       lateIn: string | null;
       earlyOut: string | null;
-    }
+    },
   ];
   "update-main-end": [value: string];
   "update-ot-start": [value: string];
@@ -59,7 +59,7 @@ const {
   setRemark,
   setLateIn,
   setEarlyOut,
-  buildPayload
+  buildPayload,
 } = useDaySettingsDraft();
 const isOtPickerOpen = ref(false);
 const inlineOtField = ref<"mainEnd" | "otStart">("mainEnd");
@@ -87,15 +87,11 @@ const canEditOtTimes = computed(() => props.isOt && props.hasCheckIn);
 const isOtTimesPreview = computed(() => props.isOt && props.hasCheckIn && props.status === "WORKING");
 
 const checkInButtonClass = computed(() =>
-  props.status === "BEFORE_CHECK_IN"
-    ? "button button-primary button-compact"
-    : "button button-outline button-compact"
+  props.status === "BEFORE_CHECK_IN" ? "button button-primary button-compact" : "button button-outline button-compact",
 );
 
 const checkOutButtonClass = computed(() =>
-  props.status === "WORKING"
-    ? "button button-primary button-compact"
-    : "button button-outline button-compact"
+  props.status === "WORKING" ? "button button-primary button-compact" : "button button-outline button-compact",
 );
 
 function onTimeRowClick() {
@@ -111,7 +107,7 @@ function openSettings() {
     isOt: props.isOt,
     remark: props.remark,
     lateIn: props.lateIn,
-    earlyOut: props.earlyOut
+    earlyOut: props.earlyOut,
   });
   isSettingsOpen.value = true;
 }
@@ -203,11 +199,7 @@ function onInlineOtConfirm(hhmm: string) {
     <p v-if="errorMessage" class="error-note">{{ errorMessage }}</p>
     <p v-if="loading" class="card-note">처리 중입니다. 잠시만 기다려 주세요.</p>
 
-    <TimePicker
-      v-model:open="isTimePickerOpen"
-      :initial-time="actTime"
-      @confirm="emit('apply-picked-time', $event)"
-    />
+    <TimePicker v-model:open="isTimePickerOpen" :initial-time="actTime" @confirm="emit('apply-picked-time', $event)" />
 
     <TimePicker
       v-model:open="isOtPickerOpen"
@@ -284,7 +276,9 @@ function onInlineOtConfirm(hhmm: string) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: color 0.2s ease, transform 0.12s ease;
+  transition:
+    color 0.2s ease,
+    transform 0.12s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

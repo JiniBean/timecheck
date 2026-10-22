@@ -6,7 +6,7 @@ export const DAY_TYPE_OPTIONS: Array<{ value: DayType; label: string }> = [
   { value: "AM", label: "오전반차" },
   { value: "PM", label: "오후반차" },
   { value: "ANN", label: "연차" },
-  { value: "MON", label: "월차" }
+  { value: "MON", label: "월차" },
 ];
 
 const DAY_OFF_TYPES: DayType[] = ["MON", "ANN", "HOL"];
@@ -15,11 +15,7 @@ export function isDayOff(dayType: DayType): boolean {
   return DAY_OFF_TYPES.includes(dayType);
 }
 
-export function isShortWork(
-  dayType: DayType,
-  earlyOut?: string | null,
-  lateIn?: string | null
-): boolean {
+export function isShortWork(dayType: DayType, earlyOut?: string | null, lateIn?: string | null): boolean {
   return dayType === "NOM" && Boolean(earlyOut || lateIn);
 }
 
@@ -27,11 +23,7 @@ export function dayTypeLabel(dayType: DayType): string {
   return DAY_TYPE_OPTIONS.find((option) => option.value === dayType)?.label ?? "일반근무";
 }
 
-export function dayTypeCellLabel(
-  dayType: DayType,
-  earlyOut?: string | null,
-  lateIn?: string | null
-): string {
+export function dayTypeCellLabel(dayType: DayType, earlyOut?: string | null, lateIn?: string | null): string {
   if (isShortWork(dayType, earlyOut, lateIn)) {
     return "단축근무";
   }

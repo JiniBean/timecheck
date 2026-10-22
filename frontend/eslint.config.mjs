@@ -1,16 +1,18 @@
 import pluginVue from "eslint-plugin-vue";
 import { withVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
+import prettier from "eslint-config-prettier";
 
 export default withVueTs(
-  { ignores: ["dist", "dev-dist", "node_modules", "public", "scripts", "eslint-report.json"] },
+  {
+    ignores: ["dist", "dev-dist", "node_modules", "public", "scripts", "eslint-report.json"],
+  },
   pluginVue.configs["flat/recommended"],
   vueTsConfigs.recommended,
   {
     rules: {
       "vue/multi-word-component-names": "off",
 
-      // 템플릿 레이아웃 규칙: 포매터를 쓰지 않는 프로젝트이며 기존 템플릿 스타일과
-      // 충돌해 622건이 발생하므로 off. 도입하려면 별도 포매터 작업으로 진행할 것
+      // 템플릿 레이아웃은 Prettier가 담당. ESLint 포맷 규칙은 off.
       "vue/singleline-html-element-content-newline": "off",
       "vue/max-attributes-per-line": "off",
       "vue/html-indent": "off",
@@ -24,7 +26,8 @@ export default withVueTs(
       eqeqeq: ["error", "always", { null: "ignore" }],
 
       // console.info는 DEV 전용 로깅 파사드(src/utils/bootLog.ts)에서 사용
-      "no-console": ["warn", { allow: ["info", "warn", "error"] }]
-    }
-  }
+      "no-console": ["warn", { allow: ["info", "warn", "error"] }],
+    },
+  },
+  prettier,
 );

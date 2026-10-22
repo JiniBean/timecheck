@@ -75,16 +75,13 @@ export function useDaySettingsDraft() {
     const lateIn = isNom ? shortHm(lateInDraft.value, hmOf(WorkPolicy.STD_START)) : null;
     const earlyOut = isNom ? shortHm(earlyOutDraft.value, hmOf(WorkPolicy.STD_END)) : null;
     const hasShortWork = Boolean(lateIn || earlyOut);
-    const showRemark =
-      dayTypeDraft.value === "HOL" ||
-      (otDraft.value && !isDayOff(dayTypeDraft.value)) ||
-      hasShortWork;
+    const showRemark = dayTypeDraft.value === "HOL" || (otDraft.value && !isDayOff(dayTypeDraft.value)) || hasShortWork;
     return {
       dayType: dayTypeDraft.value,
       isOt: isDayOff(dayTypeDraft.value) ? false : otDraft.value,
       remark: showRemark ? remarkDraft.value.trim() || null : null,
       lateIn,
-      earlyOut
+      earlyOut,
     };
   }
 
@@ -100,6 +97,6 @@ export function useDaySettingsDraft() {
     setRemark,
     setLateIn,
     setEarlyOut,
-    buildPayload
+    buildPayload,
   };
 }

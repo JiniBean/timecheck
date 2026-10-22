@@ -35,7 +35,7 @@ function createApiProxy(): ProxyOptions {
           return `${normalized}; Secure; SameSite=Lax`;
         });
       });
-    }
+    },
   };
 }
 
@@ -60,20 +60,20 @@ export default defineConfig({
           {
             src: "pwa-192x192.png",
             sizes: "192x192",
-            type: "image/png"
+            type: "image/png",
           },
           {
             src: "pwa-512x512.png",
             sizes: "512x512",
-            type: "image/png"
+            type: "image/png",
           },
           {
             src: "pwa-512x512-maskable.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "maskable"
-          }
-        ]
+            purpose: "maskable",
+          },
+        ],
       },
       workbox: {
         cleanupOutdatedCaches: true,
@@ -85,25 +85,25 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
-            handler: "NetworkOnly"
-          }
-        ]
+            handler: "NetworkOnly",
+          },
+        ],
       },
       devOptions: {
-        enabled: false
-      }
-    })
+        enabled: false,
+      },
+    }),
   ],
   server: {
     host: true,
     allowedHosts: true,
     port: 5173,
     proxy: {
-      "/api": createApiProxy()
-    }
+      "/api": createApiProxy(),
+    },
   },
   build: {
     outDir: "dist",
-    emptyOutDir: true
-  }
+    emptyOutDir: true,
+  },
 });

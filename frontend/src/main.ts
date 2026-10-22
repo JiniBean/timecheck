@@ -8,7 +8,10 @@ import { bootLog } from "./utils/bootLog";
 import "element-plus/es/components/message/style/css";
 import "./styles/main.css";
 
-bootLog("main.start", { mode: import.meta.env.MODE, prod: import.meta.env.PROD });
+bootLog("main.start", {
+  mode: import.meta.env.MODE,
+  prod: import.meta.env.PROD,
+});
 
 if (import.meta.env.PROD) {
   registerSW({ immediate: true });

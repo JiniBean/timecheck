@@ -32,25 +32,18 @@ function formatPatchDate(date: string): string {
 useDialogKeyboard({
   open: visibleRef,
   onClose: close,
-  onSubmit: close
+  onSubmit: close,
 });
 </script>
 
 <template>
   <Teleport to="body">
     <div v-if="visible" class="patch-modal-overlay" @click.self="close">
-      <section
-        class="patch-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="patch-modal-title"
-      >
+      <section class="patch-modal-card" role="dialog" aria-modal="true" aria-labelledby="patch-modal-title">
         <header class="patch-modal-header">
           <div class="patch-modal-title-row">
             <h2 id="patch-modal-title" class="patch-modal-title">업데이트 소식</h2>
-            <button type="button" class="patch-modal-close" aria-label="닫기" @click="close">
-              ×
-            </button>
+            <button type="button" class="patch-modal-close" aria-label="닫기" @click="close">×</button>
           </div>
           <p class="patch-modal-meta">
             <span class="patch-modal-badge">v{{ note.version }}</span>
@@ -64,9 +57,7 @@ useDialogKeyboard({
         </ul>
 
         <footer class="patch-modal-footer">
-          <button type="button" class="button button-primary patch-modal-confirm" @click="close">
-            확인
-          </button>
+          <button type="button" class="button button-primary patch-modal-confirm" @click="close">확인</button>
         </footer>
       </section>
     </div>

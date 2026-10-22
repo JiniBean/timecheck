@@ -15,18 +15,12 @@ const emit = defineEmits<{
 const balanceLabel = computed(() => (props.summary.weekOverMin > 0 ? "남음" : "부족"));
 
 const balanceValue = computed(() =>
-  props.summary.weekOverMin > 0
-    ? formatMinutes(props.summary.weekOverMin)
-    : formatMinutes(props.summary.weekRemMin)
+  props.summary.weekOverMin > 0 ? formatMinutes(props.summary.weekOverMin) : formatMinutes(props.summary.weekRemMin),
 );
 
-const avgDisplay = computed(() =>
-  props.isCurrentWeek ? formatDurKo(props.summary.avgPerDayMin) : "-"
-);
+const avgDisplay = computed(() => (props.isCurrentWeek ? formatDurKo(props.summary.avgPerDayMin) : "-"));
 
-const daysAfterDisplay = computed(() =>
-  props.isCurrentWeek ? `${props.summary.daysAfter}일` : "-"
-);
+const daysAfterDisplay = computed(() => (props.isCurrentWeek ? `${props.summary.daysAfter}일` : "-"));
 
 function openPreview() {
   emit("openPreview");
@@ -68,7 +62,9 @@ function openPreview() {
 .summary-card {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 @media (hover: hover) and (pointer: fine) {

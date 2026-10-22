@@ -12,7 +12,7 @@ const passwordResetForm = ref<PasswordResetForm>({
   username: "",
   name: "",
   password: "",
-  confirmPassword: ""
+  confirmPassword: "",
 });
 const foundUsername = ref<string | null>(null);
 const isLoading = ref(false);
@@ -55,7 +55,7 @@ watch(
         isVerifyingAccount.value = false;
       }
     }, 300);
-  }
+  },
 );
 
 async function handleFindUsername() {
@@ -102,7 +102,12 @@ async function handleResetPassword() {
     const { username, name, password: pwd } = passwordResetForm.value;
     await resetPassword({ username, name, password: pwd });
     successMessage.value = "비밀번호가 재설정되었습니다. 로그인해 주세요.";
-    passwordResetForm.value = { username: "", name: "", password: "", confirmPassword: "" };
+    passwordResetForm.value = {
+      username: "",
+      name: "",
+      password: "",
+      confirmPassword: "",
+    };
   } catch (error) {
     errorMessage.value = apiErrMsg(error, "비밀번호 재설정에 실패했습니다.");
   } finally {
@@ -140,13 +145,7 @@ async function handleResetPassword() {
           <form v-if="!foundUsername" class="auth-form" @submit.prevent="handleFindUsername">
             <label class="field">
               <span class="field-label">이름</span>
-              <input
-                v-model="usernameFindForm.name"
-                class="text-input"
-                type="text"
-                autocomplete="name"
-                required
-              />
+              <input v-model="usernameFindForm.name" class="text-input" type="text" autocomplete="name" required />
             </label>
 
             <label class="field">
@@ -169,7 +168,9 @@ async function handleResetPassword() {
           </form>
 
           <div v-else class="auth-result">
-            <p class="auth-success">회원님의 아이디는 <strong>{{ foundUsername }}</strong> 입니다.</p>
+            <p class="auth-success">
+              회원님의 아이디는 <strong>{{ foundUsername }}</strong> 입니다.
+            </p>
             <router-link class="button button-primary auth-submit" to="/login">로그인하기</router-link>
           </div>
         </div>
@@ -191,13 +192,7 @@ async function handleResetPassword() {
 
             <label class="field">
               <span class="field-label">이름</span>
-              <input
-                v-model="passwordResetForm.name"
-                class="text-input"
-                type="text"
-                autocomplete="name"
-                required
-              />
+              <input v-model="passwordResetForm.name" class="text-input" type="text" autocomplete="name" required />
             </label>
 
             <label class="field">
@@ -229,11 +224,7 @@ async function handleResetPassword() {
             <p v-if="isVerifyingAccount" class="auth-hint">계정 확인 중...</p>
             <p v-if="errorMessage" class="auth-error">{{ errorMessage }}</p>
 
-            <button
-              class="button button-primary auth-submit"
-              type="submit"
-              :disabled="isLoading || isVerifyingAccount"
-            >
+            <button class="button button-primary auth-submit" type="submit" :disabled="isLoading || isVerifyingAccount">
               {{ isLoading ? "재설정 중..." : "비밀번호 재설정" }}
             </button>
           </form>

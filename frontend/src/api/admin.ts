@@ -2,14 +2,13 @@ import http from "./http";
 import type { Overview, Period, UserDetail, UserForm, UserList } from "../types/admin";
 
 export async function fetchOverview(period: Period = "week"): Promise<Overview> {
-  const { data } = await http.get<{ overview: Overview }>("/admin/overview", { params: { period } });
+  const { data } = await http.get<{ overview: Overview }>("/admin/overview", {
+    params: { period },
+  });
   return data.overview;
 }
 
-export async function fetchUsers(params?: {
-  department?: string;
-  status?: string;
-}): Promise<UserList> {
+export async function fetchUsers(params?: { department?: string; status?: string }): Promise<UserList> {
   const { data } = await http.get<UserList>("/admin/users", { params });
   return data;
 }

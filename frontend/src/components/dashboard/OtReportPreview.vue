@@ -29,8 +29,8 @@ const built = computed(() =>
   buildOtReport(props.weeklyReport, {
     todayWorkDate: props.todayWorkDate,
     otCtx: props.otCtx,
-    isLiveToday: props.isLiveToday
-  })
+    isLiveToday: props.isLiveToday,
+  }),
 );
 
 const hasRows = computed(() => built.value.rows.length > 0);

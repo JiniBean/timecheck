@@ -20,6 +20,6 @@ export const useBootStore = defineStore("boot", () => {
   return {
     isReady,
     markReady,
-    resetReady
+    resetReady,
   };
 });

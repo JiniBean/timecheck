@@ -31,7 +31,7 @@ const emit = defineEmits<{
       remark: string | null;
       lateIn: string | null;
       earlyOut: string | null;
-    }
+    },
   ];
 }>();
 
@@ -59,7 +59,7 @@ const {
   setRemark,
   setLateIn,
   setEarlyOut,
-  buildPayload
+  buildPayload,
 } = useDaySettingsDraft();
 
 function resolveCheckoutCell(day: WeekDay) {
@@ -79,10 +79,7 @@ const displayDays = computed(() =>
   props.days.map((day) => {
     const isToday = day.workDate === props.todayWorkDate;
     const liveToday = Boolean(props.isLiveToday && isToday);
-    const effectiveDay =
-      liveToday && !day.rawEnd
-        ? { ...day, mainEnd: props.todayMainEnd ?? day.mainEnd }
-        : day;
+    const effectiveDay = liveToday && !day.rawEnd ? { ...day, mainEnd: props.todayMainEnd ?? day.mainEnd } : day;
     const checkout = resolveCheckoutCell(effectiveDay);
     const dayOff = isDayOff(day.dayType);
     const isWorkPreview = Boolean(liveToday && !dayOff && day.rawStart && !day.rawEnd);
@@ -94,9 +91,9 @@ const displayDays = computed(() =>
       dayOff,
       checkoutLabel: checkout.label,
       isCheckoutPreview: checkout.preview,
-      isWorkPreview
+      isWorkPreview,
     };
-  })
+  }),
 );
 
 function hasTimeValue(day: WeekDay, field: "start" | "end"): boolean {
@@ -187,7 +184,7 @@ function openDayTypeSheet(day: WeekDay) {
     isOt: day.isOt,
     remark: day.remark,
     lateIn: day.lateIn,
-    earlyOut: day.earlyOut
+    earlyOut: day.earlyOut,
   });
   isDayTypeSheetOpen.value = true;
 }
@@ -204,13 +201,13 @@ function saveDaySettings() {
   const payload = buildPayload();
   emit("save-day-settings", {
     workDate: dayTypeEditDay.value.workDate,
-    ...payload
+    ...payload,
   });
   closeDayTypeSheet();
 }
 
 const settingsTitle = computed(() =>
-  dayTypeEditDay.value ? `${dayTypeEditDay.value.dayLabel} · 근무 설정` : "근무 설정"
+  dayTypeEditDay.value ? `${dayTypeEditDay.value.dayLabel} · 근무 설정` : "근무 설정",
 );
 </script>
 
@@ -232,18 +229,14 @@ const settingsTitle = computed(() =>
             <th scope="row" class="cell-editable" @click="openDayTypeSheet(day)">
               {{ day.weekdayLabel }}<span class="day-md">({{ formatMonthDay(day.workDate) }})</span>
             </th>
-            <td
-              class="cell-editable"
-              :class="{ 'cell-disabled': day.dayOff }"
-              @click="openTimePicker(day, 'start')"
-            >
+            <td class="cell-editable" :class="{ 'cell-disabled': day.dayOff }" @click="openTimePicker(day, 'start')">
               {{ day.dayOff ? "-" : formatHm(day.rawStart) }}
             </td>
             <td
               class="cell-editable"
               :class="{
                 'cell-disabled': day.dayOff,
-                'cell-preview': day.isCheckoutPreview
+                'cell-preview': day.isCheckoutPreview,
               }"
               @click="openTimePicker(day, 'end')"
             >
@@ -252,7 +245,7 @@ const settingsTitle = computed(() =>
             <td>
               <span
                 :class="{
-                  'cell-preview': day.isWorkPreview
+                  'cell-preview': day.isWorkPreview,
                 }"
               >
                 {{ formatMainMin(day.displayMain) }}
@@ -261,8 +254,7 @@ const settingsTitle = computed(() =>
             <td class="cell-editable" @click="openDayTypeSheet(day)">
               <span
                 :class="{
-                  'cell-day-type':
-                    day.dayType !== 'NOM' || Boolean(day.earlyOut || day.lateIn)
+                  'cell-day-type': day.dayType !== 'NOM' || Boolean(day.earlyOut || day.lateIn),
                 }"
               >
                 {{ dayTypeCellLabel(day.dayType, day.earlyOut, day.lateIn) }}

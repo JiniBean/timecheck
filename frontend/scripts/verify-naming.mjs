@@ -19,7 +19,7 @@ const MIN_SUFFIX_ALLOW = new Set([
   "minutesBetween",
   "overlapMinutes",
   "resolveBreakMinutes",
-  "truncateToTenMinutes"
+  "truncateToTenMinutes",
 ]);
 
 const BOOL_PREFIX = ["is", "can", "has", "should"];
@@ -28,51 +28,51 @@ const rules = [
   {
     id: "fmt-prefix",
     pattern: /\bfmt[A-Z][\w$]*/g,
-    message: "fmt* 축약 금지. format* 계열을 사용하십시오. (§3, §6)"
+    message: "fmt* 축약 금지. format* 계열을 사용하십시오. (§3, §6)",
   },
   {
     id: "weekly-prefix",
     pattern: /\b[Ww]eekly[A-Z][\w$]*/g,
-    message: "Weekly* 대신 Week* 접두를 사용하십시오. (§4)"
+    message: "Weekly* 대신 Week* 접두를 사용하십시오. (§4)",
   },
   {
     id: "prv-abbrev",
     pattern: /\b[A-Za-z_$][\w$]*Prv[\w$]*/g,
-    message: "Prv 축약 금지. Preview 풀 단어를 사용하십시오. (§4)"
+    message: "Prv 축약 금지. Preview 풀 단어를 사용하십시오. (§4)",
   },
   {
     id: "create-empty",
     pattern: /\bcreateEmpty[A-Z][\w$]*/g,
-    message: "createEmpty* 지양. empty* 팩토리 명을 사용하십시오. (§6)"
+    message: "createEmpty* 지양. empty* 팩토리 명을 사용하십시오. (§6)",
   },
   {
     id: "refresh-with",
     pattern: /\brefresh[A-Z][\w$]*With[\w$]*/g,
-    message: "refresh*With* 지양. with*/sync* 계열로 정리하십시오. (§6)"
+    message: "refresh*With* 지양. with*/sync* 계열로 정리하십시오. (§6)",
   },
   {
     id: "normalize-after",
     pattern: /\bnormalize[A-Z][\w$]*After[\w$]*/g,
-    message: "normalize*After* 지양. recalcAnchors 등으로 통합하십시오. (§6)"
+    message: "normalize*After* 지양. recalcAnchors 등으로 통합하십시오. (§6)",
   },
   {
     id: "min-suffix-var",
     pattern: /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*(?:Minutes|Mins))\b/g,
     capture: 1,
-    message: "분 단위 값은 *Min 접미로 통일하십시오. (§3)"
+    message: "분 단위 값은 *Min 접미로 통일하십시오. (§3)",
   },
   {
     id: "min-suffix-field",
     pattern: /^\s*([a-z$][\w$]*(?:Minutes|Mins))\??\s*:/g,
     capture: 1,
-    message: "분 단위 필드는 *Min 접미로 통일하십시오. (§3)"
+    message: "분 단위 필드는 *Min 접미로 통일하십시오. (§3)",
   },
   {
     id: "bool-prefix",
     pattern: /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*ref\(\s*(?:true|false)\s*\)/g,
     capture: 1,
-    message: "boolean ref는 is/can/has/should 접두를 사용하십시오. (§2)"
-  }
+    message: "boolean ref는 is/can/has/should 접두를 사용하십시오. (§2)",
+  },
 ];
 
 /** .vue 스타일 블록 제거. 라인 번호 유지를 위해 빈 줄로 치환 */
@@ -143,7 +143,7 @@ for (const file of files) {
           line: index + 1,
           rule: rule.id,
           token,
-          message: rule.message
+          message: rule.message,
         });
       }
     }
@@ -158,8 +158,6 @@ if (warnings.length === 0) {
 for (const item of warnings) {
   console.warn(`${item.file}:${item.line} [${item.rule}] ${item.token} - ${item.message}`);
 }
-console.warn(
-  `\n네이밍 경고 ${warnings.length}건 (${files.length}개 파일 검사). 경고 전용이므로 빌드를 막지 않습니다.`
-);
+console.warn(`\n네이밍 경고 ${warnings.length}건 (${files.length}개 파일 검사). 경고 전용이므로 빌드를 막지 않습니다.`);
 console.warn("수정 여부는 사용자 판단이 필요합니다. 의도된 예외는 해당 줄에 naming-ok 주석을 남기십시오.");
 process.exit(0);

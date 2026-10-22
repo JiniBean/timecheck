@@ -10,6 +10,11 @@ alwaysApply: false
 - 비대상: Java 백엔드, MyBatis 컬럼명, REST 경로, DB 스키마 필드
 - 원칙: 의미 유지 + 길이 축약. 도메인 용어(OT, MAIN, BASE)는 유지
 
+## 1.1 포맷
+- 줄바꿈·따옴표·trailing·import 형태는 Prettier(`frontend/.prettierrc.json`)가 SSOT
+- 에이전트는 Prettier와 다른 줄바꿈 규칙을 임의로 강제하지 않음
+- 편집 후 `npm run format` 또는 `npm run check`(format:check 포함)로 맞춤
+
 ## 2. 접두어 규칙 (boolean / 판정)
 - `is*`: 상태/조건 (`isWorking`, `isActTimeEditable`, `isLiveToday`)
 - `can*`: 행동 가능 (`canCheckIn`, `canEditIn`)
@@ -96,6 +101,7 @@ npm run check
 |---|---|---|---|
 | typecheck | `vue-tsc -b` | 타입 오류, 미사용 지역변수·파라미터 | 중단 |
 | lint | `eslint . --max-warnings 0` | eslint-plugin-vue + typescript-eslint recommended | 중단 |
+| format:check | `prettier --check .` | Prettier 포맷 | 중단 |
 | verify:naming | `node scripts/verify-naming.mjs` | 본 문서의 네이밍 컨벤션 | 경고만, 중단 없음 |
 
 ### 에이전트 준수 사항

@@ -11,33 +11,33 @@ const router = createRouter({
       path: "/login",
       name: "login",
       component: LoginView,
-      meta: { guestOnly: true }
+      meta: { guestOnly: true },
     },
     {
       path: "/signup",
       name: "signup",
       component: SignupView,
-      meta: { guestOnly: true }
+      meta: { guestOnly: true },
     },
     {
       path: "/find-account",
       name: "findAccount",
       component: () => import("../views/FindAccountView.vue"),
-      meta: { guestOnly: true }
+      meta: { guestOnly: true },
     },
     {
       path: "/",
       name: "dashboard",
       component: () => import("../views/DashboardView.vue"),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
     },
     {
       path: "/admin",
       name: "admin",
       component: () => import("../views/AdminView.vue"),
-      meta: { requiresAuth: true, requiresAdmin: true }
-    }
-  ]
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+  ],
 });
 
 router.beforeEach(async (to) => {
@@ -45,14 +45,14 @@ router.beforeEach(async (to) => {
   bootLog("router.beforeEach", {
     to: to.fullPath,
     isSessionChecked: auth.isSessionChecked,
-    hasUser: Boolean(auth.user)
+    hasUser: Boolean(auth.user),
   });
 
   if (!auth.isSessionChecked) {
     await auth.bootstrap();
     bootLog("router.bootstrap.awaited", {
       isSessionChecked: auth.isSessionChecked,
-      hasUser: Boolean(auth.user)
+      hasUser: Boolean(auth.user),
     });
   }
 
@@ -67,7 +67,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && auth.user) {
-    bootLog("router.redirect.home", { reason: "already_logged_in", to: to.fullPath });
+    bootLog("router.redirect.home", {
+      reason: "already_logged_in",
+      to: to.fullPath,
+    });
     return { path: "/" };
   }
 

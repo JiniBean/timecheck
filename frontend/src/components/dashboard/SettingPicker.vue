@@ -71,13 +71,9 @@ const remarkPlaceholder = computed(() => {
   return "예: 레포트 개발, 배포 테스트";
 });
 
-const earlyOutLabel = computed(() =>
-  props.earlyOut ? `조기퇴근 ${props.earlyOut.slice(0, 5)}` : "조기퇴근"
-);
+const earlyOutLabel = computed(() => (props.earlyOut ? `조기퇴근 ${props.earlyOut.slice(0, 5)}` : "조기퇴근"));
 
-const lateInLabel = computed(() =>
-  props.lateIn ? `늦은출근 ${props.lateIn.slice(0, 5)}` : "늦은출근"
-);
+const lateInLabel = computed(() => (props.lateIn ? `늦은출근 ${props.lateIn.slice(0, 5)}` : "늦은출근"));
 
 const canToggleOt = computed(() => !isDayOff(props.dayType));
 
@@ -134,7 +130,7 @@ useDialogKeyboard({
   open: toRef(props, "open"),
   onClose: closeSheet,
   onSubmit: saveSheet,
-  disabled: isSheetKeyboardDisabled
+  disabled: isSheetKeyboardDisabled,
 });
 </script>
 
@@ -177,12 +173,7 @@ useDialogKeyboard({
 
           <label class="field">
             <span class="field-label">야근</span>
-            <button
-              type="button"
-              class="button button-soft toggle"
-              :disabled="!canToggleOt"
-              @click="emit('toggleOt')"
-            >
+            <button type="button" class="button button-soft toggle" :disabled="!canToggleOt" @click="emit('toggleOt')">
               {{ isOt ? "ON" : "OFF" }}
             </button>
           </label>

@@ -13,7 +13,7 @@ export const WorkPolicy = {
   CORE_END: { hour: 16, minute: 0 },
   LUNCH_START: { hour: 11, minute: 30 },
   LUNCH_END: { hour: 12, minute: 30 },
-  OT_SPLIT: { hour: 22, minute: 0 }
+  OT_SPLIT: { hour: 22, minute: 0 },
 } as const;
 
 export function hmOf(time: { hour: number; minute: number }): string {

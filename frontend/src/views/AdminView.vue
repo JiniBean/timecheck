@@ -63,7 +63,7 @@ const goalStats = computed(() => {
 
   return {
     metUsers,
-    rate: activeInWeek === 0 ? 0 : metUsers / activeInWeek
+    rate: activeInWeek === 0 ? 0 : metUsers / activeInWeek,
   };
 });
 
@@ -103,7 +103,7 @@ async function loadUsers() {
   try {
     const data = await adminApi.fetchUsers({
       department: deptFilter.value || undefined,
-      status: statusFilter.value || undefined
+      status: statusFilter.value || undefined,
     });
     weekStart.value = data.weekStart;
     weekEnd.value = data.weekEnd;
@@ -254,7 +254,9 @@ onBeforeUnmount(() => {
           부서
           <select v-model="deptFilter" class="select-input admin-toolbar-select" @change="loadUsers">
             <option value="">전체</option>
-            <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
+            <option v-for="dept in departments" :key="dept" :value="dept">
+              {{ dept }}
+            </option>
           </select>
         </label>
         <label class="admin-period-label">
@@ -292,7 +294,9 @@ onBeforeUnmount(() => {
                 v-for="user in users"
                 :key="user.userId"
                 class="admin-users-row"
-                :class="{ 'admin-users-row--selected': selectedUser?.userId === user.userId }"
+                :class="{
+                  'admin-users-row--selected': selectedUser?.userId === user.userId,
+                }"
                 tabindex="0"
                 :aria-selected="selectedUser?.userId === user.userId"
                 @click="selectUser(user)"

@@ -87,6 +87,6 @@ export function useUsernameField(username: Ref<string>, opts: UsernameFieldOpts 
     usernameError,
     busy,
     touch,
-    reset
+    reset,
   };
 }

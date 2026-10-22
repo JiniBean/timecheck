@@ -15,8 +15,8 @@ const props = withDefaults(
     title: "시간 선택",
     hint: "위·아래로 스크롤해 선택하세요",
     showReset: false,
-    zIndex: 200
-  }
+    zIndex: 200,
+  },
 );
 
 const emit = defineEmits<{
@@ -74,7 +74,7 @@ watch(
       mCol.value.scrollTop = m * ITEM;
     }
     sheetRef.value?.focus();
-  }
+  },
 );
 
 function readScroll() {
@@ -388,7 +388,11 @@ onUnmounted(() => {
                 class="wheel-item"
                 @mousedown.prevent="onHourItemClick(h)"
               >
-                <span :class="{ 'is-hidden': editingUnit === 'h' && selectedHour === h }">
+                <span
+                  :class="{
+                    'is-hidden': editingUnit === 'h' && selectedHour === h,
+                  }"
+                >
                   {{ String(h).padStart(2, "0") }}
                 </span>
               </button>
@@ -412,7 +416,11 @@ onUnmounted(() => {
                 class="wheel-item"
                 @mousedown.prevent="onMinuteItemClick(m)"
               >
-                <span :class="{ 'is-hidden': editingUnit === 'm' && selectedMinute === m }">
+                <span
+                  :class="{
+                    'is-hidden': editingUnit === 'm' && selectedMinute === m,
+                  }"
+                >
                   {{ String(m).padStart(2, "0") }}
                 </span>
               </button>
@@ -421,7 +429,9 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="actions">
-          <button v-if="showReset" type="button" class="button button-soft button-sm" @click="resetPicker">초기화</button>
+          <button v-if="showReset" type="button" class="button button-soft button-sm" @click="resetPicker">
+            초기화
+          </button>
           <button type="button" class="button button-primary button-sm" @click="closePicker(true)">저장</button>
         </div>
       </div>
