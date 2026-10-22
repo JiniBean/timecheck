@@ -1,8 +1,12 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 
-export const DEFAULT_API_ERR =
-  "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+export const DEFAULT_API_ERR = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+
+/** 응답이 없는 전송 실패·타임아웃. 401/4xx/5xx는 false. */
+export function isNetworkError(error: unknown): boolean {
+  return axios.isAxiosError(error) && !error.response;
+}
 
 export function apiErrMsg(error: unknown, fallback = DEFAULT_API_ERR): string {
   if (axios.isAxiosError(error)) {

@@ -75,4 +75,7 @@ export interface DashboardState {
   isActionLoading: boolean;
   errorMessage: string | null;
   toastMessage: string | null;
+  isOffline: boolean;
+  pendingSyncCount: number;
+  lastSyncedLabel: string | null;
 }

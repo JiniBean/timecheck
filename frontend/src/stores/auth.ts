@@ -2,7 +2,9 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import * as authApi from "../api/auth";
 import type { AuthUser, LoginForm, ProfileForm, SignupForm } from "../types/auth";
+import { isNetworkError } from "../utils/apiError";
 import { bootError, bootLog } from "../utils/bootLog";
+import { clearLastUser, loadLastUser, saveLastUser } from "../utils/lastUser";
 import { useBootStore } from "./boot";
 
 export const useAuthStore = defineStore("auth", () => {
@@ -27,22 +29,46 @@ export const useAuthStore = defineStore("auth", () => {
     bootLog("bootstrap.start");
     try {
       user.value = await authApi.fetchMe();
-      bootLog("bootstrap.done", { hasUser: Boolean(user.value), userId: user.value?.userId ?? null });
+      if (user.value) {
+        saveLastUser(user.value);
+      } else {
+        clearLastUser();
+      }
+      bootLog("bootstrap.done", {
+        hasUser: Boolean(user.value),
+        userId: user.value?.userId ?? null,
+      });
     } catch (error) {
-      user.value = null;
-      bootError("bootstrap.error", error);
+      if (isNetworkError(error)) {
+        user.value = loadLastUser();
+        bootLog("bootstrap.offline", {
+          hasUser: Boolean(user.value),
+          userId: user.value?.userId ?? null,
+        });
+      } else {
+        user.value = null;
+        bootError("bootstrap.error", error);
+      }
     } finally {
       isSessionChecked.value = true;
-      bootLog("bootstrap.initialized", { isSessionChecked: isSessionChecked.value });
+      bootLog("bootstrap.initialized", {
+        isSessionChecked: isSessionChecked.value,
+      });
     }
   }
 
   async function login(form: LoginForm) {
     user.value = await authApi.login(form);
+    if (user.value) {
+      saveLastUser(user.value);
+    }
   }
 
   async function signup(form: SignupForm) {
     user.value = await authApi.signup(form);
+    if (user.value) {
+      saveLastUser(user.value);
+    }
   }
 
   async function logout() {
@@ -52,25 +78,28 @@ export const useAuthStore = defineStore("auth", () => {
     } catch (error) {
       const status =
         error && typeof error === "object" && "response" in error
-          ? (error as { response?: { status?: number } }).response?.status ?? null
+          ? ((error as { response?: { status?: number } }).response?.status ?? null)
           : null;
       const code =
-        error && typeof error === "object" && "code" in error
-          ? String((error as { code?: string }).code ?? "")
-          : "";
+        error && typeof error === "object" && "code" in error ? String((error as { code?: string }).code ?? "") : "";
       bootError("logout.error", error, { status, code });
     } finally {
       user.value = null;
+      clearLastUser();
       useBootStore().resetReady();
     }
   }
 
   async function updateMe(form: ProfileForm) {
     user.value = await authApi.updateMe(form);
+    if (user.value) {
+      saveLastUser(user.value);
+    }
   }
 
   function clearUser() {
     user.value = null;
+    clearLastUser();
   }
 
   return {
@@ -82,6 +111,6 @@ export const useAuthStore = defineStore("auth", () => {
     signup,
     logout,
     updateMe,
-    clearUser
+    clearUser,
   };
 });

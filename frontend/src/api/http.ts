@@ -2,11 +2,11 @@ import axios from "axios";
 
 const http = axios.create({
   baseURL: "/api",
-  timeout: 7000,
+  timeout: 2000,
   withCredentials: true,
   headers: {
-    "ngrok-skip-browser-warning": "true"
-  }
+    "ngrok-skip-browser-warning": "true",
+  },
 });
 
 http.interceptors.response.use(
@@ -25,14 +25,14 @@ http.interceptors.response.use(
           path: "/login",
           query: {
             redirect: router.currentRoute.value.fullPath,
-            reason: "session_expired"
-          }
+            reason: "session_expired",
+          },
         });
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default http;

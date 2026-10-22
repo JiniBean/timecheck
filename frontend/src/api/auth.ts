@@ -1,6 +1,14 @@
 import axios from "axios";
 import http from "./http";
-import type { AccountVerifyForm, AuthUser, LoginForm, PasswordResetForm, ProfileForm, SignupForm, UsernameFindForm } from "../types/auth";
+import type {
+  AccountVerifyForm,
+  AuthUser,
+  LoginForm,
+  PasswordResetForm,
+  ProfileForm,
+  SignupForm,
+  UsernameFindForm,
+} from "../types/auth";
 import { bootError, bootLog } from "../utils/bootLog";
 
 interface AuthResponse {
@@ -14,7 +22,7 @@ export async function signup(form: SignupForm): Promise<AuthUser> {
     name: form.name,
     department: form.department || null,
     team: form.team || null,
-    position: form.position || null
+    position: form.position || null,
   });
   return data.user;
 }
@@ -30,8 +38,8 @@ export async function logout(): Promise<void> {
     method: "POST",
     credentials: "include",
     headers: {
-      "ngrok-skip-browser-warning": "true"
-    }
+      "ngrok-skip-browser-warning": "true",
+    },
   });
   bootLog("logout.http", { status: response.status, ok: response.ok });
   if (!response.ok) {
@@ -46,7 +54,7 @@ export async function updateMe(form: ProfileForm): Promise<AuthUser> {
     name: form.name,
     department: form.department || null,
     team: form.team || null,
-    position: form.position || null
+    position: form.position || null,
   });
   return data.user;
 }
@@ -62,14 +70,16 @@ export async function fetchMe(): Promise<AuthUser | null> {
       bootLog("fetchMe.unauthorized");
       return null;
     }
-    bootError("fetchMe.error", error, { status: axios.isAxiosError(error) ? error.response?.status : null });
+    bootError("fetchMe.error", error, {
+      status: axios.isAxiosError(error) ? error.response?.status : null,
+    });
     throw error;
   }
 }
 
 export async function fetchUsernameOk(name: string): Promise<boolean> {
   const { data } = await http.get<{ ok: boolean }>("/auth/check", {
-    params: { name }
+    params: { name },
   });
   return data.ok;
 }

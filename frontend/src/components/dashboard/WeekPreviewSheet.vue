@@ -1,28 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, toRef, watch } from "vue";
-import TimePicker from "./TimePicker.vue";
+import { applyPreview as applyPreviewRequest, fetchWork, fetchWeek, fetchWorks } from "../../api/dashboard";
 import { useDialogKeyboard } from "../../composables/useDialogKeyboard";
-import {
-  applyPreview as applyPreviewRequest,
-  fetchWork,
-  fetchWeek,
-  fetchWorks
-} from "../../api/dashboard";
-import { localDateKey } from "../../utils/localDate";
 import type { WeekReport, Work } from "../../types/dashboard";
+import { apiErrMsg, isNetworkError } from "../../utils/apiError";
+import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
 import { typicalInHhmm as computeTypicalInHhmm, checkInRange } from "../../utils/checkInAverage";
 import { isDayOff, dayTypeCellLabel } from "../../utils/dayType";
+import { localDateKey } from "../../utils/localDate";
 import { formatMonthDay } from "../../utils/main";
+import { isOfflineSession, markOffline } from "../../utils/offlineGate";
 import { formatHm, formatMinutes, hhmmToDateTime } from "../../utils/time";
-import {
-  currentDateKey,
-  formatWeekLabel,
-  mondayOfDateKey,
-  shiftDateKey
-} from "../../utils/weekNav";
+import { withCalc } from "../../utils/timeCalculator";
+import { currentDateKey, formatWeekLabel, mondayOfDateKey, shiftDateKey } from "../../utils/weekNav";
 import { WorkPolicy, hmOf } from "../../utils/workPolicy";
-import { apiErrMsg } from "../../utils/apiError";
-import { bootLog, bootWarn, bootError } from "../../utils/bootLog";
+import { putWork, workOf } from "../../utils/workRangeCache";
+import { enqueue } from "../../utils/writeQueue";
 import {
   buildPreview,
   formatIn,
@@ -38,8 +31,9 @@ import {
   type PreviewOverrides,
   type PreviewRow,
   type PreviewStartMode,
-  type PreviewStartPreset
+  type PreviewStartPreset,
 } from "../../utils/weekPreview";
+import TimePicker from "./TimePicker.vue";
 
 type TimePickerContext = "row" | "summary";
 
@@ -79,9 +73,7 @@ const todayDateKey = computed(() => currentDateKey());
 const currentWeekStart = computed(() => mondayOfDateKey(todayDateKey.value));
 const selectedWeekStart = computed(() => mondayOfDateKey(props.referenceDate));
 const previewDateKey = computed(() =>
-  selectedWeekStart.value > currentWeekStart.value
-    ? selectedWeekStart.value
-    : todayDateKey.value
+  selectedWeekStart.value > currentWeekStart.value ? selectedWeekStart.value : todayDateKey.value,
 );
 const previewWeekStart = computed(() => mondayOfDateKey(previewDateKey.value));
 const previewTitle = computed(() => {
@@ -104,7 +96,7 @@ const preview = computed(() => {
     todayDateKey: todayDateKey.value,
     overrides: overrides.value,
     previewStartHhmm: previewStartHhmm.value,
-    asOf: props.asOf
+    asOf: props.asOf,
   });
 });
 
@@ -131,9 +123,7 @@ const presetToggleAverage = computed(() => {
   return previewStartPreset.value === PREVIEW_START_PRESET.AVERAGE;
 });
 
-const balanceLabel = computed(() =>
-  preview.value && preview.value.weekOverMin > 0 ? "남음" : "부족"
-);
+const balanceLabel = computed(() => (preview.value && preview.value.weekOverMin > 0 ? "남음" : "부족"));
 
 const balanceValue = computed(() => {
   if (!preview.value) {
@@ -188,13 +178,13 @@ watch(
       weekRef: previewDateKey.value,
       workDate: localDateKey(),
       rangeStart: range.start,
-      rangeEnd: range.end
+      rangeEnd: range.end,
     });
     try {
       const [weekly, today, rangeRecords] = await Promise.all([
         fetchWeek(props.userId, previewDateKey.value),
         fetchWork(props.userId, localDateKey()),
-        fetchWorks(props.userId, range.start, range.end)
+        fetchWorks(props.userId, range.start, range.end),
       ]);
       weeklyReport.value = weekly;
       todayWork.value = today;
@@ -210,18 +200,18 @@ watch(
         weekStart: weekly?.weekStart ?? null,
         todayWorkDate: today?.workDate ?? null,
         rangeCount: rangeRecords?.length ?? 0,
-        typicalIn: typicalInHhmm.value
+        typicalIn: typicalInHhmm.value,
       });
     } catch (error) {
       bootError("weekPreview:fetch:fail", error, {
         weekRef: previewDateKey.value,
-        workDate: localDateKey()
+        workDate: localDateKey(),
       });
     } finally {
       loading.value = false;
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 watch(preview, (value) => {
@@ -231,7 +221,7 @@ watch(preview, (value) => {
   if (value === null) {
     bootWarn("weekPreview:empty", {
       hasWeekly: weeklyReport.value !== null,
-      hasToday: todayWork.value !== null
+      hasToday: todayWork.value !== null,
     });
     return;
   }
@@ -245,6 +235,42 @@ function closeSheet() {
   emit("update:open", false);
 }
 
+function applyPreviewOffline(records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">>): void {
+  markOffline();
+  enqueue(props.userId, {
+    op: "apply-prv",
+    workDate: records[0]?.workDate,
+    body: records,
+  });
+  for (const record of records) {
+    const existing =
+      workOf(props.userId, record.workDate) ??
+      ({
+        userId: props.userId,
+        workDate: record.workDate,
+        rawStart: null,
+        rawEnd: null,
+        main: 0,
+        extra1: 0,
+        extra2: 0,
+        dayType: "NOM",
+        isOt: false,
+        remark: null,
+      } satisfies Work);
+    putWork(
+      props.userId,
+      withCalc({
+        ...existing,
+        rawStart: record.rawStart,
+        rawEnd: record.rawEnd,
+        mainEnd: record.mainEnd ?? existing.mainEnd ?? null,
+      }),
+    );
+  }
+  emit("apply", selectedWeekStart.value);
+  emit("update:open", false);
+}
+
 async function applyPreview() {
   if (!canApply.value) {
     return;
@@ -254,10 +280,18 @@ async function applyPreview() {
   isApplying.value = true;
   applyError.value = null;
   try {
+    if (isOfflineSession()) {
+      applyPreviewOffline(records);
+      return;
+    }
     const applied = await applyPreviewRequest(props.userId, records);
     emit("apply", applied.weekStart);
     emit("update:open", false);
   } catch (error) {
+    if (isNetworkError(error)) {
+      applyPreviewOffline(records);
+      return;
+    }
     applyError.value = apiErrMsg(error, "미리보기 적용에 실패했습니다.");
   } finally {
     isApplying.value = false;
@@ -269,7 +303,7 @@ const dialogKeyboardDisabled = computed(() => isTimePickerOpen.value);
 useDialogKeyboard({
   open: toRef(props, "open"),
   onClose: closeSheet,
-  disabled: dialogKeyboardDisabled
+  disabled: dialogKeyboardDisabled,
 });
 
 function resolvePickerInitial(row: PreviewRow, field: "start" | "end"): string {
@@ -298,7 +332,7 @@ function selectOnTime() {
   clearStartOverrides();
   savePref(props.userId, {
     mode: PREVIEW_START_MODE.ON_TIME,
-    lastPresetMode: PREVIEW_START_PRESET.ON_TIME
+    lastPresetMode: PREVIEW_START_PRESET.ON_TIME,
   });
 }
 
@@ -312,7 +346,7 @@ function selectAverage() {
   clearStartOverrides();
   savePref(props.userId, {
     mode: PREVIEW_START_MODE.AVERAGE,
-    lastPresetMode: PREVIEW_START_PRESET.AVERAGE
+    lastPresetMode: PREVIEW_START_PRESET.AVERAGE,
   });
 }
 
@@ -360,7 +394,7 @@ function onTimeConfirm(hhmm: string) {
     savePref(props.userId, {
       mode: PREVIEW_START_MODE.CUSTOM,
       hhmm,
-      lastPresetMode: previewStartPreset.value
+      lastPresetMode: previewStartPreset.value,
     });
     return;
   }
@@ -379,7 +413,7 @@ function onTimeConfirm(hhmm: string) {
 
   overrides.value = {
     ...overrides.value,
-    [workDate]: current
+    [workDate]: current,
   };
   editingRow.value = null;
 }
@@ -457,7 +491,6 @@ function rowToneClass(row: PreviewRow): string {
   }
   return "row-tone-fixed";
 }
-
 </script>
 
 <template>
@@ -473,7 +506,9 @@ function rowToneClass(row: PreviewRow): string {
       <div class="week-preview-panel" @click.stop>
         <header class="week-preview-header">
           <div>
-            <h2 id="week-preview-title" class="week-preview-title">{{ previewTitle }}</h2>
+            <h2 id="week-preview-title" class="week-preview-title">
+              {{ previewTitle }}
+            </h2>
             <p v-if="weeklyReport" class="week-preview-subtitle">
               {{ weeklyReport.weekStart.slice(5).replace("-", "/") }} ~
               {{ weeklyReport.weekEnd.slice(5).replace("-", "/") }}
@@ -507,7 +542,9 @@ function rowToneClass(row: PreviewRow): string {
             <div class="stat-row stat-row--3">
               <div class="stat-item">
                 <p class="stat-label">총 근무</p>
-                <p class="stat-value">{{ formatMinutes(preview.weekWorkedMin) }}</p>
+                <p class="stat-value">
+                  {{ formatMinutes(preview.weekWorkedMin) }}
+                </p>
               </div>
               <div class="stat-item stat-item--divider">
                 <p class="stat-label">{{ balanceLabel }}</p>
@@ -532,13 +569,17 @@ function rowToneClass(row: PreviewRow): string {
                 >
                   <div
                     class="start-preset-switch__indicator"
-                    :class="{ 'start-preset-switch__indicator--right': presetToggleAverage }"
+                    :class="{
+                      'start-preset-switch__indicator--right': presetToggleAverage,
+                    }"
                     aria-hidden="true"
                   />
                   <button
                     type="button"
                     class="start-preset-switch__option"
-                    :class="{ 'start-preset-switch__option--active': !presetToggleAverage }"
+                    :class="{
+                      'start-preset-switch__option--active': !presetToggleAverage,
+                    }"
                     :aria-pressed="!presetToggleAverage"
                     :disabled="isApplying"
                     @click="handlePresetSelect(PREVIEW_START_PRESET.ON_TIME)"
@@ -548,7 +589,9 @@ function rowToneClass(row: PreviewRow): string {
                   <button
                     type="button"
                     class="start-preset-switch__option"
-                    :class="{ 'start-preset-switch__option--active': presetToggleAverage }"
+                    :class="{
+                      'start-preset-switch__option--active': presetToggleAverage,
+                    }"
                     :aria-pressed="presetToggleAverage"
                     :disabled="isApplying || !canSelectAverage"
                     :title="canSelectAverage ? undefined : '최근 출근 기록 없음'"
@@ -614,10 +657,10 @@ function rowToneClass(row: PreviewRow): string {
           </div>
 
           <div class="week-preview-actions">
-            <p class="week-preview-hint">
-              적용하면 오늘과 미래 출퇴근 시간이 완료 기록으로 저장됩니다.
+            <p class="week-preview-hint">적용하면 오늘과 미래 출퇴근 시간이 완료 기록으로 저장됩니다.</p>
+            <p v-if="applyError" class="week-preview-error" role="alert">
+              {{ applyError }}
             </p>
-            <p v-if="applyError" class="week-preview-error" role="alert">{{ applyError }}</p>
           </div>
         </template>
       </div>

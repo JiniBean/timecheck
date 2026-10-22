@@ -27,9 +27,7 @@ import { readMobileWorkTab, writeMobileWorkTab, type WorkTab } from "../utils/mo
 import { markPatchSeen, resolvePatchNote } from "../utils/patchNotes";
 import type { PatchNote } from "../types/patchNotes";
 
-const WeekPreviewSheet = defineAsyncComponent(
-  () => import("../components/dashboard/WeekPreviewSheet.vue")
-);
+const WeekPreviewSheet = defineAsyncComponent(() => import("../components/dashboard/WeekPreviewSheet.vue"));
 
 const authStore = useAuthStore();
 const bootStore = useBootStore();
@@ -44,7 +42,7 @@ const {
   isActTimeLocked,
   applyPickedTime,
   onClockTick,
-  ensureTodayWork,
+  resumeAfterReconnect,
   canCheckIn,
   canCheckOut,
   handleCheckIn,
@@ -65,7 +63,7 @@ const {
   saveWeekSettings,
   shiftWeek,
   goToThisWeek,
-  loadDashboard
+  loadDashboard,
 } = useDashboard(userId);
 
 const isProfileOpen = ref(false);
@@ -86,7 +84,7 @@ watch(
     }
     hasCheckedPatch.value = true;
     activeNote.value = resolvePatchNote(userId);
-  }
+  },
 );
 
 async function handleLogout() {
@@ -144,18 +142,14 @@ const nowLabel = computed(() =>
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false
-  })
+    hour12: false,
+  }),
 );
 
 const todayDateKey = computed(() => localDateKey(now.value));
 
 const mergedToday = computed(() =>
-  mergeToday(
-    state.value.todayWork,
-    state.value.weeklyReport.days,
-    todayDateKey.value
-  )
+  mergeToday(state.value.todayWork, state.value.weeklyReport.days, todayDateKey.value),
 );
 
 const previewTime = computed(() => {
@@ -183,7 +177,7 @@ const todayMainMin = computed(() => {
 
 const todayExtra = computed(() => ({
   extra1: todayLiveWork.value.extra1,
-  extra2: todayLiveWork.value.extra2
+  extra2: todayLiveWork.value.extra2,
 }));
 
 const otCtx = computed(() => {
@@ -194,9 +188,9 @@ const otCtx = computed(() => {
   return {
     extra1: live.extra1,
     extra2: live.extra2,
-    otStart: useLive ? live.otStart : work.otStart ?? null,
-    otEnd: useLive ? live.otEnd : work.otEnd ?? null,
-    remark: work.remark
+    otStart: useLive ? live.otStart : (work.otStart ?? null),
+    otEnd: useLive ? live.otEnd : (work.otEnd ?? null),
+    remark: work.remark,
   };
 });
 
@@ -207,8 +201,8 @@ const workSummary = computed(() =>
     todayDateKey: todayDateKey.value,
     todayMainMin: todayMainMin.value,
     todayExtra: todayExtra.value,
-    isLiveToday: isCurrentWeek.value
-  })
+    isLiveToday: isCurrentWeek.value,
+  }),
 );
 
 const todayHighlight = computed(() => (isCurrentWeek.value ? todayDateKey.value : ""));
@@ -218,8 +212,8 @@ const hasOtRows = computed(
     buildOtReport(state.value.weeklyReport, {
       todayWorkDate: todayDateKey.value,
       otCtx: otCtx.value,
-      isLiveToday: isCurrentWeek.value
-    }).rows.length > 0
+      isLiveToday: isCurrentWeek.value,
+    }).rows.length > 0,
 );
 
 async function copyWeekReport() {
@@ -240,7 +234,7 @@ function resumeFromServer() {
   lastResumeAt = nowMs;
   now.value = new Date();
   onClockTick(now.value);
-  void ensureTodayWork(true);
+  void resumeAfterReconnect();
 }
 
 function onVisibilityChange() {
@@ -253,6 +247,10 @@ function onWindowFocus() {
   resumeFromServer();
 }
 
+function onWindowOnline() {
+  resumeFromServer();
+}
+
 onMounted(() => {
   bootLog("dashboard.view.mounted", { userId });
   clockTimerId = window.setInterval(() => {
@@ -261,6 +259,7 @@ onMounted(() => {
   }, 1000);
   document.addEventListener("visibilitychange", onVisibilityChange);
   window.addEventListener("focus", onWindowFocus);
+  window.addEventListener("online", onWindowOnline);
 });
 
 onBeforeUnmount(() => {
@@ -269,6 +268,7 @@ onBeforeUnmount(() => {
   }
   document.removeEventListener("visibilitychange", onVisibilityChange);
   window.removeEventListener("focus", onWindowFocus);
+  window.removeEventListener("online", onWindowOnline);
 });
 </script>
 
@@ -279,6 +279,14 @@ onBeforeUnmount(() => {
       <div class="dashboard-header-main">
         <h1 class="dashboard-title">근무시간 계산기</h1>
         <p class="dashboard-clock">{{ nowLabel }}</p>
+        <p v-if="state.isOffline || state.pendingSyncCount > 0" class="dashboard-sync-banner" role="status">
+          <template v-if="state.isOffline">
+            오프라인<span v-if="state.lastSyncedLabel"> · 최근 동기화 {{ state.lastSyncedLabel }}</span>
+          </template>
+          <template v-if="state.pendingSyncCount > 0">
+            <span v-if="state.isOffline"> · </span>동기화 대기 {{ state.pendingSyncCount }}건
+          </template>
+        </p>
       </div>
       <div class="dashboard-user-bar">
         <button type="button" class="dashboard-user-badge" @click="openProfile">
@@ -298,12 +306,7 @@ onBeforeUnmount(() => {
       @saved="handleProfileSaved"
     />
 
-    <PatchNotesDialog
-      v-if="activeNote"
-      :visible="true"
-      :note="activeNote"
-      @close="closePatchNotes"
-    />
+    <PatchNotesDialog v-if="activeNote" :visible="true" :note="activeNote" @close="closePatchNotes" />
 
     <WeekPreviewSheet
       v-if="isWeekPreviewOpen"
@@ -315,73 +318,69 @@ onBeforeUnmount(() => {
     />
 
     <section class="dashboard-body">
-        <WeekNavigator
-          class="dashboard-nav"
-          :week-start="state.weeklyReport.weekStart"
-          :week-end="state.weeklyReport.weekEnd"
-          :is-current-week="isCurrentWeek"
-          :loading="state.isLoading"
-          @prev="shiftWeek(-1)"
-          @next="shiftWeek(1)"
-          @this-week="goToThisWeek"
+      <WeekNavigator
+        class="dashboard-nav"
+        :week-start="state.weeklyReport.weekStart"
+        :week-end="state.weeklyReport.weekEnd"
+        :is-current-week="isCurrentWeek"
+        :loading="state.isLoading"
+        @prev="shiftWeek(-1)"
+        @next="shiftWeek(1)"
+        @this-week="goToThisWeek"
+      />
+
+      <DashboardMobileTabs v-model="mobileWorkTab" />
+
+      <div
+        class="dashboard-work-column"
+        role="tabpanel"
+        :aria-hidden="mobileWorkTab !== 'main'"
+        :class="{ 'dashboard-tab-panel--hidden': mobileWorkTab !== 'main' }"
+      >
+        <div class="dashboard-column-toolbar">
+          <h2 class="dashboard-table-heading">일반 근무</h2>
+          <ReportCopyButton @copy="copyWeekReport" />
+        </div>
+        <MainSummaryCard :summary="workSummary" :is-current-week="isCurrentWeek" @open-preview="openWeekPreview" />
+        <MainTable
+          :days="state.weeklyReport.days"
+          :today-work-date="todayHighlight"
+          :today-main-min="todayMainMin"
+          :today-main-end="todayLiveWork.mainEnd ?? null"
+          :is-live-today="isCurrentWeek"
+          @update-check-in="setWeekIn"
+          @update-check-out="setWeekOut"
+          @update-main-end="setWeekMainEnd"
+          @clear-check-in="clearWeekIn"
+          @clear-check-out="clearWeekOut"
+          @save-day-settings="saveWeekSettings"
         />
+      </div>
 
-        <DashboardMobileTabs v-model="mobileWorkTab" />
-
-        <div
-          class="dashboard-work-column"
-          role="tabpanel"
-          :aria-hidden="mobileWorkTab !== 'main'"
-          :class="{ 'dashboard-tab-panel--hidden': mobileWorkTab !== 'main' }"
-        >
-          <div class="dashboard-column-toolbar">
-            <h2 class="dashboard-table-heading">일반 근무</h2>
-            <ReportCopyButton @copy="copyWeekReport" />
-          </div>
-          <MainSummaryCard
-            :summary="workSummary"
-            :is-current-week="isCurrentWeek"
-            @open-preview="openWeekPreview"
-          />
-          <MainTable
-            :days="state.weeklyReport.days"
-            :today-work-date="todayHighlight"
-            :today-main-min="todayMainMin"
-            :today-main-end="todayLiveWork.mainEnd ?? null"
-            :is-live-today="isCurrentWeek"
-            @update-check-in="setWeekIn"
-            @update-check-out="setWeekOut"
-            @update-main-end="setWeekMainEnd"
-            @clear-check-in="clearWeekIn"
-            @clear-check-out="clearWeekOut"
-            @save-day-settings="saveWeekSettings"
-          />
+      <div
+        class="dashboard-ot-column"
+        role="tabpanel"
+        :aria-hidden="mobileWorkTab !== 'ot'"
+        :class="{ 'dashboard-tab-panel--hidden': mobileWorkTab !== 'ot' }"
+      >
+        <div class="dashboard-column-toolbar">
+          <h2 class="dashboard-table-heading">시간외 근무</h2>
+          <ReportCopyButton :disabled="!hasOtRows" @copy="copyOtReport" />
         </div>
-
-        <div
-          class="dashboard-ot-column"
-          role="tabpanel"
-          :aria-hidden="mobileWorkTab !== 'ot'"
-          :class="{ 'dashboard-tab-panel--hidden': mobileWorkTab !== 'ot' }"
-        >
-          <div class="dashboard-column-toolbar">
-            <h2 class="dashboard-table-heading">시간외 근무</h2>
-            <ReportCopyButton :disabled="!hasOtRows" @copy="copyOtReport" />
-          </div>
-          <OtSummaryCard :summary="workSummary" />
-          <OtTableCard
-            :days="state.weeklyReport.days"
-            :today-work-date="todayHighlight"
-            :today-extra="todayExtra"
-            :ot-ctx="otCtx"
-            :is-live-today="isCurrentWeek"
-            @update-ot-start="setWeekOtStart"
-            @update-ot-end="setWeekOtEnd"
-            @clear-ot-start="clearWeekOtStart"
-            @clear-ot-end="clearWeekOtEnd"
-            @save-day-settings="saveWeekSettings"
-          />
-        </div>
+        <OtSummaryCard :summary="workSummary" />
+        <OtTableCard
+          :days="state.weeklyReport.days"
+          :today-work-date="todayHighlight"
+          :today-extra="todayExtra"
+          :ot-ctx="otCtx"
+          :is-live-today="isCurrentWeek"
+          @update-ot-start="setWeekOtStart"
+          @update-ot-end="setWeekOtEnd"
+          @clear-ot-start="clearWeekOtStart"
+          @clear-ot-end="clearWeekOtEnd"
+          @save-day-settings="saveWeekSettings"
+        />
+      </div>
 
       <div class="dashboard-reports-hidden" aria-hidden="true">
         <MainReport

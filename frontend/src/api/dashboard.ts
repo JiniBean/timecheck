@@ -1,9 +1,23 @@
 import type { DayType, WeekReport, Work } from "../types/dashboard";
-import { readUserJson, writeUserJson } from "../utils/clientStorage";
+import { isNetworkError } from "../utils/apiError";
+import { readUserJson } from "../utils/clientStorage";
 import { localDateKey } from "../utils/localDate";
-import { withCalc as applyCalc } from "../utils/timeCalculator";
 import { buildWeekReport, type WeekApiRsp } from "../utils/main";
+import { isOfflineSession, markOffline, markOnline } from "../utils/offlineGate";
+import { withCalc as applyCalc } from "../utils/timeCalculator";
+import { buildCachedWeek, mergeRecords, putWork, readRange, workOf } from "../utils/workRangeCache";
 import http from "./http";
+
+function workFromCache(userId: number, workDate: string): Work | null {
+  const cached = workOf(userId, workDate);
+  if (cached) {
+    return cached;
+  }
+  if (workDate === localDateKey()) {
+    return loadTodayCache(userId);
+  }
+  return null;
+}
 
 const TODAY_WORK_SCOPE = "today-work";
 
@@ -47,95 +61,175 @@ export function loadTodayCache(userId: number): Work | null {
 export async function checkIn(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/in", toPayload(workDate, options));
+  markOnline();
   const normalized = toWork(requireWork(data.work), userId, workDate);
-  saveTodayWork(userId, normalized);
+  putWork(userId, normalized);
   return normalized;
 }
 
 export async function checkOut(userId: number, options: WorkPatch = {}): Promise<Work> {
   const workDate = options.workDate ?? localDateKey();
   const { data } = await http.post<WorkResponse>("/work/out", toPayload(workDate, options));
+  markOnline();
   const normalized = toWork(requireWork(data.work), userId, workDate);
-  saveTodayWork(userId, normalized);
+  putWork(userId, normalized);
   return normalized;
 }
 
 export async function patchWork(userId: number, options: WorkPatch = {}): Promise<Work> {
   const today = options.workDate ?? localDateKey();
   const { data } = await http.patch<WorkResponse>("/work", toPayload(today, options), {
-    params: { date: today }
+    params: { date: today },
   });
+  markOnline();
   if (!data.work) {
     const empty = emptyWork(userId, today);
-    saveTodayWork(userId, empty);
+    putWork(userId, empty);
     return empty;
   }
   const normalized = toWork(data.work, userId, today);
-  saveTodayWork(userId, normalized);
+  putWork(userId, normalized);
   return normalized;
 }
 
-export async function fetchWork(userId: number, workDate: string): Promise<Work> {
-  const { data } = await http.get<WorkResponse>("/work", {
-    params: { date: workDate }
-  });
-  if (!data.work) {
-    return emptyWork(userId, workDate);
+export async function fetchWork(userId: number, workDate: string, options?: { forceNetwork?: boolean }): Promise<Work> {
+  if (!options?.forceNetwork && isOfflineSession()) {
+    const cached = workFromCache(userId, workDate);
+    if (!cached) {
+      throw new Error("오프라인 캐시에 해당 근무 기록이 없습니다.");
+    }
+    markOffline();
+    return cached;
   }
-  const normalized = toWork(data.work, userId, workDate);
-  if (workDate === localDateKey()) {
-    saveTodayWork(userId, normalized);
+  try {
+    const { data } = await http.get<WorkResponse>("/work", {
+      params: { date: workDate },
+    });
+    markOnline();
+    if (!data.work) {
+      const empty = emptyWork(userId, workDate);
+      putWork(userId, empty);
+      return empty;
+    }
+    const normalized = toWork(data.work, userId, workDate);
+    putWork(userId, normalized);
+    return normalized;
+  } catch (error) {
+    if (!isNetworkError(error)) {
+      throw error;
+    }
+    markOffline();
+    if (options?.forceNetwork) {
+      throw error;
+    }
+    const cached = workFromCache(userId, workDate);
+    if (!cached) {
+      throw error;
+    }
+    return cached;
   }
-  return normalized;
 }
 
 interface WorkRangeResponse {
   records: Work[];
 }
 
-export async function fetchWorks(
-  userId: number,
-  startDate: string,
-  endDate: string
-): Promise<Work[]> {
-  const { data } = await http.get<WorkRangeResponse>("/work/range", {
-    params: { start: startDate, end: endDate }
-  });
-  return (data.records ?? []).map((record) =>
-    toWork(record, userId, record.workDate)
-  );
+export async function fetchWorks(userId: number, startDate: string, endDate: string): Promise<Work[]> {
+  if (isOfflineSession()) {
+    const range = readRange(userId);
+    if (!range) {
+      throw new Error("오프라인 캐시에 근무 범위가 없습니다.");
+    }
+    markOffline();
+    return range.records.filter((record) => record.workDate >= startDate && record.workDate <= endDate);
+  }
+  try {
+    const { data } = await http.get<WorkRangeResponse>("/work/range", {
+      params: { start: startDate, end: endDate },
+    });
+    markOnline();
+    const records = (data.records ?? []).map((record) => toWork(record, userId, record.workDate));
+    mergeRecords(userId, records);
+    return records;
+  } catch (error) {
+    if (!isNetworkError(error)) {
+      throw error;
+    }
+    markOffline();
+    const range = readRange(userId);
+    if (!range) {
+      throw error;
+    }
+    return range.records.filter((record) => record.workDate >= startDate && record.workDate <= endDate);
+  }
 }
 
-export async function fetchWeek(userId: number, referenceDate?: string): Promise<WeekReport> {
+export async function fetchWeek(
+  userId: number,
+  referenceDate?: string,
+  options?: { forceNetwork?: boolean },
+): Promise<WeekReport> {
   const ref = referenceDate ?? localDateKey();
-  const { data } = await http.get<WeekApiRsp>("/work/week", {
-    params: { date: ref }
-  });
-  return toWeekReport(data, ref, userId);
+  if (!options?.forceNetwork && isOfflineSession()) {
+    const cached = buildCachedWeek(userId, ref);
+    if (!cached) {
+      throw new Error("오프라인 캐시에 해당 주 기록이 없습니다.");
+    }
+    markOffline();
+    return cached;
+  }
+  try {
+    const { data } = await http.get<WeekApiRsp>("/work/week", {
+      params: { date: ref },
+    });
+    markOnline();
+    return toWeekReport(data, ref, userId);
+  } catch (error) {
+    if (!isNetworkError(error)) {
+      throw error;
+    }
+    markOffline();
+    if (options?.forceNetwork) {
+      throw error;
+    }
+    const cached = buildCachedWeek(userId, ref);
+    if (!cached) {
+      throw error;
+    }
+    return cached;
+  }
 }
 
 export async function applyPreview(
   userId: number,
-  records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">>
+  records: Array<Pick<Work, "workDate" | "rawStart" | "rawEnd" | "mainEnd">>,
 ): Promise<WeekReport> {
   const ref = records[0]?.workDate ?? localDateKey();
   const { data } = await http.post<WeekApiRsp>("/work/apply-prv", records);
+  markOnline();
   return toWeekReport(data, ref, userId);
 }
 
 function toWeekReport(data: WeekApiRsp, ref: string, userId: number): WeekReport {
+  const records = (data.records ?? []).map((record) => toWork(record, userId, record.workDate ?? ref));
+  mergeRecords(userId, records, {
+    department: data.department ?? "",
+    team: data.team ?? "",
+    name: data.name ?? "",
+    position: data.position ?? null,
+  });
   return buildWeekReport(
     {
       weekStart: data.weekStart,
       weekEnd: data.weekEnd,
-      records: data.records ?? [],
+      records,
       department: data.department ?? "",
       team: data.team ?? "",
       name: data.name ?? "",
-      position: data.position ?? null
+      position: data.position ?? null,
     },
     ref,
-    userId
+    userId,
   );
 }
 
@@ -151,7 +245,7 @@ export function emptyWork(userId: number, date: string): Work {
     extra2: 0,
     dayType: "NOM",
     isOt: false,
-    remark: null
+    remark: null,
   });
 }
 
@@ -160,7 +254,7 @@ function toPayload(workDate: string, options: WorkPatch) {
     workDate,
     dayType: options.dayType,
     isOt: options.isOt,
-    remark: options.remark
+    remark: options.remark,
   };
   if (options.rawStart !== undefined) {
     payload.rawStart = options.rawStart;
@@ -229,7 +323,7 @@ function toWork(source: Work, userId: number, date: string): Work {
     isOt: source.isOt ?? false,
     lateIn: source.lateIn ?? null,
     earlyOut: source.earlyOut ?? null,
-    remark: source.remark ?? null
+    remark: source.remark ?? null,
   };
   const asOf = work.workDate === localDateKey() ? new Date() : undefined;
   return applyCalc(work, asOf);
@@ -240,8 +334,4 @@ function requireWork(work: Work | null): Work {
     throw new Error("근무 기록을 받지 못했습니다.");
   }
   return work;
-}
-
-function saveTodayWork(userId: number, work: Work): void {
-  writeUserJson(TODAY_WORK_SCOPE, userId, work);
 }
