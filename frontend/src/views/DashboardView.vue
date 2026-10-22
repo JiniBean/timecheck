@@ -276,26 +276,28 @@ onBeforeUnmount(() => {
   <!-- isReady 전: emptyWeekReport 껍데기(빈 이름/1월 1주)를 DOM에 올리지 않음 -->
   <main v-if="bootStore.isReady" class="dashboard-page">
     <header class="dashboard-header">
-      <div class="dashboard-header-main">
-        <h1 class="dashboard-title">근무시간 계산기</h1>
-        <p class="dashboard-clock">{{ nowLabel }}</p>
-        <p v-if="state.isOffline || state.pendingSyncCount > 0" class="dashboard-sync-banner" role="status">
-          <template v-if="state.isOffline">
-            오프라인<span v-if="state.lastSyncedLabel"> · 최근 동기화 {{ state.lastSyncedLabel }}</span>
-          </template>
-          <template v-if="state.pendingSyncCount > 0">
-            <span v-if="state.isOffline"> · </span>동기화 대기 {{ state.pendingSyncCount }}건
-          </template>
-        </p>
+      <div class="dashboard-header-row">
+        <div class="dashboard-header-main">
+          <h1 class="dashboard-title">근무시간 계산기</h1>
+          <p class="dashboard-clock">{{ nowLabel }}</p>
+        </div>
+        <div class="dashboard-user-bar">
+          <button type="button" class="dashboard-user-badge" @click="openProfile">
+            {{ authStore.user?.name }}
+          </button>
+          <button type="button" class="dashboard-logout-btn" aria-label="로그아웃" @click="handleLogout">
+            <img :src="logoutIcon" alt="" class="dashboard-logout-icon" />
+          </button>
+        </div>
       </div>
-      <div class="dashboard-user-bar">
-        <button type="button" class="dashboard-user-badge" @click="openProfile">
-          {{ authStore.user?.name }}
-        </button>
-        <button type="button" class="dashboard-logout-btn" aria-label="로그아웃" @click="handleLogout">
-          <img :src="logoutIcon" alt="" class="dashboard-logout-icon" />
-        </button>
-      </div>
+      <p v-if="state.isOffline || state.pendingSyncCount > 0" class="dashboard-sync-banner" role="status">
+        <template v-if="state.isOffline">
+          오프라인<span v-if="state.lastSyncedLabel"> · 최근 동기화 {{ state.lastSyncedLabel }}</span>
+        </template>
+        <template v-if="state.pendingSyncCount > 0">
+          <span v-if="state.isOffline"> · </span>대기 {{ state.pendingSyncCount }}건
+        </template>
+      </p>
     </header>
 
     <ProfileEditDialog

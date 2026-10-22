@@ -327,6 +327,13 @@ body {
   margin-bottom: var(--mobile-header-gap);
   padding-block: clamp(4px, 0.6vh, 6px);
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+}
+
+.dashboard-header-row {
+  display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
@@ -416,9 +423,15 @@ body {
 
 .dashboard-sync-banner {
   margin: 4px 0 0;
+  padding-inline-start: var(--mobile-card-pad);
+  padding-inline-end: var(--mobile-card-pad);
   font-size: 12px;
   line-height: 1.35;
   color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .dashboard-clock {
@@ -659,6 +672,11 @@ body {
     padding-inline-start: 18px;
   }
 
+  .dashboard-sync-banner {
+    padding-inline-start: 18px;
+    padding-inline-end: 18px;
+  }
+
   .dashboard-user-bar {
     padding-inline-end: 18px;
   }
@@ -692,6 +710,11 @@ body {
 
   .dashboard-header-main {
     padding-inline-start: 18px;
+  }
+
+  .dashboard-sync-banner {
+    padding-inline-start: 18px;
+    padding-inline-end: 18px;
   }
 
   .dashboard-user-bar {
@@ -796,6 +819,11 @@ body {
 
   .dashboard-header-main {
     padding-inline-start: 20px;
+  }
+
+  .dashboard-sync-banner {
+    padding-inline-start: 20px;
+    padding-inline-end: 20px;
   }
 
   .dashboard-user-bar {
